@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req) {
+export async function GET(req: NextRequest) {
   const session = await auth();
   const cookies = req.cookies.getAll();
   return NextResponse.json({

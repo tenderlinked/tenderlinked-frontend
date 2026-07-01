@@ -76,7 +76,7 @@ const ProfileDropdown = () => {
             </h6>
           </div>
           <div>
-            {session?.user?.hasActivePlan ? (
+            {(session?.user as any)?.hasActivePlan ? (
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800">
                 Active Plan: {subDetails?.planType || 'Premium'}
               </span>
