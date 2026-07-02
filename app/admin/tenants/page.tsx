@@ -226,7 +226,7 @@ export default function TenantManagementPage() {
                   <th className="px-6 py-4 font-semibold">Organization</th>
                   <th className="px-6 py-4 font-semibold">Plan</th>
                   <th className="px-6 py-4 font-semibold">Status</th>
-                  <th className="px-6 py-4 font-semibold">Admin</th>
+                  <th className="px-6 py-4 font-semibold">Subdomain</th>
                   <th className="px-6 py-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
@@ -278,8 +278,19 @@ export default function TenantManagementPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-600 dark:text-gray-400 font-medium">
-                        admin@{tenant.subdomain}.com
+                      <td className="px-6 py-4">
+                        <button 
+                          onClick={() => {
+                            const protocol = window.location.protocol;
+                            const hostparts = window.location.host.split('.');
+                            const rootDomain = hostparts.length > 2 ? hostparts.slice(1).join('.') : hostparts.join('.');
+                            window.open(`${protocol}//${tenant.subdomain}.${rootDomain}/dashboard`, '_blank');
+                          }}
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium hover:underline flex items-center gap-1.5 transition-colors"
+                        >
+                          {tenant.subdomain}
+                          <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                        </button>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <Button variant="link" className="font-semibold text-sm" onClick={() => openManageModal(tenant)}>
