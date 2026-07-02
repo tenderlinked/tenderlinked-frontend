@@ -22,7 +22,7 @@ const ProfileDropdown = () => {
   useEffect(() => {
     if (session?.user?.id) {
       setLoading(true);
-      fetch(`http://localhost:3001/api/subscriptions/${session.user.id}/active`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${session.user.id}/active`)
         .then(res => res.json())
         .then(data => {
           if (data.subscription) {

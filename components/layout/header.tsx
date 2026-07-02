@@ -20,7 +20,7 @@ const Header = () => {
         const isState = type === 'state';
         try {
             isState ? setScrapingState(true) : setScrapingDistrict(true);
-            const response = await fetch('http://localhost:3001/api/scrape', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -43,7 +43,7 @@ const Header = () => {
     
     const handleStopScrap = async (type: 'district' | 'state') => {
         try {
-            await fetch('http://localhost:3001/api/scrape/stop', {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape/stop`, {
                 method: 'POST',
                 credentials: 'include'
             });

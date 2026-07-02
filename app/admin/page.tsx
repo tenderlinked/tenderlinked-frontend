@@ -38,7 +38,7 @@ export default function SuperAdminPage() {
 
   const fetchTenants = async () => {
     try {
-      const res = await fetch("http://localhost:3001/api/tenants");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenants`);
       if (res.ok) {
         const data = await res.json();
         setTenants(data);
@@ -54,7 +54,7 @@ export default function SuperAdminPage() {
 
   const handleUpdateSubscription = async (tenantId: string, planType: string, newStatus: string) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/tenants/${tenantId}/subscription`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenants/${tenantId}/subscription`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planType, status: newStatus })

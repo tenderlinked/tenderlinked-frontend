@@ -82,13 +82,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           let hasActivePlan = false;
           let tenantSubdomain = null;
           try {
-             const profRes = await fetch(`http://localhost:3001/api/users/profile/${user.sub}`);
+             const profRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/users/profile/${user.sub}`);
              if (profRes.ok) {
                const profData = await profRes.json();
                tenantSubdomain = profData.tenant?.subdomain || null;
              }
              
-             const subRes = await fetch(`http://localhost:3001/api/subscriptions/${user.sub}/active`);
+             const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${user.sub}/active`);
              if (subRes.ok) {
                const subData = await subRes.json();
                hasActivePlan = subData.hasActivePlan;
@@ -132,13 +132,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // If we log in via OAuth Keycloak (not Credentials), we need to fetch subscription here
       if (profile && !user?.hasOwnProperty('hasActivePlan')) {
         try {
-           const profRes = await fetch(`http://localhost:3001/api/users/profile/${profile.sub}`);
+           const profRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/users/profile/${profile.sub}`);
            if (profRes.ok) {
              const profData = await profRes.json();
              token.tenantSubdomain = profData.tenant?.subdomain || null;
            }
 
-           const subRes = await fetch(`http://localhost:3001/api/subscriptions/${profile.sub}/active`);
+           const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${profile.sub}/active`);
            if (subRes.ok) {
              const subData = await subRes.json();
              token.hasActivePlan = subData.hasActivePlan;
@@ -161,7 +161,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         
         if (token.id && session?.hasActivePlan === undefined && session?.tenantSubdomain === undefined) {
           try {
-             const subRes = await fetch(`http://localhost:3001/api/subscriptions/${token.id}/active`);
+             const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${token.id}/active`);
              if (subRes.ok) {
                const subData = await subRes.json();
                token.hasActivePlan = subData.hasActivePlan;

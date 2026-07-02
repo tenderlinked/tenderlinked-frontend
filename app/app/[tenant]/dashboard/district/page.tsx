@@ -36,7 +36,7 @@ export default function DistrictTendersPage() {
       if (showLoading) setLoadingToday(true);
       
       const todayDate = new Date().toISOString().split('T')[0];
-      let url = `http://localhost:3001/api/tenders?tenderType=district&limit=100&date=${todayDate}`;
+      let url = `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenders?tenderType=district&limit=100&date=${todayDate}`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
       if (orgFilter !== "all") url += `&district=${encodeURIComponent(orgFilter)}`;
       
@@ -57,7 +57,7 @@ export default function DistrictTendersPage() {
     try {
       if (showLoading) setLoadingAll(true);
       
-      let url = `http://localhost:3001/api/tenders?tenderType=district&excludeToday=true&page=${page}&pageSize=10`;
+      let url = `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenders?tenderType=district&excludeToday=true&page=${page}&pageSize=10`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
       if (orgFilter !== "all") url += `&district=${encodeURIComponent(orgFilter)}`;
       

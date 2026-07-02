@@ -60,7 +60,7 @@ export default function SettingsPage({ params }: { params: Promise<{ tenant: str
          setLoading(false);
          return;
       }
-      const res = await fetch(`http://localhost:3001/api/users/profile/${session?.user?.id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/users/profile/${session?.user?.id}`);
       if (res.ok) {
         const data = await res.json();
         if (data.tenant) {
@@ -86,7 +86,7 @@ export default function SettingsPage({ params }: { params: Promise<{ tenant: str
     }
     setIsUpdatingSubdomain(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/tenants/${actualTenantId}/subdomain`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenants/${actualTenantId}/subdomain`, {
         method: "POST", // Actually POST in controller
         headers: {
           'Content-Type': 'application/json',
@@ -117,7 +117,7 @@ export default function SettingsPage({ params }: { params: Promise<{ tenant: str
 
   const fetchMembers = async (tid: string) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/tenants/${tid}/members`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenants/${tid}/members`, {
         headers: {
           'x-user-id': session?.user?.id || ''
         }
@@ -142,7 +142,7 @@ export default function SettingsPage({ params }: { params: Promise<{ tenant: str
   const handleRemove = async (userId: string) => {
     if (!actualTenantId) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/tenants/${actualTenantId}/members/${userId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenants/${actualTenantId}/members/${userId}`, {
         method: "DELETE",
         headers: {
           'x-user-id': session?.user?.id || ''

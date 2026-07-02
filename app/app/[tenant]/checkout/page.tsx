@@ -61,7 +61,7 @@ export default function CheckoutPage() {
     
     try {
       // 1. Create subscription on backend (needed for trial support)
-      const res = await fetch("http://localhost:3001/api/payments/create-subscription", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/payments/create-subscription`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -88,7 +88,7 @@ export default function CheckoutPage() {
             toast.loading("Verifying payment...", { id: "verify-toast" });
 
             const verifyEndpoint = orderData.subscriptionId ? "verify-subscription" : "verify";
-            const verifyRes = await fetch(`http://localhost:3001/api/payments/${verifyEndpoint}`, {
+            const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/payments/${verifyEndpoint}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({

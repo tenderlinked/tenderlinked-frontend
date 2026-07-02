@@ -23,7 +23,7 @@ export default function SubscriptionPage() {
   const fetchSubscription = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/subscriptions/${session?.user?.id}/active`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${session?.user?.id}/active`);
       if (res.ok) {
         const data = await res.json();
         setSubDetails(data.subscription || null);
@@ -40,7 +40,7 @@ export default function SubscriptionPage() {
     if (!session?.user?.id) return;
     setCancelling(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/payments/cancel-subscription`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/payments/cancel-subscription`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: session.user.id })

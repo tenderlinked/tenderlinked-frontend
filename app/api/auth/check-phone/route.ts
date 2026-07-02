@@ -9,7 +9,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
     }
 
-    const res = await fetch(`http://localhost:3001/api/users/profile/check-phone/${encodeURIComponent(phone)}`);
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/users/profile/check-phone/${encodeURIComponent(phone)}`);
     
     if (!res.ok) {
       return NextResponse.json({ error: "Failed to check phone number" }, { status: 500 });

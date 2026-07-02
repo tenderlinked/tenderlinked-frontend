@@ -155,7 +155,7 @@ export async function POST(req: Request) {
 
     // 4. Create User Profile in local PostgreSQL Database
     try {
-      const profileRes = await fetch("http://localhost:3001/api/users/profile", {
+      const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/users/profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
