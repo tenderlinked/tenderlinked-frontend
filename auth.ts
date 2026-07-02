@@ -103,6 +103,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
             hasActivePlan,
             tenantSubdomain,
+            accessToken: tokens.access_token,
           };
           
         } catch (e) {
@@ -117,9 +118,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     newUser: '/auth/register'
   },
   callbacks: {
-    async jwt({ token, profile, user, trigger, session }) {
+    async jwt({ token, profile, user, account, trigger, session }) {
       if (profile) {
         token.id = profile.sub;
+      }
+      if (account) {
+        token.accessToken = account.access_token;
       }
       if (user) {
         if (user.id) token.id = user.id;
@@ -127,6 +131,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (user.hasActivePlan !== undefined) token.hasActivePlan = user.hasActivePlan;
         // @ts-ignore
         if (user.tenantSubdomain !== undefined) token.tenantSubdomain = user.tenantSubdomain;
+        // @ts-ignore
+        if (user.accessToken) token.accessToken = user.accessToken;
       }
       
       // If we log in via OAuth Keycloak (not Credentials), we need to fetch subscription here
@@ -186,6 +192,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.hasActivePlan = token.hasActivePlan as boolean;
         // @ts-ignore
         session.user.tenantSubdomain = token.tenantSubdomain as string | null;
+        // @ts-ignore
+        session.accessToken = token.accessToken as string | undefined;
       }
       return session;
     }

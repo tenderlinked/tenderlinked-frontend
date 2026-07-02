@@ -37,7 +37,13 @@ export default function SuperAdminPage() {
 
   const fetchTenants = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants`);
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants`, {
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {}
+      });
       if (res.ok) {
         const data = await res.json();
         setTenants(data);
@@ -48,6 +54,29 @@ export default function SuperAdminPage() {
       toast.error("Error connecting to server");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateSubscription = async (tenantId: string, planType: string, newStatus: string) => {
+    try {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${tenantId}/subscription`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ planType, status: newStatus })
+      });
+      if (res.ok) {
+        toast.success("Subscription updated");
+        fetchTenants();
+      } else {
+        toast.error("Failed to update subscription");
+      }
+    } catch (e) {
+      toast.error("Error updating subscription");
     }
   };
 
