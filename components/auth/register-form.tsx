@@ -41,6 +41,14 @@ const RegisterForm = () => {
     lastName: string;
   } | null>(null);
 
+  const [step, setStep] = useState(1);
+  const [preferencesForm, setPreferencesForm] = useState({
+    keywords: "",
+    states: "",
+    valueRange: "",
+    website: "",
+  });
+
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -174,7 +182,7 @@ const RegisterForm = () => {
         firstName: values.firstName,
         lastName: values.lastName,
       });
-      // We don't redirect here anymore, we show the success screen
+      setStep(2);
     } catch (error: any) {
       toast.error(error.message || "Failed to create account");
     } finally {
@@ -183,7 +191,36 @@ const RegisterForm = () => {
     }
   };
 
-  if (successData) {
+  const handlePreferencesSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/tenants/by-subdomain/${successData?.username}/alert-preferences`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keywords: preferencesForm.keywords.split(',').map(s => s.trim()).filter(Boolean),
+          preferredStates: preferencesForm.states.split(',').map(s => s.trim()).filter(Boolean),
+          tenderValueRange: preferencesForm.valueRange,
+          companyWebsite: preferencesForm.website
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save preferences');
+      }
+      
+      toast.success('Alert preferences saved!');
+    } catch (error) {
+      toast.error('Failed to save preferences, but you can configure them later.');
+    } finally {
+      setLoading(false);
+      setStep(3); // Proceed to success screen regardless
+    }
+  };
+
+  if (step === 3 && successData) {
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
     const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https:" : "http:";
     // If rootDomain has a port in it (e.g., localhost:3000), we just prepend subdomain.
@@ -227,6 +264,62 @@ const RegisterForm = () => {
         >
           Go to Login Page
         </Button>
+      </div>
+    );
+  }
+
+  if (step === 2 && successData) {
+    return (
+      <div className="flex flex-col space-y-6 py-4 animate-in fade-in zoom-in duration-300">
+        <div className="text-center">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Configure Your Tender Alerts</h3>
+          <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
+            Provide your keywords, preferred states, and tender value to receive curated tender alerts via email.
+          </p>
+        </div>
+
+        <form onSubmit={handlePreferencesSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-1 block">Keywords</label>
+            <Input 
+              placeholder="e.g. Road Construction, IT Consultancy" 
+              value={preferencesForm.keywords}
+              onChange={e => setPreferencesForm({...preferencesForm, keywords: e.target.value})}
+              className="h-12 bg-neutral-100 dark:bg-slate-800"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Preferred States</label>
+            <Input 
+              placeholder="e.g. Tamil Nadu, Karnataka" 
+              value={preferencesForm.states}
+              onChange={e => setPreferencesForm({...preferencesForm, states: e.target.value})}
+              className="h-12 bg-neutral-100 dark:bg-slate-800"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Tender Value Range</label>
+            <Input 
+              placeholder="e.g. More than 10 Lakhs or 10 - 50 Lakhs" 
+              value={preferencesForm.valueRange}
+              onChange={e => setPreferencesForm({...preferencesForm, valueRange: e.target.value})}
+              className="h-12 bg-neutral-100 dark:bg-slate-800"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Your company website (Optional)</label>
+            <Input 
+              placeholder="e.g. www.example.com" 
+              value={preferencesForm.website}
+              onChange={e => setPreferencesForm({...preferencesForm, website: e.target.value})}
+              className="h-12 bg-neutral-100 dark:bg-slate-800"
+            />
+          </div>
+          <Button type="submit" className="w-full h-[52px] bg-amber-500 hover:bg-amber-600 text-white font-semibold" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin w-5 h-5 mr-2" /> : null}
+            Send & Continue
+          </Button>
+        </form>
       </div>
     );
   }
