@@ -42,8 +42,9 @@ export default function KeywordManagementPage() {
   const [expansionInput, setExpansionInput] = useState<{ [key: string]: string }>({});
 
   // State for new keyword generation
-  const [suggestedExpansions, setSuggestedExpansions] = useState<string | null>(null);
+  const [suggestedExpansions, setSuggestedExpansions] = useState<string[] | null>(null);
   const [generatingExpansions, setGeneratingExpansions] = useState(false);
+  const [newTagInput, setNewTagInput] = useState("");
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -112,7 +113,7 @@ export default function KeywordManagementPage() {
       
       if (res.ok) {
         const { data } = await res.json();
-        setSuggestedExpansions(data.join(", "));
+        setSuggestedExpansions(data);
         toast.success("AI generated suggestions! Please review before saving.");
       } else {
         toast.error("Failed to generate AI expansions");
@@ -148,8 +149,8 @@ export default function KeywordManagementPage() {
       }
 
       // 2. Save the Expansion Dictionary manually
-      if (suggestedExpansions && suggestedExpansions.trim() !== "") {
-        const expArray = suggestedExpansions.split(",").map(s => s.trim()).filter(Boolean);
+      if (suggestedExpansions && suggestedExpansions.length > 0) {
+        const expArray = suggestedExpansions;
         await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/keywords/expansions`, {
           method: "POST",
           headers: { 
@@ -328,16 +329,42 @@ export default function KeywordManagementPage() {
                   </div>
                   
                   {suggestedExpansions !== null && (
-                    <div className="space-y-2 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-300">
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-purple-700 dark:text-purple-400 mb-2">
+                    <div className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-300">
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-purple-700 dark:text-purple-400">
                         <Sparkles className="w-4 h-4" /> AI Generated Expansions
                       </div>
-                      <p className="text-xs text-gray-500 mb-2">Review and edit these expansions before saving them to the dictionary.</p>
-                      <Input 
-                        value={suggestedExpansions}
-                        onChange={(e) => setSuggestedExpansions(e.target.value)}
-                        placeholder="e.g. Software Development, Cybersecurity..."
-                      />
+                      <p className="text-xs text-gray-500">Review and edit these expansions before saving them to the dictionary. Press Enter to add your own.</p>
+                      
+                      <div className="flex flex-wrap gap-2 p-3 bg-white dark:bg-gray-950 border rounded-md shadow-sm min-h-[80px] items-start">
+                        {suggestedExpansions.map((tag, idx) => (
+                          <Badge key={idx} variant="secondary" className="pl-3 pr-1 py-1 flex items-center gap-1 text-sm bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-100 dark:border-purple-800/50">
+                            {tag}
+                            <button 
+                              type="button" 
+                              onClick={() => setSuggestedExpansions(suggestedExpansions.filter((_, i) => i !== idx))}
+                              className="w-4 h-4 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800 flex items-center justify-center text-purple-500 transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                        <input
+                          type="text"
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (newTagInput.trim()) {
+                                setSuggestedExpansions([...suggestedExpansions, newTagInput.trim()]);
+                                setNewTagInput("");
+                              }
+                            }
+                          }}
+                          placeholder="Type and press Enter..."
+                          className="flex-1 min-w-[120px] bg-transparent outline-none text-sm border-none shadow-none focus:ring-0 px-1 py-0.5 placeholder:text-gray-400"
+                        />
+                      </div>
                     </div>
                   )}
 
