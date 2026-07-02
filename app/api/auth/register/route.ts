@@ -160,6 +160,7 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userId,
+          email: email,
           phoneNumber: phone,
           companyName: companyName || null,
           username: name,

@@ -30,6 +30,7 @@ interface Tenant {
   _count: {
     members: number;
   };
+  ownerEmail: string | null;
 }
 
 export default function TenantManagementPage() {
@@ -249,7 +250,7 @@ export default function TenantManagementPage() {
                           </div>
                           <div>
                             <div className="font-semibold text-gray-900 dark:text-gray-100">{tenant.name}</div>
-                            <div className="text-xs text-gray-500 mt-0.5">Joined {new Date(tenant.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">Admin: {tenant.ownerEmail || 'Unknown Email'}</div>
                           </div>
                         </div>
                       </td>
