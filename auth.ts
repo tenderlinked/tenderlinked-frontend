@@ -7,7 +7,7 @@ const rootDomain = rawRootDomain.split(':')[0];
 const useSecureCookies = process.env.NODE_ENV === "production";
 const cookiePrefix = useSecureCookies ? "__Secure-" : "";
 // Set domain to .lvh.me for local testing across subdomains
-const cookieDomain = process.env.NODE_ENV === "production" ? ".tenderlinked.com" : (rootDomain === 'localhost' ? 'localhost' : `.${rootDomain}`);
+const cookieDomain = process.env.NODE_ENV === "production" ? ".tenderlinked.com" : (rootDomain === 'localhost' ? undefined : `.${rootDomain}`);
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "jwt" },

@@ -162,6 +162,7 @@ export async function POST(req: Request) {
           userId: userId,
           phoneNumber: phone,
           companyName: companyName || null,
+          username: name,
         }),
       });
 

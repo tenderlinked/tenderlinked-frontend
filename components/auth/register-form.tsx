@@ -34,6 +34,12 @@ const RegisterForm = () => {
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isPhoneAvailable, setIsPhoneAvailable] = useState<boolean | null>(null);
   const [isCheckingPhone, setIsCheckingPhone] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    username: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  } | null>(null);
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -161,8 +167,14 @@ const RegisterForm = () => {
         throw new Error(data.error || "Registration failed");
       }
 
-      toast.success("Account created successfully! Please sign in.");
-      router.push("/auth/login");
+      toast.success("Account created successfully!");
+      setSuccessData({
+        username: values.username,
+        email: values.email,
+        firstName: values.firstName,
+        lastName: values.lastName,
+      });
+      // We don't redirect here anymore, we show the success screen
     } catch (error: any) {
       toast.error(error.message || "Failed to create account");
     } finally {
@@ -170,6 +182,54 @@ const RegisterForm = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (successData) {
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
+    const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https:" : "http:";
+    // If rootDomain has a port in it (e.g., localhost:3000), we just prepend subdomain.
+    // If we're on localhost, the browser might restrict subdomains, but this provides the correct URL.
+    const loginUrl = `${protocol}//${successData.username}.${rootDomain}/auth/login`;
+
+    return (
+      <div className="flex flex-col items-center justify-center space-y-6 py-8 text-center animate-in fade-in zoom-in duration-300">
+        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-2">
+          <Check className="w-8 h-8" />
+        </div>
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Account Created!</h3>
+        <p className="text-gray-500 dark:text-gray-400 max-w-md">
+          Your workspace has been set up successfully. You can now log in to your dedicated portal.
+        </p>
+
+        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-6 w-full text-left space-y-4 border border-slate-200 dark:border-slate-700">
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">Name</p>
+            <p className="font-semibold">{successData.firstName} {successData.lastName}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">Email</p>
+            <p className="font-semibold">{successData.email}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">Workspace / Subdomain</p>
+            <p className="font-semibold">{successData.username}</p>
+          </div>
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">Login Address</p>
+            <a href={loginUrl} className="text-primary font-medium hover:underline break-all">
+              {loginUrl}
+            </a>
+          </div>
+        </div>
+
+        <Button
+          onClick={() => window.location.href = loginUrl}
+          className="w-full rounded-lg mt-4 h-[52px] text-sm"
+        >
+          Go to Login Page
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <>

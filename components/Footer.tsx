@@ -96,7 +96,7 @@ const Footer = () => {
         </div>
       </div>
       <div className="border-t border-gray-200 dark:border-gray-800 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
-        <p>© 2024 TenderLinked Authority. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} TenderLinked Authority. All rights reserved.</p>
       </div>
     </footer>
   );

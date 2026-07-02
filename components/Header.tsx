@@ -218,7 +218,7 @@ const Header = () => {
                   whileHover={{ y: -1, boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.3), 0 4px 6px -2px rgba(37, 99, 235, 0.15)" }}
                   whileTap={{ y: 0 }}
                   className="text-[15px] font-medium text-white bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] px-6 py-2.5 rounded-[12px] shadow-sm transition-all"
-                  onClick={() => router.push('/auth/login')}
+                  onClick={() => router.push('/auth/register')}
                 >
                   Start Free
                 </motion.button>
@@ -301,7 +301,7 @@ const Header = () => {
                       Login
                     </Link>
                     
-                    <button onClick={() => router.push('/auth/login')} className="w-full text-[16px] font-medium text-white bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] py-3 rounded-xl shadow-md">
+                    <button onClick={() => router.push('/auth/register')} className="w-full text-[16px] font-medium text-white bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] py-3 rounded-xl shadow-md">
                       Start Free
                     </button>
                   </>

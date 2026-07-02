@@ -60,9 +60,21 @@ export default auth(async (req) => {
   console.log(`[DEBUG Proxy] Session:`, req.auth ? `authenticated as ${req.auth.user?.email}` : 'NOT authenticated');
   console.log(`[DEBUG Proxy] Received Cookies:`, req.cookies.getAll().map(c => c.name));
   
-  // Allow authentication to happen directly on subdomains
+  // If someone tries to register on a subdomain, redirect to root domain
+  if (path.startsWith('/auth/register')) {
+    const protocol = req.headers.get('x-forwarded-proto') || (hostname.includes('localhost') ? 'http' : 'https');
+    return NextResponse.redirect(new URL('/auth/register', `${protocol}://${rootDomain}`));
+  }
+
+  // Allow other authentication (login) to happen directly on subdomains
   if (path.startsWith('/auth') || path.startsWith('/api/auth')) {
     return NextResponse.next();
+  }
+  
+  // If accessing the root of the subdomain, redirect to dashboard
+  if (path === '/') {
+    const protocol = req.headers.get('x-forwarded-proto') || (hostname.includes('localhost') ? 'http' : 'https');
+    return NextResponse.redirect(new URL('/dashboard', `${protocol}://${hostname}`));
   }
   
   // Prevent infinite rewriting if path already starts with /app/

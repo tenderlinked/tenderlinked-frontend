@@ -1,18 +1,19 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { signOut } from "@/auth";
+import { headers } from "next/headers";
 
-export type LogoutResponse = { success: true } | { error: string };
+export async function doLogout() {
+  const issuer = process.env.KEYCLOAK_ISSUER || "https://auth.enfycon.com/realms/enfycon-tender";
+  const clientId = process.env.KEYCLOAK_CLIENT_ID || "enfycon-tender";
+  
+  // Try to get the host from headers to build absolute URL dynamically
+  const headersList = await headers();
+  const host = headersList.get("host") || process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
+  const protocol = host.includes("localhost") || host.includes("lvh.me") ? "http" : "https";
+  const postLogoutRedirectUri = `${protocol}://${host}/auth/login`;
 
-export async function doLogout(): Promise<LogoutResponse> {
-  try {
-    const cookieStore = await cookies(); 
+  const keycloakLogoutUrl = `${issuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
 
-    cookieStore.delete("authjs.session-token"); 
-
-    return { success: true };
-  } catch (error) {
-    console.error("Logout error:", error);
-    return { error: "Logout failed. Please try again." };
-  }
+  await signOut({ redirectTo: keycloakLogoutUrl });
 }

@@ -8,10 +8,7 @@ export const handleLoginAction = async (formData: FormData) => {
     return { error: 'Email and password are required.' }
   }
 
-  // (Optional) Validate credentials format
-  if (!email.includes('@')) {
-    return { error: 'Invalid email format.' }
-  }
+  // The identifier can be either an email or a username, so we no longer enforce the '@' symbol.
 
   // You can optionally log or validate against DB here
   return { success: true }

@@ -115,8 +115,8 @@ const LoginForm = () => {
                     <Mail className="absolute start-5 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-700 dark:text-neutral-200" />
                     <Input
                       {...field}
-                      type="email"
-                      placeholder="Email"
+                      type="text"
+                      placeholder="Email or Username"
                       name="email"
                       className="ps-13 pe-12 h-14 rounded-xl bg-neutral-100 dark:bg-slate-800 border border-neutral-300 dark:border-slate-700 focus:border-primary dark:focus:border-primary focus-visible:border-primary !shadow-none !ring-0"
                       disabled={loading}
@@ -214,12 +214,12 @@ const LoginForm = () => {
       <div className="mt-8 text-center text-sm">
         <p>
           Don&apos;t have an account?{' '}
-          <Link
-            href="/auth/register"
+          <a
+            href={`${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000'}/auth/register`}
             className="text-primary font-semibold hover:underline"
           >
             Sign Up
-          </Link>
+          </a>
         </p>
       </div>
     </>

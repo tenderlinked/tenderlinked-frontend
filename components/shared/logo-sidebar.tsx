@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import LogoIcon from "@/public/logo/types/multicolor-icon.png";
+import LogoIcon from "@/public/assets/images/logo-icon.png";
 
 import { useSidebarCollapsed } from '@/hooks/useSidebarCollapsed';
 import { cn } from '@/lib/utils';
@@ -50,13 +50,10 @@ function LogoSidebar() {
               fontSize: 20,
               fontWeight: 700,
               letterSpacing: "-0.4px",
-              background: "linear-gradient(135deg, #f97316 0%, #3b82f6 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+              color: "#2563EB",
             }}
           >
-            Enfycon
+            TenderLinked
           </span>
         </div>
       )}

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import LogoIcon from "@/public/logo/types/multicolor-icon.png";
+import LogoIcon from "@/public/assets/images/logo-icon.png";
 
 function ThemeLogo() {
   const [isMounted, setIsMounted] = useState(false);
@@ -29,13 +29,10 @@ function ThemeLogo() {
           fontSize: 22,
           fontWeight: 700,
           letterSpacing: "-0.5px",
-          background: "linear-gradient(135deg, #f97316 0%, #3b82f6 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
+          color: "#2563EB",
         }}
       >
-        Enfycon
+        TenderLinked
       </span>
     </Link>
   );

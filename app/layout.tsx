@@ -10,20 +10,20 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Enfycon - Tailwind & Next.js Admin Dashboard with shadcn UI (Typescript)",
-  description: "Enfycon - Admin Dashboard Multipurpose Next.js, TypeScript, ShadCn UI & Tailwind Template",
-  metadataBase: new URL("https://enfycon.vercel.app"),
+  title: "Tenderlinked - Tenders & Opportunities Platform",
+  description: "Tenderlinked - Advanced Tender Scraping and Business Opportunities Platform",
+  metadataBase: new URL("https://tenderlinked.com"),
   openGraph: {
-    title: "Enfycon - Admin Dashboard UI",
-    description: "A modern, responsive admin dashboard template built with Next.js, Tailwind CSS, and ShadCN UI.",
-    url: "https://enfycon.vercel.app",
-    siteName: "Enfycon",
+    title: "Tenderlinked - Tenders & Opportunities Platform",
+    description: "Tenderlinked - Advanced Tender Scraping and Business Opportunities Platform",
+    url: "https://tenderlinked.com",
+    siteName: "Tenderlinked",
     images: [
       {
-        url: "https://enfycon.vercel.app/og-image.jpg",
+        url: "https://tenderlinked.com/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Enfycon Admin Dashboard Preview",
+        alt: "Tenderlinked Platform Preview",
       },
     ],
     locale: "en_US",
@@ -31,9 +31,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Enfycon - Admin Dashboard UI",
-    description: "A modern, responsive admin dashboard template built with Next.js, Tailwind CSS, and ShadCN UI.",
-    images: ["https://enfycon.vercel.app/og-image.jpg"],
+    title: "Tenderlinked - Tenders & Opportunities Platform",
+    description: "Tenderlinked - Advanced Tender Scraping and Business Opportunities Platform",
+    images: ["https://tenderlinked.com/og-image.jpg"],
   },
 };
 import { auth } from "@/auth";

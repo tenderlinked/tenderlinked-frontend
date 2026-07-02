@@ -8,9 +8,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 const metadata: Metadata = {
-  title: "Cards & Content Containers | Enfycon Admin Dashboard",
+  title: "Sign Up | TenderLinked",
   description:
-    "Showcase versatile card components and content containers for organized layout in the Enfycon Admin Dashboard built with Next.js and Tailwind CSS.",
+    "Create a new workspace account and get started with TenderLinked.",
 };
 
 const forgotPassImage: StaticImg = {
