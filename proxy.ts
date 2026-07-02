@@ -56,6 +56,12 @@ export default auth(async (req) => {
   // If it's a subdomain, rewrite to our /app/[tenant] route
   const subdomain = hostname.split('.')[0];
   
+  // Prevent 'admin' subdomain, redirect to root domain super admin panel
+  if (subdomain === 'admin') {
+    const protocol = req.headers.get('x-forwarded-proto') || (hostname.includes('localhost') ? 'http' : 'https');
+    return NextResponse.redirect(new URL('/admin', `${protocol}://${rootDomain}`));
+  }
+  
   console.log(`[DEBUG Proxy] Hostname: ${hostname} | Subdomain: ${subdomain} | Path: ${path}`);
   console.log(`[DEBUG Proxy] Session:`, req.auth ? `authenticated as ${req.auth.user?.email}` : 'NOT authenticated');
   console.log(`[DEBUG Proxy] Received Cookies:`, req.cookies.getAll().map(c => c.name));
