@@ -174,8 +174,8 @@ export default function TenantManagementPage() {
       setIsBulkDeleting(true);
       // @ts-ignore
       const token = session?.accessToken;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/bulk`, {
-        method: "DELETE",
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/bulk-delete`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
