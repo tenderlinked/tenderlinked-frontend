@@ -41,6 +41,10 @@ export default function KeywordManagementPage() {
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [expansionInput, setExpansionInput] = useState<{ [key: string]: string }>({});
 
+  // State for new keyword generation
+  const [suggestedExpansions, setSuggestedExpansions] = useState<string | null>(null);
+  const [generatingExpansions, setGeneratingExpansions] = useState(false);
+
   useEffect(() => {
     if (status === "authenticated") {
       fetchKeywords();
@@ -89,14 +93,15 @@ export default function KeywordManagementPage() {
     }
   };
 
-  const handleAddKeyword = async (e: React.FormEvent) => {
+  const handleGenerateAI = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKeyword.trim()) return;
     
     try {
+      setGeneratingExpansions(true);
       // @ts-ignore
       const token = session?.accessToken;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/keywords`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/keywords/ai-suggest-new`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -106,14 +111,61 @@ export default function KeywordManagementPage() {
       });
       
       if (res.ok) {
-        toast.success("Keyword added");
-        setNewKeyword("");
-        fetchKeywords();
+        const { data } = await res.json();
+        setSuggestedExpansions(data.join(", "));
+        toast.success("AI generated suggestions! Please review before saving.");
       } else {
-        toast.error("Failed to add keyword (might already exist)");
+        toast.error("Failed to generate AI expansions");
       }
     } catch (error) {
-      toast.error("Error adding keyword");
+      toast.error("Error generating AI expansions");
+    } finally {
+      setGeneratingExpansions(false);
+    }
+  };
+
+  const handleSaveToDB = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newKeyword.trim()) return;
+    
+    try {
+      // @ts-ignore
+      const token = session?.accessToken;
+      
+      // 1. Save Priority Keyword
+      const resKeyword = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/keywords`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ word: newKeyword.trim() })
+      });
+      
+      if (!resKeyword.ok) {
+        toast.error("Failed to add keyword (might already exist)");
+        return;
+      }
+
+      // 2. Save the Expansion Dictionary manually
+      if (suggestedExpansions && suggestedExpansions.trim() !== "") {
+        const expArray = suggestedExpansions.split(",").map(s => s.trim()).filter(Boolean);
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/keywords/expansions`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ baseWord: newKeyword.trim(), expansions: expArray, status: "APPROVED" })
+        });
+      }
+
+      toast.success("Keyword and expansions saved!");
+      setNewKeyword("");
+      setSuggestedExpansions(null);
+      fetchKeywords();
+    } catch (error) {
+      toast.error("Error saving keyword");
     }
   };
 
@@ -261,19 +313,50 @@ export default function KeywordManagementPage() {
                 <CardTitle className="text-lg">Add Priority Keyword</CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <form onSubmit={handleAddKeyword} className="space-y-4">
+                <form onSubmit={suggestedExpansions === null ? handleGenerateAI : handleSaveToDB} className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Keyword Phrase</label>
                     <Input 
                       placeholder="e.g. IT Services"
                       value={newKeyword}
-                      onChange={(e) => setNewKeyword(e.target.value)}
+                      onChange={(e) => {
+                        setNewKeyword(e.target.value);
+                        setSuggestedExpansions(null);
+                      }}
+                      disabled={generatingExpansions}
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={!newKeyword.trim()}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Keyword
-                  </Button>
+                  
+                  {suggestedExpansions !== null && (
+                    <div className="space-y-2 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-300">
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-purple-700 dark:text-purple-400 mb-2">
+                        <Sparkles className="w-4 h-4" /> AI Generated Expansions
+                      </div>
+                      <p className="text-xs text-gray-500 mb-2">Review and edit these expansions before saving them to the dictionary.</p>
+                      <Input 
+                        value={suggestedExpansions}
+                        onChange={(e) => setSuggestedExpansions(e.target.value)}
+                        placeholder="e.g. Software Development, Cybersecurity..."
+                      />
+                    </div>
+                  )}
+
+                  {suggestedExpansions === null ? (
+                    <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white" disabled={!newKeyword.trim() || generatingExpansions}>
+                      {generatingExpansions ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                      Generate AI Expansions
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" className="w-1/3" onClick={() => setSuggestedExpansions(null)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" className="w-2/3" disabled={!newKeyword.trim()}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Save to DB
+                      </Button>
+                    </div>
+                  )}
                 </form>
               </CardContent>
             </Card>
