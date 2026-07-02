@@ -73,11 +73,11 @@ export default function SuperAdminPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="text-teal-700 border-teal-200 hover:bg-teal-50 dark:border-teal-800 dark:text-teal-400 dark:hover:bg-teal-950">
+          <Button variant="outline" className="text-primary">
             <Download className="w-4 h-4 mr-2" />
             Export Logs
           </Button>
-          <Button className="bg-teal-700 hover:bg-teal-800 text-white">
+          <Button>
             <Plus className="w-4 h-4 mr-2" />
             Create New Tenant
           </Button>
@@ -236,9 +236,9 @@ export default function SuperAdminPage() {
                         admin@{tenant.subdomain}.com
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="text-teal-700 font-semibold text-sm hover:text-teal-800 transition-colors">
+                        <Button variant="link" className="font-semibold text-sm">
                           Manage
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -261,7 +261,7 @@ export default function SuperAdminPage() {
         <CardHeader className="border-b bg-white dark:bg-gray-950 pb-4 pt-5 px-6 rounded-t-lg flex flex-row items-center justify-between">
           <CardTitle className="text-xl text-gray-900 dark:text-white">Revenue Mix</CardTitle>
           <div className="flex gap-4 text-sm font-medium text-gray-600">
-            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-teal-700"></div> Enterprise</div>
+            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary"></div> Enterprise</div>
             <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-600"></div> Pro</div>
           </div>
         </CardHeader>
