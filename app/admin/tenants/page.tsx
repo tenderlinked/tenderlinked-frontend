@@ -320,83 +320,76 @@ export default function TenantManagementPage() {
                 <TabsTrigger value="advanced">Advanced</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="space-y-6">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Workspace Details</h3>
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-3 border">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 flex items-center gap-2"><Building className="w-4 h-4" /> Subdomain</span>
-                        <span className="font-medium">{selectedTenant.subdomain}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 flex items-center gap-2"><Activity className="w-4 h-4" /> Created</span>
-                        <span className="font-medium">{new Date(selectedTenant.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 flex items-center gap-2"><Users className="w-4 h-4" /> Total Users</span>
-                        <span className="font-medium">{selectedTenant._count.members} users</span>
-                      </div>
-                    </div>
+              <TabsContent value="overview" className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-950">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Subdomain</div>
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">{selectedTenant.subdomain}</div>
                   </div>
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-950">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created Date</div>
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">{new Date(selectedTenant.createdAt).toLocaleDateString()}</div>
+                  </div>
+                </div>
 
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Subscription & Billing</h3>
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-4 border">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-gray-500 uppercase">Plan Tier</label>
-                        <select 
-                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                          defaultValue={selectedTenant.subscription?.planType || 'FREE'}
-                          onChange={(e) => handleUpdateSubscription(selectedTenant.id, e.target.value, selectedTenant.subscription?.status || 'ACTIVE')}
-                        >
-                          <option value="FREE">Free Tier</option>
-                          <option value="PRO">Pro Tier</option>
-                          <option value="ENTERPRISE">Enterprise</option>
-                        </select>
-                      </div>
+                <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Subscription & Status</h3>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-gray-500 uppercase">Plan Tier</label>
+                      <select 
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        defaultValue={selectedTenant.subscription?.planType || 'FREE'}
+                        onChange={(e) => handleUpdateSubscription(selectedTenant.id, e.target.value, selectedTenant.subscription?.status || 'ACTIVE')}
+                      >
+                        <option value="FREE">Free Tier</option>
+                        <option value="PRO">Pro Tier</option>
+                        <option value="ENTERPRISE">Enterprise</option>
+                      </select>
+                    </div>
 
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-gray-500 uppercase">Account Status</label>
-                        <select 
-                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                          defaultValue={selectedTenant.subscription?.status || 'ACTIVE'}
-                          onChange={(e) => handleUpdateSubscription(selectedTenant.id, selectedTenant.subscription?.planType || 'FREE', e.target.value)}
-                        >
-                          <option value="ACTIVE">Active</option>
-                          <option value="SUSPENDED">Suspended</option>
-                          <option value="PAST_DUE">Past Due</option>
-                        </select>
-                      </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-gray-500 uppercase">Account Status</label>
+                      <select 
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        defaultValue={selectedTenant.subscription?.status || 'ACTIVE'}
+                        onChange={(e) => handleUpdateSubscription(selectedTenant.id, selectedTenant.subscription?.planType || 'FREE', e.target.value)}
+                      >
+                        <option value="ACTIVE">Active</option>
+                        <option value="SUSPENDED">Suspended</option>
+                        <option value="PAST_DUE">Past Due</option>
+                      </select>
                     </div>
                   </div>
                 </div>
               </TabsContent>
 
-              <TabsContent value="members" className="space-y-4">
-                <div className="border rounded-lg overflow-hidden">
+              <TabsContent value="members" className="pt-4">
+                <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-white dark:bg-gray-950">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 text-xs uppercase border-b">
+                    <thead className="bg-gray-50/50 dark:bg-gray-900/50 text-gray-500 text-xs uppercase border-b border-gray-200 dark:border-gray-800">
                       <tr>
                         <th className="px-4 py-3 text-left font-medium">User</th>
                         <th className="px-4 py-3 text-left font-medium">Role</th>
                         <th className="px-4 py-3 text-right font-medium"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {isMembersLoading ? (
                         <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-500">Loading members...</td></tr>
                       ) : tenantMembers.map((member) => (
-                        <tr key={member.id} className="bg-white dark:bg-gray-950">
+                        <tr key={member.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
                           <td className="px-4 py-3">
-                            <div className="font-medium">{member.userProfile?.email || 'Unknown User'}</div>
+                            <div className="font-medium text-gray-900 dark:text-gray-100">{member.userProfile?.email || 'Unknown User'}</div>
                             <div className="text-xs text-gray-500">{member.userId.substring(0,8)}...</div>
                           </td>
                           <td className="px-4 py-3">
                             <Badge variant={member.role === 'OWNER' ? 'default' : 'secondary'} className="text-[10px] py-0">{member.role}</Badge>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteMember(member.userId)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => handleDeleteMember(member.userId)}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </td>
@@ -407,49 +400,38 @@ export default function TenantManagementPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="advanced" className="space-y-6">
-                <div className="space-y-4">
-                  <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-lg p-4 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-lg mt-0.5">
-                        <LogIn className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-blue-900 dark:text-blue-100">Impersonation</h4>
-                        <p className="text-sm text-blue-700/80 dark:text-blue-300/80 mt-1 mb-3">
-                          Temporarily view the application exactly as this tenant sees it.
-                        </p>
-                        <Button 
-                          size="sm" 
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                          onClick={() => {
-                            const protocol = window.location.protocol;
-                            const hostparts = window.location.host.split('.');
-                            const rootDomain = hostparts.length > 2 ? hostparts.slice(1).join('.') : hostparts.join('.');
-                            window.open(`${protocol}//${selectedTenant.subdomain}.${rootDomain}/dashboard`, '_blank');
-                          }}
-                        >
-                          Log in as Tenant
-                        </Button>
-                      </div>
+              <TabsContent value="advanced" className="pt-4">
+                <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+                  <div className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Impersonate Tenant</h4>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Temporarily view the application exactly as this tenant sees it.
+                      </p>
                     </div>
+                    <Button 
+                      variant="outline"
+                      className="shrink-0 font-medium"
+                      onClick={() => {
+                        const protocol = window.location.protocol;
+                        const hostparts = window.location.host.split('.');
+                        const rootDomain = hostparts.length > 2 ? hostparts.slice(1).join('.') : hostparts.join('.');
+                        window.open(`${protocol}//${selectedTenant.subdomain}.${rootDomain}/dashboard`, '_blank');
+                      }}
+                    >
+                      Log in as Tenant
+                    </Button>
                   </div>
-
-                  <div className="bg-red-50/50 dark:bg-red-950/20 border border-red-100 dark:border-red-900 rounded-lg p-4 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-lg mt-0.5">
-                        <ShieldAlert className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-red-900 dark:text-red-100">Danger Zone</h4>
-                        <p className="text-sm text-red-700/80 dark:text-red-300/80 mt-1 mb-3">
-                          Permanently delete this workspace and all associated data. This action is irreversible.
-                        </p>
-                        <Button variant="destructive" size="sm" onClick={handleDeleteTenant}>
-                          Delete Workspace
-                        </Button>
-                      </div>
+                  <div className="border-t border-gray-200 dark:border-gray-800 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-red-600 dark:text-red-500">Delete Workspace</h4>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Permanently delete this workspace and all associated data.
+                      </p>
                     </div>
+                    <Button variant="destructive" className="shrink-0 font-medium" onClick={handleDeleteTenant}>
+                      Delete Workspace
+                    </Button>
                   </div>
                 </div>
               </TabsContent>

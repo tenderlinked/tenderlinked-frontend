@@ -7,6 +7,7 @@ import "./globals.css";
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
@@ -51,7 +52,7 @@ export default async function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-950`}>
         <SessionProvider session={session}>
           <LoadingProvider>
             <FrontLayoutWrapper>
