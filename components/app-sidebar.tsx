@@ -12,7 +12,13 @@ import {
 import LogoSidebar from "./shared/logo-sidebar";
 import { data } from "./sidebar-data";
 
+import { usePathname } from "next/navigation";
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname();
+  const isAdmin = pathname?.startsWith("/admin");
+  const navItems = isAdmin ? data.adminNavMain : data.navMain;
+
   return (
     <Sidebar collapsible="icon" {...props} className="hidden xl:block">
       <SidebarHeader>
@@ -20,7 +26,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin scrollbar-invisible hover:scrollbar-visible">
-        <NavMain items={data.navMain} />
+        <NavMain items={navItems} />
       </SidebarContent>
 
       <SidebarRail />

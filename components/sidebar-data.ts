@@ -42,4 +42,27 @@ export const data = {
       icon: StickyNote,
     },
   ],
+  adminNavMain: [
+    {
+      title: "Dashboard",
+      url: "/admin",
+      icon: ShieldCheck,
+      isActive: true,
+    },
+    {
+      title: "Tenant Management",
+      url: "/admin/tenants",
+      icon: UsersRound,
+    },
+    {
+      title: "Keywords Management",
+      url: "/admin/keywords",
+      icon: Boxes,
+    },
+    {
+      title: "Billing",
+      url: "/admin/billing",
+      icon: Server,
+    },
+  ],
 };
