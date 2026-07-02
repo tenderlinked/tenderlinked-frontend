@@ -215,7 +215,7 @@ const LoginForm = () => {
         <p>
           Don&apos;t have an account?{' '}
           <a
-            href={`${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000'}/auth/register`}
+            href={`${process.env.NODE_ENV === 'production' ? 'https://tenderlinked.com' : 'http://lvh.me:3000'}/auth/register`}
             className="text-primary font-semibold hover:underline"
           >
             Sign Up
