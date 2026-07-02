@@ -185,14 +185,14 @@ export default function TenantManagementPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <div className={`w-1.5 h-1.5 rounded-full ${
-                            tenant.subscription?.status === 'ACTIVE' 
+                            (!tenant.subscription || tenant.subscription.status === 'ACTIVE')
                               ? 'bg-emerald-500' 
-                              : tenant.subscription?.status === 'SUSPENDED' 
+                              : tenant.subscription.status === 'SUSPENDED' 
                                 ? 'bg-red-500' 
                                 : 'bg-gray-400'
                           }`}></div>
                           <span className="font-medium text-gray-700 dark:text-gray-300 capitalize">
-                            {tenant.subscription?.status?.toLowerCase() || 'pending'}
+                            {tenant.subscription?.status?.toLowerCase() || 'active'}
                           </span>
                         </div>
                       </td>
