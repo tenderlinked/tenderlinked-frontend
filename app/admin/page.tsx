@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Users, Download, Plus, ClipboardList, Banknote, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
@@ -53,8 +52,6 @@ export default function SuperAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
-
   };
 
   if (status === "loading") {
