@@ -227,6 +227,7 @@ export default function TenantManagementPage() {
                   <th className="px-6 py-4 font-semibold">Organization</th>
                   <th className="px-6 py-4 font-semibold">Plan</th>
                   <th className="px-6 py-4 font-semibold">Status</th>
+                  <th className="px-6 py-4 font-semibold">Email</th>
                   <th className="px-6 py-4 font-semibold">Subdomain</th>
                   <th className="px-6 py-4 font-semibold text-right">Actions</th>
                 </tr>
@@ -250,7 +251,7 @@ export default function TenantManagementPage() {
                           </div>
                           <div>
                             <div className="font-semibold text-gray-900 dark:text-gray-100">{tenant.name}</div>
-                            <div className="text-xs text-gray-500 mt-0.5">Admin: {tenant.ownerEmail || 'Unknown Email'}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">Joined {new Date(tenant.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div>
                           </div>
                         </div>
                       </td>
@@ -278,6 +279,9 @@ export default function TenantManagementPage() {
                             {tenant.subscription?.status?.toLowerCase() || 'active'}
                           </span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 dark:text-gray-400 font-medium">
+                        {tenant.ownerEmail || <span className="text-gray-400 italic">Unknown Email</span>}
                       </td>
                       <td className="px-6 py-4">
                         <button 
