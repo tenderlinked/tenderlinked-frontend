@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 interface Keyword {
   id: string;
   word: string;
+  expansions?: string[];
   createdAt: string;
 }
 
@@ -298,8 +299,9 @@ export default function KeywordManagementPage() {
                   <table className="w-full text-sm text-left">
                     <thead className="text-xs text-gray-500 uppercase tracking-wider bg-gray-50/50 dark:bg-gray-900/50 border-b sticky top-0">
                       <tr>
-                        <th className="px-6 py-4 font-semibold">Keyword</th>
-                        <th className="px-6 py-4 font-semibold">Added On</th>
+                        <th className="px-6 py-4 font-semibold w-1/4">Keyword</th>
+                        <th className="px-6 py-4 font-semibold w-1/2">Related Keywords (Expansions)</th>
+                        <th className="px-6 py-4 font-semibold w-1/6">Added On</th>
                         <th className="px-6 py-4 font-semibold text-right">Actions</th>
                       </tr>
                     </thead>
@@ -316,6 +318,19 @@ export default function KeywordManagementPage() {
                         filteredKeywords.map((k) => (
                           <tr key={k.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors bg-white dark:bg-gray-950">
                             <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{k.word}</td>
+                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
+                              {k.expansions && k.expansions.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {k.expansions.map((exp, i) => (
+                                    <Badge key={i} variant="secondary" className="font-normal bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                                      {exp}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 italic text-xs">No expansions yet</span>
+                              )}
+                            </td>
                             <td className="px-6 py-4 text-gray-500">{new Date(k.createdAt).toLocaleDateString()}</td>
                             <td className="px-6 py-4 text-right">
                               <Button 
