@@ -45,6 +45,10 @@ export default function TenantManagementPage() {
   const [tenantMembers, setTenantMembers] = useState<any[]>([]);
   const [isMembersLoading, setIsMembersLoading] = useState(false);
 
+  // Bulk Actions State
+  const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   useEffect(() => {
     if (status === "authenticated") {
       fetchTenants();
@@ -163,6 +167,53 @@ export default function TenantManagementPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedTenantIds.size === 0) return;
+    if (!confirm(`DANGER: Are you sure you want to permanently delete ${selectedTenantIds.size} tenants and ALL of their data? This cannot be undone.`)) return;
+    try {
+      setIsBulkDeleting(true);
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/bulk`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ ids: Array.from(selectedTenantIds) })
+      });
+      if (res.ok) {
+        toast.success(`${selectedTenantIds.size} tenants permanently deleted`);
+        setSelectedTenantIds(new Set());
+        fetchTenants();
+      } else {
+        toast.error("Failed to delete tenants");
+      }
+    } catch (e) {
+      toast.error("Error deleting tenants");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTenantIds.size === filteredTenants.length && filteredTenants.length > 0) {
+      setSelectedTenantIds(new Set());
+    } else {
+      setSelectedTenantIds(new Set(filteredTenants.map(t => t.id)));
+    }
+  };
+
+  const toggleSelectTenant = (id: string) => {
+    const newSet = new Set(selectedTenantIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedTenantIds(newSet);
+  };
+
   const filteredTenants = tenants.filter(t => 
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     t.subdomain.toLowerCase().includes(searchTerm.toLowerCase())
@@ -213,6 +264,12 @@ export default function TenantManagementPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+              {selectedTenantIds.size > 0 && (
+                <Button variant="destructive" className="h-9" onClick={handleBulkDelete} disabled={isBulkDeleting}>
+                  {isBulkDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                  Delete Selected ({selectedTenantIds.size})
+                </Button>
+              )}
               <Button variant="outline" size="icon" className="h-9 w-9 border-gray-200">
                 <Filter className="h-4 w-4 text-gray-600" />
               </Button>
@@ -224,6 +281,14 @@ export default function TenantManagementPage() {
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-500 uppercase tracking-wider bg-gray-50/50 dark:bg-gray-900/50 border-b">
                 <tr>
+                  <th className="px-6 py-4 font-semibold w-12">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      checked={filteredTenants.length > 0 && selectedTenantIds.size === filteredTenants.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
                   <th className="px-6 py-4 font-semibold">Organization</th>
                   <th className="px-6 py-4 font-semibold">Plan</th>
                   <th className="px-6 py-4 font-semibold">Status</th>
@@ -243,7 +308,15 @@ export default function TenantManagementPage() {
                   </tr>
                 ) : (
                   filteredTenants.map((tenant) => (
-                    <tr key={tenant.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors bg-white dark:bg-gray-950">
+                    <tr key={tenant.id} className={`hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors bg-white dark:bg-gray-950 ${selectedTenantIds.has(tenant.id) ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
+                      <td className="px-6 py-4">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          checked={selectedTenantIds.has(tenant.id)}
+                          onChange={() => toggleSelectTenant(tenant.id)}
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0">
