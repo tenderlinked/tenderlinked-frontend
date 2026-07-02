@@ -127,16 +127,14 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
           }
 
           if (item.url && item.title) {
-            const isMenuActive =
-              pathname === item.url || (pathname.startsWith(item.url) && item.url !== "/");
+            const isRootUrl = item.url === "/admin" || item.url === "/dashboard";
+            const isMenuActive = isRootUrl
+              ? pathname === item.url
+              : pathname === item.url || (pathname.startsWith(item.url + "/") && item.url !== "/");
 
             let activeStyles = "";
             if (isMenuActive) {
-              if (item.title === "Dashboard") {
-                activeStyles = "bg-primary hover:bg-primary text-white dark:hover:bg-primary hover:text-white";
-              } else {
-                activeStyles = "bg-blue-400 hover:bg-blue-500 text-white dark:hover:bg-blue-500 hover:text-white";
-              }
+              activeStyles = "bg-primary hover:bg-primary text-primary-foreground dark:hover:bg-primary hover:text-primary-foreground";
             }
 
             return (
