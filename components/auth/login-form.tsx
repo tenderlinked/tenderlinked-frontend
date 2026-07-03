@@ -66,7 +66,9 @@ const LoginForm = () => {
             toast.success('Login successful!')
             const session = await getSession();
             
-            if (session?.user?.tenantSubdomain) {
+            if (session?.user?.globalRole === 'SUPER_ADMIN') {
+              window.location.href = '/admin/tenants';
+            } else if (session?.user?.tenantSubdomain) {
               // Always use NEXT_PUBLIC_ROOT_DOMAIN so the redirect domain
               // matches the cookie domain set in auth.ts — never parse window.location.host
               const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || window.location.host;

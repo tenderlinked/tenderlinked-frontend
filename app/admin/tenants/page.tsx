@@ -145,6 +145,50 @@ export default function TenantManagementPage() {
     }
   };
 
+  const handleAddMember = async (tenantId: string, email: string, role: string) => {
+    try {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${tenantId}/members`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ email, role })
+      });
+      if (res.ok) {
+        toast.success("Member added successfully");
+        (document.getElementById('newMemberEmail') as HTMLInputElement).value = '';
+        openManageModal(selectedTenant!); // refresh members
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || "Failed to add member");
+      }
+    } catch (e) {
+      toast.error("Error adding member");
+    }
+  };
+
+  const handleMakeSuperAdmin = async (userId: string) => {
+    if (!confirm("Are you sure you want to grant this user Super Admin privileges?")) return;
+    try {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users/${userId}/super-admin`, {
+        method: "POST",
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        toast.success("User promoted to Super Admin");
+      } else {
+        toast.error("Failed to promote user");
+      }
+    } catch (e) {
+      toast.error("Error promoting user");
+    }
+  };
+
   const handleDeleteTenant = async () => {
     if (!selectedTenant) return;
     if (!confirm(`DANGER: Are you sure you want to permanently delete ${selectedTenant.name} and ALL of its data? This cannot be undone.`)) return;
@@ -456,6 +500,22 @@ export default function TenantManagementPage() {
               </TabsContent>
 
               <TabsContent value="members" className="pt-4">
+                <div className="mb-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold mb-3">Add Member</h4>
+                  <div className="flex gap-2">
+                    <input type="email" placeholder="Email Address" className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" id="newMemberEmail" />
+                    <select className="rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" id="newMemberRole" defaultValue="MEMBER">
+                      <option value="MEMBER">Member</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
+                    <Button size="sm" onClick={() => {
+                       const email = (document.getElementById('newMemberEmail') as HTMLInputElement).value;
+                       const role = (document.getElementById('newMemberRole') as HTMLSelectElement).value;
+                       if (email && selectedTenant) handleAddMember(selectedTenant.id, email, role);
+                    }}>Add</Button>
+                  </div>
+                </div>
+
                 <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-white dark:bg-gray-950">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50/50 dark:bg-gray-900/50 text-gray-500 text-xs uppercase border-b border-gray-200 dark:border-gray-800">
@@ -478,6 +538,9 @@ export default function TenantManagementPage() {
                             <Badge variant={member.role === 'OWNER' ? 'default' : 'secondary'} className="text-[10px] py-0">{member.role}</Badge>
                           </td>
                           <td className="px-4 py-3 text-right">
+                            <Button variant="ghost" size="sm" className="h-8 mr-2 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40" onClick={() => handleMakeSuperAdmin(member.userId)}>
+                              Make Super Admin
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => handleDeleteMember(member.userId)}>
                               <Trash2 className="w-4 h-4" />
                             </Button>

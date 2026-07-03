@@ -86,6 +86,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
              if (profRes.ok) {
                const profData = await profRes.json();
                tenantSubdomain = profData.tenant?.subdomain || null;
+               user.globalRole = profData.globalRole || 'USER';
              }
              
              const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${user.sub}/active`);
@@ -103,6 +104,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
             hasActivePlan,
             tenantSubdomain,
+            globalRole: user.globalRole || 'USER',
             accessToken: tokens.access_token,
           };
           
@@ -132,6 +134,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // @ts-ignore
         if (user.tenantSubdomain !== undefined) token.tenantSubdomain = user.tenantSubdomain;
         // @ts-ignore
+        if (user.globalRole !== undefined) token.globalRole = user.globalRole;
+        // @ts-ignore
         if (user.accessToken) token.accessToken = user.accessToken;
       }
       
@@ -142,6 +146,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
            if (profRes.ok) {
              const profData = await profRes.json();
              token.tenantSubdomain = profData.tenant?.subdomain || null;
+             token.globalRole = profData.globalRole || 'USER';
            }
 
            const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${profile.sub}/active`);
@@ -192,6 +197,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.hasActivePlan = token.hasActivePlan as boolean;
         // @ts-ignore
         session.user.tenantSubdomain = token.tenantSubdomain as string | null;
+        // @ts-ignore
+        session.user.globalRole = (token.globalRole as string) || 'USER';
         // @ts-ignore
         session.accessToken = token.accessToken as string | undefined;
       }
