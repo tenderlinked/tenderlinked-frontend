@@ -56,7 +56,11 @@ export default function KeywordManagementPage() {
   const fetchKeywords = async () => {
     try {
       setLoadingKeywords(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/keywords`);
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/keywords`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         const { data } = await res.json();
         setKeywords(data);

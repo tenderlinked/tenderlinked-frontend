@@ -282,8 +282,8 @@ export default function SystemRolesPage() {
       </Card>
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-xl w-full border-l border-gray-200 dark:border-gray-800 overflow-y-auto">
-          <SheetHeader className="pb-6 border-b border-gray-100 dark:border-gray-800 mb-6">
+        <SheetContent className="sm:max-w-xl w-full border-l border-gray-200 dark:border-gray-800 overflow-y-auto p-6 sm:p-8">
+          <SheetHeader className="pb-6 border-b border-gray-100 dark:border-gray-800 mb-6 px-0">
             <SheetTitle className="text-2xl">{editingRole ? 'Edit Role' : 'Create System Role'}</SheetTitle>
             <SheetDescription>
               Define the role name and exact permissions.

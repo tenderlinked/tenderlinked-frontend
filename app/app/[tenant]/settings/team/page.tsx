@@ -36,6 +36,12 @@ interface TenantMember {
   id: string;
   userId: string;
   role: 'OWNER' | 'ADMIN' | 'USER';
+  roleId: string;
+  customRole?: {
+    id: string;
+    name: string;
+    isSystemRole: boolean;
+  };
   userProfile?: {
     email: string;
     companyName?: string;
@@ -48,18 +54,33 @@ export default function TeamSettingsPage() {
   const tenantId = params.tenant as string;
   
   const [members, setMembers] = useState<TenantMember[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'ADMIN' | 'USER'>('USER');
+  const [inviteRoleId, setInviteRoleId] = useState<string>('');
   const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     if (session?.accessToken && tenantId) {
-      fetchMembers();
+      Promise.all([fetchMembers(), fetchRoles()]).then(() => setLoading(false));
     }
   }, [session, tenantId]);
+
+  const fetchRoles = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${tenantId}/roles`, {
+        headers: { 'Authorization': `Bearer ${session?.accessToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableRoles(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch roles:", error);
+    }
+  };
 
   const fetchMembers = async () => {
     try {
@@ -87,7 +108,7 @@ export default function TeamSettingsPage() {
           'Authorization': `Bearer ${session?.accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole })
+        body: JSON.stringify({ email: inviteEmail, roleId: inviteRoleId || undefined })
       });
       
       if (!res.ok) {
@@ -97,6 +118,7 @@ export default function TeamSettingsPage() {
       
       toast.success('User invited successfully!');
       setInviteEmail('');
+      setInviteRoleId('');
       setIsInviteOpen(false);
       fetchMembers();
     } catch (error: any) {
@@ -107,7 +129,7 @@ export default function TeamSettingsPage() {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: 'ADMIN' | 'USER') => {
+  const handleRoleChange = async (userId: string, newRoleId: string) => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${tenantId}/members/${userId}`, {
         method: 'PATCH',
@@ -115,7 +137,7 @@ export default function TeamSettingsPage() {
           'Authorization': `Bearer ${session?.accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ role: newRole })
+        body: JSON.stringify({ roleId: newRoleId })
       });
       
       if (!res.ok) {
@@ -191,16 +213,20 @@ export default function TeamSettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Role</label>
-                <Select value={inviteRole} onValueChange={(val: any) => setInviteRole(val)}>
+                <label className="text-sm font-medium">Role (Optional)</label>
+                <Select value={inviteRoleId} onValueChange={(val: any) => setInviteRoleId(val)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
+                    <SelectValue placeholder="Assign a default system role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USER">User (View Only)</SelectItem>
-                    <SelectItem value="ADMIN">Admin (Can Manage Team)</SelectItem>
+                    {availableRoles.map(r => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name} {r.isSystemRole ? '(System Default)' : ''}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-gray-500">If left blank, the default user role will be assigned.</p>
               </div>
               <Button type="submit" className="w-full" disabled={inviting}>
                 {inviting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
@@ -245,15 +271,18 @@ export default function TeamSettingsPage() {
                     </Badge>
                   ) : (
                     <Select 
-                      defaultValue={member.role} 
+                      value={member.roleId || ''} 
                       onValueChange={(val: any) => handleRoleChange(member.userId, val)}
                     >
-                      <SelectTrigger className="w-[130px] h-8 text-xs">
-                        <SelectValue />
+                      <SelectTrigger className="w-[180px] h-8 text-xs">
+                        <SelectValue placeholder="Assign Role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="USER">User</SelectItem>
-                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        {availableRoles.map(r => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.name} {r.isSystemRole ? '(System)' : ''}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}

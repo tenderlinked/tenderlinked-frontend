@@ -46,6 +46,11 @@ export const data = {
       url: "/settings/team",
       icon: UsersRound,
     },
+    {
+      title: "Role Management",
+      url: "/settings/roles",
+      icon: ShieldCheck,
+    },
   ],
   adminNavMain: [
     {

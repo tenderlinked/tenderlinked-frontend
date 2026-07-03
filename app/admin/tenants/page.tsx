@@ -46,6 +46,10 @@ export default function TenantManagementPage() {
   const [isMembersLoading, setIsMembersLoading] = useState(false);
   const [systemRoles, setSystemRoles] = useState<any[]>([]);
 
+  // Subdomain Edit State
+  const [subdomainInput, setSubdomainInput] = useState("");
+  const [isUpdatingSubdomain, setIsUpdatingSubdomain] = useState(false);
+
   // Bulk Actions State
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -120,6 +124,7 @@ export default function TenantManagementPage() {
 
   const openManageModal = async (tenant: Tenant) => {
     setSelectedTenant(tenant);
+    setSubdomainInput(tenant.subdomain);
     setIsSheetOpen(true);
     setTenantMembers([]);
     setIsMembersLoading(true);
@@ -138,6 +143,35 @@ export default function TenantManagementPage() {
       console.error(e);
     } finally {
       setIsMembersLoading(false);
+    }
+  };
+
+  const handleUpdateSubdomain = async () => {
+    if (!selectedTenant || !subdomainInput.trim()) return;
+    try {
+      setIsUpdatingSubdomain(true);
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${selectedTenant.id}/subdomain`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ subdomain: subdomainInput.trim() })
+      });
+      if (res.ok) {
+        toast.success("Subdomain updated");
+        setSelectedTenant({ ...selectedTenant, subdomain: subdomainInput.trim() });
+        fetchTenants();
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Failed to update subdomain");
+      }
+    } catch (e) {
+      toast.error("Error updating subdomain");
+    } finally {
+      setIsUpdatingSubdomain(false);
     }
   };
 
@@ -474,8 +508,23 @@ export default function TenantManagementPage() {
               <TabsContent value="overview" className="space-y-4 pt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-950">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Subdomain</div>
-                    <div className="font-semibold text-gray-900 dark:text-gray-100">{selectedTenant.subdomain}</div>
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Subdomain</div>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={subdomainInput} 
+                        onChange={(e) => setSubdomainInput(e.target.value)} 
+                        className="h-8 text-sm"
+                        placeholder="subdomain"
+                      />
+                      <Button 
+                        size="sm" 
+                        className="h-8" 
+                        onClick={handleUpdateSubdomain} 
+                        disabled={isUpdatingSubdomain || subdomainInput.trim() === selectedTenant.subdomain}
+                      >
+                        {isUpdatingSubdomain ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
+                      </Button>
+                    </div>
                   </div>
                   <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-950">
                     <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created Date</div>
@@ -559,9 +608,13 @@ export default function TenantManagementPage() {
                             </Badge>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <Button variant="ghost" size="sm" className="h-8 mr-2 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40" onClick={() => handleMakeSuperAdmin(member.userId)}>
-                              Make Super Admin
-                            </Button>
+                            {member.userProfile?.globalRole === 'SUPER_ADMIN' ? (
+                              <Badge variant="outline" className="mr-2 border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-900/20 dark:text-green-400 font-normal py-1">Super Admin</Badge>
+                            ) : (
+                              <Button variant="ghost" size="sm" className="h-8 mr-2 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40" onClick={() => handleMakeSuperAdmin(member.userId)}>
+                                Make Super Admin
+                              </Button>
+                            )}
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => handleDeleteMember(member.userId)}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
