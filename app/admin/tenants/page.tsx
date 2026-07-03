@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Download, Plus, Filter, Users, ShieldAlert, LogIn, Trash2, Building, Activity, CreditCard } from "lucide-react";
+import { Search, Download, Plus, Filter, Users, ShieldAlert, LogIn, Trash2, Building, Activity, CreditCard, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +44,7 @@ export default function TenantManagementPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [tenantMembers, setTenantMembers] = useState<any[]>([]);
   const [isMembersLoading, setIsMembersLoading] = useState(false);
+  const [systemRoles, setSystemRoles] = useState<any[]>([]);
 
   // Bulk Actions State
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
@@ -52,8 +53,25 @@ export default function TenantManagementPage() {
   useEffect(() => {
     if (status === "authenticated") {
       fetchTenants();
+      fetchSystemRoles();
     }
   }, [status]);
+
+  const fetchSystemRoles = async () => {
+    try {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roles/system`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSystemRoles(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch system roles", e);
+    }
+  };
 
   const fetchTenants = async () => {
     try {
@@ -145,7 +163,7 @@ export default function TenantManagementPage() {
     }
   };
 
-  const handleAddMember = async (tenantId: string, email: string, role: string) => {
+  const handleAddMember = async (tenantId: string, email: string, roleId: string) => {
     try {
       // @ts-ignore
       const token = session?.accessToken;
@@ -155,7 +173,7 @@ export default function TenantManagementPage() {
           "Content-Type": "application/json",
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ email, role })
+        body: JSON.stringify({ email, roleId })
       });
       if (res.ok) {
         toast.success("Member added successfully");
@@ -504,9 +522,10 @@ export default function TenantManagementPage() {
                   <h4 className="text-sm font-semibold mb-3">Add Member</h4>
                   <div className="flex gap-2">
                     <input type="email" placeholder="Email Address" className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" id="newMemberEmail" />
-                    <select className="rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" id="newMemberRole" defaultValue="MEMBER">
-                      <option value="MEMBER">Member</option>
-                      <option value="ADMIN">Admin</option>
+                    <select className="rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" id="newMemberRole">
+                      {systemRoles.map(role => (
+                        <option key={role.id} value={role.id}>{role.name}</option>
+                      ))}
                     </select>
                     <Button size="sm" onClick={() => {
                        const email = (document.getElementById('newMemberEmail') as HTMLInputElement).value;
@@ -535,7 +554,9 @@ export default function TenantManagementPage() {
                             <div className="text-xs text-gray-500">{member.userId.substring(0,8)}...</div>
                           </td>
                           <td className="px-4 py-3">
-                            <Badge variant={member.role === 'OWNER' ? 'default' : 'secondary'} className="text-[10px] py-0">{member.role}</Badge>
+                            <Badge variant={member.isOwner ? 'default' : 'secondary'} className="text-[10px] py-0">
+                              {member.isOwner ? 'OWNER' : (member.customRole?.name || 'MEMBER')}
+                            </Badge>
                           </td>
                           <td className="px-4 py-3 text-right">
                             <Button variant="ghost" size="sm" className="h-8 mr-2 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40" onClick={() => handleMakeSuperAdmin(member.userId)}>

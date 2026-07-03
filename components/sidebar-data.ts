@@ -41,6 +41,11 @@ export const data = {
       url: "/bookmarks",
       icon: StickyNote,
     },
+    {
+      title: "Team Settings",
+      url: "/settings/team",
+      icon: UsersRound,
+    },
   ],
   adminNavMain: [
     {
@@ -55,9 +60,19 @@ export const data = {
       icon: UsersRound,
     },
     {
+      title: "System Roles",
+      url: "/admin/roles",
+      icon: ShieldCheck,
+    },
+    {
       title: "Keywords Management",
       url: "/admin/keywords",
       icon: Boxes,
+    },
+    {
+      title: "Subscription Plans",
+      url: "/admin/plans",
+      icon: Component,
     },
     {
       title: "Billing",

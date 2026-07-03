@@ -282,29 +282,61 @@ const RegisterForm = () => {
           <div>
             <label className="text-sm font-medium mb-1 block">Keywords</label>
             <Input 
+              list="keywords-list"
               placeholder="e.g. Road Construction, IT Consultancy" 
               value={preferencesForm.keywords}
               onChange={e => setPreferencesForm({...preferencesForm, keywords: e.target.value})}
               className="h-12 bg-neutral-100 dark:bg-slate-800"
             />
+            <datalist id="keywords-list">
+              <option value="Road Construction" />
+              <option value="IT Services" />
+              <option value="Medical Equipment" />
+              <option value="Solar Projects" />
+              <option value="Consultancy" />
+              <option value="Manpower Supply" />
+              <option value="Security Services" />
+            </datalist>
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Preferred States</label>
             <Input 
+              list="states-list"
               placeholder="e.g. Tamil Nadu, Karnataka" 
               value={preferencesForm.states}
               onChange={e => setPreferencesForm({...preferencesForm, states: e.target.value})}
               className="h-12 bg-neutral-100 dark:bg-slate-800"
             />
+            <datalist id="states-list">
+              <option value="All India" />
+              <option value="Maharashtra" />
+              <option value="Delhi" />
+              <option value="Karnataka" />
+              <option value="Tamil Nadu" />
+              <option value="Gujarat" />
+              <option value="Uttar Pradesh" />
+              <option value="Telangana" />
+              <option value="West Bengal" />
+              <option value="Kerala" />
+            </datalist>
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Tender Value Range</label>
             <Input 
+              list="value-list"
               placeholder="e.g. More than 10 Lakhs or 10 - 50 Lakhs" 
               value={preferencesForm.valueRange}
               onChange={e => setPreferencesForm({...preferencesForm, valueRange: e.target.value})}
               className="h-12 bg-neutral-100 dark:bg-slate-800"
             />
+            <datalist id="value-list">
+              <option value="Any Value" />
+              <option value="Under 10 Lakhs" />
+              <option value="10 - 50 Lakhs" />
+              <option value="50 Lakhs - 1 Crore" />
+              <option value="1 Crore - 10 Crores" />
+              <option value="Above 10 Crores" />
+            </datalist>
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Your company website (Optional)</label>

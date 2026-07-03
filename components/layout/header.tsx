@@ -11,10 +11,26 @@ import { Button } from '../ui/button';
 import { Play, Loader2, Pause } from 'lucide-react';
 import NotificationDropdown from './../shared/notification-dropdown';
 import toast from 'react-hot-toast';
+import { useSession } from 'next-auth/react';
+import { useEffect } from 'react';
+import { Coins } from 'lucide-react';
 
 const Header = () => {
+    const { data: session } = useSession();
     const [scrapingDistrict, setScrapingDistrict] = useState(false);
     const [scrapingState, setScrapingState] = useState(false);
+    const [usage, setUsage] = useState<{availableCredits: number} | null>(null);
+
+    useEffect(() => {
+        if (session?.accessToken) {
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/billing/usage`, {
+                headers: { 'Authorization': `Bearer ${session.accessToken}` }
+            })
+            .then(res => res.json())
+            .then(data => setUsage(data))
+            .catch(console.error);
+        }
+    }, [session?.accessToken]);
 
     const handleRunScrap = async (type: 'district' | 'state') => {
         const isState = type === 'state';
@@ -63,6 +79,12 @@ const Header = () => {
                 <SearchBox />
             </div>
             <div className="flex items-center gap-3">
+                {usage && (
+                    <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100/50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium text-sm border border-amber-200 dark:border-amber-800">
+                        <Coins className="w-4 h-4" />
+                        <span>{usage.availableCredits} Credits</span>
+                    </div>
+                )}
                 <Button 
                     variant={scrapingDistrict ? "default" : "outline"} 
                     className="hidden sm:flex items-center gap-2 rounded-full"
