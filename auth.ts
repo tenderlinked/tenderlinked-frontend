@@ -81,12 +81,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Check backend for active subscription
           let hasActivePlan = false;
           let tenantSubdomain = null;
+          let isSuspended = false;
           try {
              const profRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users/profile/${user.sub}?email=${encodeURIComponent(user.email || '')}`);
              if (profRes.ok) {
                const profData = await profRes.json();
                tenantSubdomain = profData.tenant?.subdomain || null;
                user.globalRole = profData.globalRole || 'USER';
+               if (profData.tenant?.subscription?.status === 'SUSPENDED') {
+                 isSuspended = true;
+               }
              }
              
              const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${user.sub}/active`);
@@ -106,9 +110,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             tenantSubdomain,
             globalRole: user.globalRole || 'USER',
             accessToken: tokens.access_token,
+            isSuspended
           };
           
-        } catch (e) {
+        } catch (e: any) {
           console.error("Authorize error", e);
           return null;
         }
@@ -137,6 +142,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (user.globalRole !== undefined) token.globalRole = user.globalRole;
         // @ts-ignore
         if (user.accessToken) token.accessToken = user.accessToken;
+        // @ts-ignore
+        if (user.isSuspended !== undefined) token.isSuspended = user.isSuspended;
       }
       
       // If we log in via OAuth Keycloak (not Credentials), we need to fetch subscription here
@@ -147,6 +154,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
              const profData = await profRes.json();
              token.tenantSubdomain = profData.tenant?.subdomain || null;
              token.globalRole = profData.globalRole || 'USER';
+             
+             if (profData.tenant?.subscription?.status === 'SUSPENDED') {
+               token.isSuspended = true;
+             }
            }
 
            const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${profile.sub}/active`);
@@ -201,6 +212,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.globalRole = (token.globalRole as string) || 'USER';
         // @ts-ignore
         session.accessToken = token.accessToken as string | undefined;
+        // @ts-ignore
+        session.user.isSuspended = token.isSuspended as boolean | undefined;
       }
       return session;
     }
