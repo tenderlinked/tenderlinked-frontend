@@ -42,7 +42,10 @@ export default function SubscriptionPage() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/payments/cancel-subscription`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.accessToken}`
+        },
         body: JSON.stringify({ userId: session.user.id })
       });
 

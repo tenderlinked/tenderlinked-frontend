@@ -265,11 +265,7 @@ export default function TeamSettingsPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  {member.role === 'OWNER' ? (
-                    <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800">
-                      <Shield className="w-3 h-3 mr-1" /> Owner
-                    </Badge>
-                  ) : (
+                  <div className="flex items-center gap-3">
                     <Select 
                       value={member.roleId || ''} 
                       onValueChange={(val: any) => handleRoleChange(member.userId, val)}
@@ -285,10 +281,15 @@ export default function TeamSettingsPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  )}
+                    {member.isOwner && (
+                      <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800 h-6">
+                        <Shield className="w-3 h-3 mr-1" /> Owner
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  {member.role !== 'OWNER' && (
+                  {!member.isOwner && (
                     <Button 
                       variant="ghost" 
                       size="sm" 

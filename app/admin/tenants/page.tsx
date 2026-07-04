@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,7 @@ export default function TenantManagementPage() {
   const [tenantMembers, setTenantMembers] = useState<any[]>([]);
   const [isMembersLoading, setIsMembersLoading] = useState(false);
   const [systemRoles, setSystemRoles] = useState<any[]>([]);
+  const [rowMessage, setRowMessage] = useState<{ userId: string, message: string, type: 'error' | 'success' } | null>(null);
 
   // Subdomain Edit State
   const [subdomainInput, setSubdomainInput] = useState("");
@@ -124,6 +125,7 @@ export default function TenantManagementPage() {
 
   const openManageModal = async (tenant: Tenant) => {
     setSelectedTenant(tenant);
+    setRowMessage(null);
     setSubdomainInput(tenant.subdomain);
     setIsSheetOpen(true);
     setTenantMembers([]);
@@ -178,6 +180,7 @@ export default function TenantManagementPage() {
   const handleDeleteMember = async (userId: string) => {
     if (!selectedTenant) return;
     if (!confirm("Are you sure you want to force remove this member?")) return;
+    setRowMessage(null);
     try {
       // @ts-ignore
       const token = session?.accessToken;
@@ -186,14 +189,15 @@ export default function TenantManagementPage() {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       if (res.ok) {
-        toast.success("Member removed successfully");
+        setRowMessage({ userId, type: 'success', message: "Member removed successfully" });
         setTenantMembers(tenantMembers.filter(m => m.userId !== userId));
         fetchTenants(); // update count
       } else {
-        toast.error("Failed to remove member");
+        const errorData = await res.json().catch(() => ({}));
+        setRowMessage({ userId, type: 'error', message: errorData.message || "Failed to remove member" });
       }
     } catch (e) {
-      toast.error("Error removing member");
+      setRowMessage({ userId, type: 'error', message: "Error removing member" });
     }
   };
 
@@ -210,20 +214,46 @@ export default function TenantManagementPage() {
         body: JSON.stringify({ email, roleId })
       });
       if (res.ok) {
-        toast.success("Member added successfully");
+        toast.success("Member added successfully", { position: 'bottom-right' });
         (document.getElementById('newMemberEmail') as HTMLInputElement).value = '';
         openManageModal(selectedTenant!); // refresh members
       } else {
         const errorData = await res.json();
-        toast.error(errorData.message || "Failed to add member");
+        toast.error(errorData.message || "Failed to add member", { position: 'bottom-right' });
       }
     } catch (e) {
-      toast.error("Error adding member");
+      toast.error("Error adding member", { position: 'bottom-right' });
+    }
+  };
+
+  const handleUpdateMemberRole = async (tenantId: string, userId: string, roleId: string) => {
+    setRowMessage(null);
+    try {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${tenantId}/members/${userId}`, {
+        method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ roleId })
+      });
+      if (res.ok) {
+        setRowMessage({ userId, type: 'success', message: "Role updated successfully" });
+        openManageModal(selectedTenant!); // refresh members
+      } else {
+        const errorData = await res.json();
+        setRowMessage({ userId, type: 'error', message: errorData.message || "Failed to update role" });
+      }
+    } catch (e) {
+      setRowMessage({ userId, type: 'error', message: "Error updating role" });
     }
   };
 
   const handleMakeSuperAdmin = async (userId: string) => {
     if (!confirm("Are you sure you want to grant this user Super Admin privileges?")) return;
+    setRowMessage(null);
     try {
       // @ts-ignore
       const token = session?.accessToken;
@@ -232,12 +262,39 @@ export default function TenantManagementPage() {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       if (res.ok) {
-        toast.success("User promoted to Super Admin");
+        setRowMessage({ userId, type: 'success', message: "User promoted to Super Admin" });
+        openManageModal(selectedTenant!);
       } else {
-        toast.error("Failed to promote user");
+        const errorData = await res.json().catch(() => ({}));
+        setRowMessage({ userId, type: 'error', message: errorData.message || "Failed to promote user" });
       }
     } catch (e) {
-      toast.error("Error promoting user");
+      setRowMessage({ userId, type: 'error', message: "Error promoting user" });
+    }
+  };
+
+  const handleToggleOwner = async (tenantId: string, userId: string, isOwner: boolean) => {
+    setRowMessage(null);
+    try {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${tenantId}/admin/members/${userId}/owner`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ isOwner })
+      });
+      if (res.ok) {
+        setRowMessage({ userId, type: 'success', message: `User is ${isOwner ? 'now an owner' : 'no longer an owner'}` });
+        openManageModal(selectedTenant!);
+      } else {
+        const errorData = await res.json();
+        setRowMessage({ userId, type: 'error', message: errorData.message || "Failed to update ownership" });
+      }
+    } catch (e) {
+      setRowMessage({ userId, type: 'error', message: "Error updating ownership" });
     }
   };
 
@@ -489,7 +546,7 @@ export default function TenantManagementPage() {
 
       {/* Tenant Management Modal */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-[500px] overflow-y-auto w-[400px]">
+        <SheetContent className="sm:max-w-[800px] w-[90vw] overflow-y-auto">
           <SheetHeader className="mb-4">
             <SheetTitle className="text-2xl">{selectedTenant?.name}</SheetTitle>
             <SheetDescription>
@@ -597,29 +654,48 @@ export default function TenantManagementPage() {
                       {isMembersLoading ? (
                         <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-500">Loading members...</td></tr>
                       ) : tenantMembers.map((member) => (
-                        <tr key={member.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-gray-900 dark:text-gray-100">{member.userProfile?.email || 'Unknown User'}</div>
-                            <div className="text-xs text-gray-500">{member.userId.substring(0,8)}...</div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant={member.isOwner ? 'default' : 'secondary'} className="text-[10px] py-0">
-                              {member.isOwner ? 'OWNER' : (member.customRole?.name || 'MEMBER')}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            {member.userProfile?.globalRole === 'SUPER_ADMIN' ? (
-                              <Badge variant="outline" className="mr-2 border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-900/20 dark:text-green-400 font-normal py-1">Super Admin</Badge>
-                            ) : (
-                              <Button variant="ghost" size="sm" className="h-8 mr-2 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40" onClick={() => handleMakeSuperAdmin(member.userId)}>
-                                Make Super Admin
+                        <React.Fragment key={member.id}>
+                          <tr className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900 dark:text-gray-100">{member.userProfile?.email || 'Unknown User'}</div>
+                              <div className="text-xs text-gray-500">{member.userId.substring(0,8)}...</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <select 
+                                className="rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                value={member.roleId || ''}
+                                onChange={(e) => {
+                                  if (selectedTenant) {
+                                    handleUpdateMemberRole(selectedTenant.id, member.userId, e.target.value);
+                                  }
+                                }}
+                              >
+                                {systemRoles.map(role => (
+                                  <option key={role.id} value={role.id}>{role.name}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {member.userProfile?.globalRole === 'SUPER_ADMIN' ? (
+                                <Badge variant="outline" className="mr-2 border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-900/20 dark:text-green-400 font-normal py-1">Super Admin</Badge>
+                              ) : (
+                                <Button variant="ghost" size="sm" className="h-8 mr-2 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40" onClick={() => handleMakeSuperAdmin(member.userId)}>
+                                  Make Super Admin
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => handleDeleteMember(member.userId)}>
+                                <Trash2 className="w-4 h-4" />
                               </Button>
-                            )}
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => handleDeleteMember(member.userId)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </td>
-                        </tr>
+                            </td>
+                          </tr>
+                          {rowMessage?.userId === member.userId && (
+                            <tr>
+                              <td colSpan={3} className={`px-4 py-2 text-xs text-right border-t-0 font-medium ${rowMessage.type === 'error' ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'}`}>
+                                {rowMessage.message}
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>

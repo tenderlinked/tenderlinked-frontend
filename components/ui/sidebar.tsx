@@ -109,6 +109,14 @@ function SidebarProvider({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebar]);
 
+  React.useEffect(() => {
+    const savedWidth = localStorage.getItem("sidebar_width");
+    if (savedWidth) {
+      const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]') as HTMLElement;
+      if (wrapper) wrapper.style.setProperty("--sidebar-width", savedWidth);
+    }
+  }, []);
+
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
   const state = open ? "expanded" : "collapsed";
@@ -164,6 +172,44 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const isResizing = React.useRef(false);
+
+  const startResizing = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      let newWidth = e.clientX;
+      if (newWidth < 220) newWidth = 220; // min width
+      if (newWidth > 480) newWidth = 480; // max width
+      const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]') as HTMLElement;
+      if (wrapper) {
+        wrapper.style.setProperty('--sidebar-width', `${newWidth}px`);
+      }
+    };
+    const handleMouseUp = () => {
+      if (isResizing.current) {
+        isResizing.current = false;
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+        const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]') as HTMLElement;
+        if (wrapper) {
+          localStorage.setItem('sidebar_width', wrapper.style.getPropertyValue('--sidebar-width'));
+        }
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   if (collapsible === "none") {
     return (
@@ -244,9 +290,14 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="dashboard-sidebar-inner bg-white dark:bg-[#273142] group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className="dashboard-sidebar-inner bg-white dark:bg-[#273142] group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm relative"
         >
           {children}
+          {/* DRAG HANDLE */}
+          <div 
+            className="absolute -right-2 top-0 w-4 h-full cursor-col-resize z-50 hover:bg-primary/10 active:bg-primary/20 transition-colors opacity-0 hover:opacity-100"
+            onMouseDown={startResizing}
+          />
         </div>
       </div>
     </div>

@@ -63,7 +63,10 @@ export default function CheckoutPage() {
       // 1. Create subscription on backend (needed for trial support)
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/payments/create-subscription`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.accessToken}`
+        },
         body: JSON.stringify({
           userId: session.user.id,
           planType: selectedPlanId,
@@ -90,7 +93,10 @@ export default function CheckoutPage() {
             const verifyEndpoint = orderData.subscriptionId ? "verify-subscription" : "verify";
             const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/payments/${verifyEndpoint}`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${session?.accessToken}`
+              },
               body: JSON.stringify({
                 razorpayOrderId: response.razorpay_order_id,
                 razorpaySubscriptionId: response.razorpay_subscription_id,

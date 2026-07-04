@@ -70,15 +70,15 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
                       tooltip={item.title}
                       onClick={() => handleToggleGroup(item.title)}
                       className={cn(
-                        "cursor-pointer py-5.5 px-3 text-base text-[#4b5563] dark:text-white data-[state=open]:bg-primary data-[state=open]:text-white hover:data-[state=open]:bg-primary dark:hover:data-[state=open]:bg-primary hover:data-[state=open]:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700",
+                        "cursor-pointer py-2 px-3 text-sm font-medium text-[#4b5563] dark:text-white data-[state=open]:bg-primary data-[state=open]:text-white hover:data-[state=open]:bg-primary dark:hover:data-[state=open]:bg-primary hover:data-[state=open]:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700",
                         isOpen
                           ? "bg-primary text-white hover:bg-primary hover:text-white dark:bg-primary dark:hover:bg-primary"
                           : ""
                       )}
                     >
-                      {item.icon && <item.icon className="!w-4.5 !h-4.5" />}
+                      {item.icon && <item.icon className="!w-4 !h-4" />}
                       <span>{item.title}</span>
-                      <ChevronRight className="ms-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                      <ChevronRight className="ms-auto w-4 h-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
@@ -92,18 +92,18 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
                             <SidebarMenuSubButton
                               asChild
                               className={cn(
-                                "py-5.5 px-3 text-base text-[#4b5563] dark:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700",
+                                "py-2 px-3 text-sm text-[#4b5563] dark:text-gray-300 hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700",
                                 isSubActive
-                                  ? "bg-primary/10 font-bold dark:bg-slate-600"
+                                  ? "bg-primary/10 font-semibold text-primary dark:bg-slate-600 dark:text-white"
                                   : ""
                               )}
                             >
                               <Link
                                 href={subItem.url}
-                                className="flex items-center gap-3.5"
+                                className="flex items-center gap-2.5"
                               >
                                 <span
-                                  className={`w-2 h-2 rounded-[50%] ${subItem.circleColor}`}
+                                  className={`w-1.5 h-1.5 rounded-[50%] ${subItem.circleColor}`}
                                 ></span>
                                 <span>{subItem.title}</span>
                               </Link>
@@ -120,7 +120,7 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
 
           if (item.label) {
             return (
-              <SidebarGroupLabel key={`label-${item.label}`}>
+              <SidebarGroupLabel key={`label-${item.label}`} className="text-xs font-semibold px-2 py-1 mt-3">
                 {item.label}
               </SidebarGroupLabel>
             );
@@ -138,17 +138,17 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
             }
 
             return (
-              <SidebarMenuItem key={item.title}>
+              <SidebarMenuItem key={item.title} className="mb-0.5">
                 <SidebarMenuButton
                   asChild
                   tooltip={item.title}
                   className={cn(
-                    "cursor-pointer py-5.5 px-3 text-base text-[#4b5563] dark:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700 transition-colors",
+                    "cursor-pointer py-2 px-3 text-sm font-medium text-[#4b5563] dark:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700 transition-colors",
                     activeStyles
                   )}
                 >
-                  <Link href={item.url} className="flex items-center gap-2">
-                    {item.icon && <item.icon className="!w-4.5 !h-4.5" />}
+                  <Link href={item.url} className="flex items-center gap-2.5">
+                    {item.icon && <item.icon className="!w-4 !h-4" />}
                     <span>{item.title}</span>
                   </Link>
                 </SidebarMenuButton>

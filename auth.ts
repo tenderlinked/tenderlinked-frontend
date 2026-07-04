@@ -93,7 +93,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                }
              }
              
-             const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${user.sub}/active`);
+             const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${user.sub}/active`, {
+               headers: {
+                 'x-internal-secret': process.env.INTERNAL_API_SECRET || 'fallback-internal-secret-xyz'
+               }
+             });
              if (subRes.ok) {
                const subData = await subRes.json();
                hasActivePlan = subData.hasActivePlan;

@@ -39,19 +39,23 @@ const Header = () => {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'x-tenant-id': session?.user?.tenantSubdomain || '',
+                    'Authorization': `Bearer ${session?.accessToken}`
                 },
                 credentials: 'include',
                 body: JSON.stringify(isState ? { district: 'state' } : {})
             });
             
             if (!response.ok) {
+                if (response.status === 403) throw new Error('You do not have permission to run the scraper.');
                 console.warn('Scrape API returned:', response.status);
+                throw new Error('Failed to start scraping');
             }
             toast.success(`Scraping ${type} started successfully!`);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            toast.error(`Failed to start ${type} scraping.`);
+            toast.error(error.message || `Failed to start ${type} scraping.`);
         } finally {
             isState ? setScrapingState(false) : setScrapingDistrict(false);
         }
@@ -61,11 +65,19 @@ const Header = () => {
         try {
             await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape/stop`, {
                 method: 'POST',
+                headers: {
+                    'x-tenant-id': session?.user?.tenantSubdomain || '',
+                    'Authorization': `Bearer ${session?.accessToken}`
+                },
                 credentials: 'include'
             });
+            if (!response.ok) {
+                if (response.status === 403) throw new Error('You do not have permission to stop the scraper.');
+            }
             toast.success(`Scraping ${type} stopped.`);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+            toast.error(error.message || `Failed to stop ${type} scraping.`);
         } finally {
             if (type === 'state') setScrapingState(false);
             else setScrapingDistrict(false);
