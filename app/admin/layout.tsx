@@ -10,6 +10,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     redirect('/auth/login');
   }
 
+  // @ts-ignore
+  if (session.user?.globalRole !== 'SUPER_ADMIN') {
+    redirect('/dashboard');
+  }
+
   return (
     <ClientRoot defaultOpen={true} session={session}>
       {children}

@@ -110,7 +110,7 @@ function SidebarProvider({
   }, [toggleSidebar]);
 
   React.useEffect(() => {
-    const savedWidth = localStorage.getItem("sidebar_width");
+    const savedWidth = localStorage.getItem("sidebar_width_v2");
     if (savedWidth) {
       const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]') as HTMLElement;
       if (wrapper) wrapper.style.setProperty("--sidebar-width", savedWidth);
@@ -185,7 +185,7 @@ function Sidebar({
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing.current) return;
       let newWidth = e.clientX;
-      if (newWidth < 220) newWidth = 220; // min width
+      if (newWidth < 200) newWidth = 200; // min width
       if (newWidth > 480) newWidth = 480; // max width
       const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]') as HTMLElement;
       if (wrapper) {
@@ -199,7 +199,7 @@ function Sidebar({
         document.body.style.userSelect = 'auto';
         const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]') as HTMLElement;
         if (wrapper) {
-          localStorage.setItem('sidebar_width', wrapper.style.getPropertyValue('--sidebar-width'));
+          localStorage.setItem('sidebar_width_v2', wrapper.style.getPropertyValue('--sidebar-width'));
         }
       }
     };

@@ -121,7 +121,7 @@ export default function PricingPlansPage() {
   if (isLoading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in">
+    <div className="flex flex-col gap-6 animate-in fade-in">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Subscription Plans</h1>

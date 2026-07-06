@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   StickyNote,
   UsersRound,
+  Plus,
 } from "lucide-react";
 
 export const data = {
@@ -78,6 +79,26 @@ export const data = {
       title: "Subscription Plans",
       url: "/admin/plans",
       icon: Component,
+    },
+    {
+      title: "Scraper Targets",
+      url: "/admin/scraper-targets",
+      icon: Server,
+    },
+    {
+      title: "Add Target",
+      url: "/admin/add-target",
+      icon: Plus,
+    },
+    {
+      title: "Active Scrapes",
+      url: "/admin/scraper-instances",
+      icon: Component,
+    },
+    {
+      title: "Region Management",
+      url: "/admin/regions",
+      icon: Boxes,
     },
     {
       title: "Billing",

@@ -88,6 +88,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                const profData = await profRes.json();
                tenantSubdomain = profData.tenant?.subdomain || null;
                user.globalRole = profData.globalRole || 'USER';
+               user.permissions = profData.permissions || [];
                if (profData.tenant?.subscription?.status === 'SUSPENDED') {
                  isSuspended = true;
                }
@@ -113,6 +114,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             hasActivePlan,
             tenantSubdomain,
             globalRole: user.globalRole || 'USER',
+            permissions: user.permissions || [],
             accessToken: tokens.access_token,
             isSuspended
           };
@@ -145,6 +147,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // @ts-ignore
         if (user.globalRole !== undefined) token.globalRole = user.globalRole;
         // @ts-ignore
+        if (user.permissions !== undefined) token.permissions = user.permissions;
+        // @ts-ignore
         if (user.accessToken) token.accessToken = user.accessToken;
         // @ts-ignore
         if (user.isSuspended !== undefined) token.isSuspended = user.isSuspended;
@@ -158,6 +162,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
              const profData = await profRes.json();
              token.tenantSubdomain = profData.tenant?.subdomain || null;
              token.globalRole = profData.globalRole || 'USER';
+             token.permissions = profData.permissions || [];
              
              if (profData.tenant?.subscription?.status === 'SUSPENDED') {
                token.isSuspended = true;
@@ -214,6 +219,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.tenantSubdomain = token.tenantSubdomain as string | null;
         // @ts-ignore
         session.user.globalRole = (token.globalRole as string) || 'USER';
+        // @ts-ignore
+        session.user.permissions = (token.permissions as string[]) || [];
         // @ts-ignore
         session.accessToken = token.accessToken as string | undefined;
         // @ts-ignore

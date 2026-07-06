@@ -546,7 +546,7 @@ export default function TenantManagementPage() {
 
       {/* Tenant Management Modal */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-[800px] w-[90vw] overflow-y-auto">
+        <SheetContent className="sm:max-w-[600px] w-[90vw] overflow-y-auto overflow-x-hidden">
           <SheetHeader className="mb-4">
             <SheetTitle className="text-2xl">{selectedTenant?.name}</SheetTitle>
             <SheetDescription>
@@ -641,13 +641,13 @@ export default function TenantManagementPage() {
                   </div>
                 </div>
 
-                <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-white dark:bg-gray-950">
-                  <table className="w-full text-sm">
+                <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-x-auto bg-white dark:bg-gray-950">
+                  <table className="w-full text-sm min-w-[500px]">
                     <thead className="bg-gray-50/50 dark:bg-gray-900/50 text-gray-500 text-xs uppercase border-b border-gray-200 dark:border-gray-800">
                       <tr>
-                        <th className="px-4 py-3 text-left font-medium">User</th>
-                        <th className="px-4 py-3 text-left font-medium">Role</th>
-                        <th className="px-4 py-3 text-right font-medium"></th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">User</th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Role</th>
+                        <th className="px-4 py-3 text-right font-medium whitespace-nowrap"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -657,10 +657,10 @@ export default function TenantManagementPage() {
                         <React.Fragment key={member.id}>
                           <tr className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors">
                             <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900 dark:text-gray-100">{member.userProfile?.email || 'Unknown User'}</div>
+                              <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[150px]" title={member.userProfile?.email || 'Unknown User'}>{member.userProfile?.email || 'Unknown User'}</div>
                               <div className="text-xs text-gray-500">{member.userId.substring(0,8)}...</div>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3 whitespace-nowrap">
                               <select 
                                 className="rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                 value={member.roleId || ''}
@@ -676,16 +676,18 @@ export default function TenantManagementPage() {
                               </select>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {member.userProfile?.globalRole === 'SUPER_ADMIN' ? (
-                                <Badge variant="outline" className="mr-2 border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-900/20 dark:text-green-400 font-normal py-1">Super Admin</Badge>
-                              ) : (
-                                <Button variant="ghost" size="sm" className="h-8 mr-2 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40" onClick={() => handleMakeSuperAdmin(member.userId)}>
-                                  Make Super Admin
+                              <div className="flex justify-end items-center gap-1">
+                                {member.userProfile?.globalRole === 'SUPER_ADMIN' ? (
+                                  <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-900/20 dark:text-green-400 font-normal py-1 whitespace-nowrap">Super Admin</Badge>
+                                ) : (
+                                  <Button variant="ghost" size="sm" className="h-8 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 whitespace-nowrap px-2" onClick={() => handleMakeSuperAdmin(member.userId)}>
+                                    Make Super Admin
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 shrink-0" onClick={() => handleDeleteMember(member.userId)}>
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
-                              )}
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950" onClick={() => handleDeleteMember(member.userId)}>
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              </div>
                             </td>
                           </tr>
                           {rowMessage?.userId === member.userId && (

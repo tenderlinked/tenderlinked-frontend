@@ -46,8 +46,8 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
   };
 
   return (
-    <SidebarGroup className={`${isCollapsed ? "px-1.5" : ""}`}>
-      <SidebarMenu>
+    <SidebarGroup className={`${isCollapsed ? "px-1.5" : "px-2"} py-1`}>
+      <SidebarMenu className="gap-0.5">
         {items.map((item) => {
           const isGroupActive = item.items?.some(
             (subItem) =>
@@ -70,13 +70,13 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
                       tooltip={item.title}
                       onClick={() => handleToggleGroup(item.title)}
                       className={cn(
-                        "cursor-pointer py-2 px-3 text-sm font-medium text-[#4b5563] dark:text-white data-[state=open]:bg-primary data-[state=open]:text-white hover:data-[state=open]:bg-primary dark:hover:data-[state=open]:bg-primary hover:data-[state=open]:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700",
+                        "cursor-pointer h-8 px-2.5 text-sm font-medium text-[#4b5563] dark:text-white data-[state=open]:bg-primary data-[state=open]:text-white hover:data-[state=open]:bg-primary dark:hover:data-[state=open]:bg-primary hover:data-[state=open]:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700",
                         isOpen
                           ? "bg-primary text-white hover:bg-primary hover:text-white dark:bg-primary dark:hover:bg-primary"
                           : ""
                       )}
                     >
-                      {item.icon && <item.icon className="!w-4 !h-4" />}
+                      {item.icon && <item.icon className="!w-3.5 !h-3.5" />}
                       <span>{item.title}</span>
                       <ChevronRight className="ms-auto w-4 h-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
@@ -92,7 +92,7 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
                             <SidebarMenuSubButton
                               asChild
                               className={cn(
-                                "py-2 px-3 text-sm text-[#4b5563] dark:text-gray-300 hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700",
+                                "h-7 px-2.5 text-sm text-[#4b5563] dark:text-gray-300 hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700",
                                 isSubActive
                                   ? "bg-primary/10 font-semibold text-primary dark:bg-slate-600 dark:text-white"
                                   : ""
@@ -100,7 +100,7 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
                             >
                               <Link
                                 href={subItem.url}
-                                className="flex items-center gap-2.5"
+                                className="flex items-center gap-2"
                               >
                                 <span
                                   className={`w-1.5 h-1.5 rounded-[50%] ${subItem.circleColor}`}
@@ -138,17 +138,17 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
             }
 
             return (
-              <SidebarMenuItem key={item.title} className="mb-0.5">
+              <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   asChild
                   tooltip={item.title}
                   className={cn(
-                    "cursor-pointer py-2 px-3 text-sm font-medium text-[#4b5563] dark:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700 transition-colors",
+                    "cursor-pointer h-8 px-2.5 text-sm font-medium text-[#4b5563] dark:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700 transition-colors",
                     activeStyles
                   )}
                 >
-                  <Link href={item.url} className="flex items-center gap-2.5">
-                    {item.icon && <item.icon className="!w-4 !h-4" />}
+                  <Link href={item.url} className="flex items-center gap-2">
+                    {item.icon && <item.icon className="!w-3.5 !h-3.5" />}
                     <span>{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -162,3 +162,4 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
     </SidebarGroup>
   );
 }
+

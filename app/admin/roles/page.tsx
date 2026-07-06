@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Filter, ShieldCheck, Trash2, Edit, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Plus, Filter, ShieldCheck, Trash2, Edit, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ const PERMISSION_GROUPS = [
     permissions: [
       { id: 'tenders:read', label: 'View Tenders' },
       { id: 'tenders:export', label: 'Export Tenders' },
+      { id: 'tenders:scrape', label: 'Scrape Tenders' },
       { id: 'bookmarks:manage', label: 'Save & Manage Bookmarks' },
     ]
   },
@@ -69,6 +70,9 @@ export default function SystemRolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
@@ -129,6 +133,54 @@ export default function SystemRolesPage() {
     } catch (e) {
       toast.error("Error deleting role");
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRoleIds.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedRoleIds.size} system roles? This cannot be undone.`)) return;
+    try {
+      setIsBulkDeleting(true);
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roles/system/bulk-delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ ids: Array.from(selectedRoleIds) })
+      });
+      if (res.ok) {
+        toast.success(`${selectedRoleIds.size} roles deleted`);
+        setSelectedRoleIds(new Set());
+        fetchRoles();
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Failed to delete roles");
+      }
+    } catch (e) {
+      toast.error("Error deleting roles");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRoleIds.size === filteredRoles.length && filteredRoles.length > 0) {
+      setSelectedRoleIds(new Set());
+    } else {
+      setSelectedRoleIds(new Set(filteredRoles.map(r => r.id)));
+    }
+  };
+
+  const toggleSelectRole = (id: string) => {
+    const newSet = new Set(selectedRoleIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedRoleIds(newSet);
   };
 
   const handleSaveRole = async () => {
@@ -223,6 +275,12 @@ export default function SystemRolesPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+              {selectedRoleIds.size > 0 && (
+                <Button variant="destructive" className="h-9" onClick={handleBulkDelete} disabled={isBulkDeleting}>
+                  {isBulkDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                  Delete Selected ({selectedRoleIds.size})
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -231,24 +289,40 @@ export default function SystemRolesPage() {
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-500 uppercase tracking-wider bg-gray-50/50 dark:bg-gray-900/50 border-b">
                 <tr>
-                  <th className="px-6 py-4 font-semibold">Role Name</th>
-                  <th className="px-6 py-4 font-semibold">Description</th>
-                  <th className="px-6 py-4 font-semibold">Permissions</th>
-                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                  <th className="px-6 py-4 font-semibold w-12">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      checked={filteredRoles.length > 0 && selectedRoleIds.size === filteredRoles.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                  <th className="px-6 py-4 font-semibold whitespace-nowrap">Role Name</th>
+                  <th className="px-6 py-4 font-semibold whitespace-nowrap">Description</th>
+                  <th className="px-6 py-4 font-semibold whitespace-nowrap">Permissions</th>
+                  <th className="px-6 py-4 font-semibold text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">Loading roles...</td>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">Loading roles...</td>
                   </tr>
                 ) : filteredRoles.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">No roles found.</td>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No roles found.</td>
                   </tr>
                 ) : (
                   filteredRoles.map((role) => (
                     <tr key={role.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors bg-white dark:bg-gray-950">
+                      <td className="px-6 py-4">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          checked={selectedRoleIds.has(role.id)}
+                          onChange={() => toggleSelectRole(role.id)}
+                        />
+                      </td>
                       <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                         {role.name}
                       </td>
@@ -265,12 +339,14 @@ export default function SystemRolesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Button variant="ghost" size="sm" className="h-8 mr-2 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100" onClick={() => openEditModal(role)}>
-                          <Edit className="w-3.5 h-3.5 mr-1" /> Edit
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteRole(role.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex justify-end items-center gap-2">
+                          <Button variant="ghost" size="sm" className="h-8 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 shrink-0" onClick={() => openEditModal(role)}>
+                            <Edit className="w-3.5 h-3.5 mr-1" /> Edit
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 shrink-0" onClick={() => handleDeleteRole(role.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
