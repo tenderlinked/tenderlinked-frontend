@@ -83,7 +83,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           let tenantSubdomain = null;
           let isSuspended = false;
           try {
-             const profRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users/profile/${user.sub}?email=${encodeURIComponent(user.email || '')}`);
+             const profRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users/profile/${user.sub}?email=${encodeURIComponent(user.email || '')}`, {
+               headers: { Authorization: `Bearer ${tokens.access_token}` }
+             });
              if (profRes.ok) {
                const profData = await profRes.json();
                tenantSubdomain = profData.tenant?.subdomain || null;
@@ -157,7 +159,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // If we log in via OAuth Keycloak (not Credentials), we need to fetch subscription here
       if (profile && !user?.hasOwnProperty('hasActivePlan')) {
         try {
-           const profRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users/profile/${profile.sub}?email=${encodeURIComponent((profile as any).email || '')}`);
+           const profRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users/profile/${profile.sub}?email=${encodeURIComponent((profile as any).email || '')}`, {
+             headers: { Authorization: `Bearer ${account?.access_token}` }
+           });
            if (profRes.ok) {
              const profData = await profRes.json();
              token.tenantSubdomain = profData.tenant?.subdomain || null;

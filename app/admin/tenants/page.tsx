@@ -16,6 +16,14 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import toast from "react-hot-toast";
 
 interface Tenant {
@@ -54,6 +62,15 @@ export default function TenantManagementPage() {
   // Bulk Actions State
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Add Member Modal State
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [newMemberFirstName, setNewMemberFirstName] = useState("");
+  const [newMemberLastName, setNewMemberLastName] = useState("");
+  const [newMemberRole, setNewMemberRole] = useState("");
+  const [newMemberPassword, setNewMemberPassword] = useState("");
+  const [isAddingMember, setIsAddingMember] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -201,21 +218,34 @@ export default function TenantManagementPage() {
     }
   };
 
-  const handleAddMember = async (tenantId: string, email: string, roleId: string) => {
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTenant || !newMemberEmail) return;
+    setIsAddingMember(true);
     try {
       // @ts-ignore
       const token = session?.accessToken;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${tenantId}/members`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${selectedTenant.id}/members`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ email, roleId })
+        body: JSON.stringify({ 
+          email: newMemberEmail, 
+          roleId: newMemberRole || undefined, 
+          password: newMemberPassword || undefined,
+          firstName: newMemberFirstName || undefined,
+          lastName: newMemberLastName || undefined
+        })
       });
       if (res.ok) {
         toast.success("Member added successfully", { position: 'bottom-right' });
-        (document.getElementById('newMemberEmail') as HTMLInputElement).value = '';
+        setNewMemberEmail("");
+        setNewMemberFirstName("");
+        setNewMemberLastName("");
+        setNewMemberPassword("");
+        setIsAddMemberOpen(false);
         openManageModal(selectedTenant!); // refresh members
       } else {
         const errorData = await res.json();
@@ -223,6 +253,8 @@ export default function TenantManagementPage() {
       }
     } catch (e) {
       toast.error("Error adding member", { position: 'bottom-right' });
+    } finally {
+      setIsAddingMember(false);
     }
   };
 
@@ -624,21 +656,83 @@ export default function TenantManagementPage() {
               </TabsContent>
 
               <TabsContent value="members" className="pt-4">
-                <div className="mb-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-                  <h4 className="text-sm font-semibold mb-3">Add Member</h4>
-                  <div className="flex gap-2">
-                    <input type="email" placeholder="Email Address" className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" id="newMemberEmail" />
-                    <select className="rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" id="newMemberRole">
-                      {systemRoles.map(role => (
-                        <option key={role.id} value={role.id}>{role.name}</option>
-                      ))}
-                    </select>
-                    <Button size="sm" onClick={() => {
-                       const email = (document.getElementById('newMemberEmail') as HTMLInputElement).value;
-                       const role = (document.getElementById('newMemberRole') as HTMLSelectElement).value;
-                       if (email && selectedTenant) handleAddMember(selectedTenant.id, email, role);
-                    }}>Add</Button>
+                <div className="mb-4 flex justify-between items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+                  <div>
+                    <h4 className="text-sm font-semibold">Workspace Members</h4>
+                    <p className="text-xs text-gray-500 mt-1">Manage who has access to this workspace</p>
                   </div>
+                  <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="w-4 h-4 mr-2" /> Add Member
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Add New Member</DialogTitle>
+                        <DialogDescription>
+                          Invite a new user to {selectedTenant.name}.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={handleAddMember} className="space-y-4 pt-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">First Name</label>
+                            <Input 
+                              placeholder="John" 
+                              value={newMemberFirstName}
+                              onChange={(e) => setNewMemberFirstName(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Last Name</label>
+                            <Input 
+                              placeholder="Doe" 
+                              value={newMemberLastName}
+                              onChange={(e) => setNewMemberLastName(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Email Address <span className="text-red-500">*</span></label>
+                          <Input 
+                            type="email" 
+                            required 
+                            placeholder="colleague@example.com" 
+                            value={newMemberEmail}
+                            onChange={(e) => setNewMemberEmail(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Role (Optional)</label>
+                          <select 
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            value={newMemberRole} 
+                            onChange={(e) => setNewMemberRole(e.target.value)}
+                          >
+                            <option value="">Assign a default system role</option>
+                            {systemRoles.map(role => (
+                              <option key={role.id} value={role.id}>{role.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Password (Optional)</label>
+                          <Input 
+                            type="text" 
+                            placeholder="Set a manual password" 
+                            value={newMemberPassword}
+                            onChange={(e) => setNewMemberPassword(e.target.value)}
+                          />
+                          <p className="text-xs text-gray-500">If left blank, a temporary password will be generated automatically.</p>
+                        </div>
+                        <Button type="submit" className="w-full" disabled={isAddingMember}>
+                          {isAddingMember ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                          Add Member
+                        </Button>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </div>
 
                 <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-x-auto bg-white dark:bg-gray-950">

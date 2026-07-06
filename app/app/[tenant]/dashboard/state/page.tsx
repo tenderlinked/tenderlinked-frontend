@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { CalendarDays, FileText, CheckCircle2, Clock, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
 import { TenderFilters } from "@/components/tenders/tender-filters";
@@ -18,6 +19,7 @@ interface ApiResponse {
 }
 
 export default function StateTendersPage() {
+  const { data: session, status } = useSession();
   const [todaysTenders, setTodaysTenders] = useState<TenderData[]>([]);
   const [allTenders, setAllTenders] = useState<TenderData[]>([]);
   const [loadingToday, setLoadingToday] = useState(true);
@@ -40,7 +42,11 @@ export default function StateTendersPage() {
       if (search) url += `&search=${encodeURIComponent(search)}`;
       if (orgFilter !== "all") url += `&district=${encodeURIComponent(orgFilter)}`;
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`
+        }
+      });
       if (!response.ok) throw new Error("Failed to fetch today's state tenders");
       
       const data: ApiResponse = await response.json();
@@ -61,7 +67,11 @@ export default function StateTendersPage() {
       if (search) url += `&search=${encodeURIComponent(search)}`;
       if (orgFilter !== "all") url += `&district=${encodeURIComponent(orgFilter)}`;
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`
+        }
+      });
       if (!response.ok) throw new Error("Failed to fetch all state tenders");
       
       const data: ApiResponse = await response.json();
@@ -102,9 +112,11 @@ export default function StateTendersPage() {
   };
 
   useEffect(() => {
-    fetchTodaysTenders();
-    fetchAllTenders();
-  }, [search, orgFilter, statusFilter, page]);
+    if (status === "authenticated") {
+      fetchTodaysTenders();
+      fetchAllTenders();
+    }
+  }, [search, orgFilter, statusFilter, page, status]);
 
   return (
     <div className="flex flex-col gap-8 w-full pb-8">

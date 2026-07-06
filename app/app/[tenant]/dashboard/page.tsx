@@ -74,7 +74,11 @@ export default function DashboardPage({ params }: { params: Promise<{ tenant: st
   const fetchTenders = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenders?includeStats=true`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenders?includeStats=true`, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`
+        }
+      });
       if (!response.ok) throw new Error("Failed to fetch data");
       
       const data: ApiResponse = await response.json();

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { Shield, Plus, Edit2, Trash2, Loader2, Check } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, Loader2, Check, Copy } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -26,11 +26,16 @@ import {
 
 const AVAILABLE_PERMISSIONS = [
   { id: 'settings:manage', label: 'Manage Settings' },
+  { id: 'billing:read', label: 'View Billing' },
   { id: 'billing:manage', label: 'Manage Billing' },
+  { id: 'members:read', label: 'View Team Members' },
   { id: 'members:manage', label: 'Manage Team Members' },
   { id: 'roles:manage', label: 'Manage Roles' },
-  { id: 'tenders:view', label: 'View Tenders' },
+  { id: 'tenders:read', label: 'View Tenders' },
   { id: 'bookmarks:manage', label: 'Manage Bookmarks' },
+  { id: 'keywords:read', label: 'View Keywords' },
+  { id: 'keywords:manage', label: 'Manage Keywords' },
+  { id: 'alerts:manage', label: 'Manage Alerts' },
 ];
 
 export default function RolesManagementPage() {
@@ -62,7 +67,29 @@ export default function RolesManagementPage() {
       });
       if (!res.ok) throw new Error('Failed to fetch roles');
       const data = await res.json();
-      setRoles(data);
+      
+      // Filter roles to only show those with permissions up to the user's max permissions
+      // @ts-ignore
+      const userPermissions = session?.user?.permissions || [];
+      // @ts-ignore
+      const isSuperAdmin = session?.user?.globalRole === 'SUPER_ADMIN';
+      const hasFullAccess = userPermissions.includes('*') || isSuperAdmin;
+
+      const filteredRoles = data.filter((role: any) => {
+        if (hasFullAccess) return true;
+        
+        // If role has full access, but user doesn't, hide it
+        if (role.permissions?.includes('*')) return false;
+
+        // If role has permissions the user doesn't have, hide it
+        if (role.permissions && role.permissions.length > 0) {
+          return role.permissions.every((p: string) => userPermissions.includes(p));
+        }
+        
+        return true;
+      });
+
+      setRoles(filteredRoles);
     } catch (error) {
       console.error(error);
       toast.error("Could not load roles.");
@@ -82,6 +109,14 @@ export default function RolesManagementPage() {
   const openEditModal = (role: any) => {
     setEditingRole(role);
     setRoleName(role.name);
+    setRoleDescription(role.description || '');
+    setSelectedPerms(role.permissions || []);
+    setIsModalOpen(true);
+  };
+
+  const openDuplicateModal = (role: any) => {
+    setEditingRole(null);
+    setRoleName(`Copy of ${role.name}`);
     setRoleDescription(role.description || '');
     setSelectedPerms(role.permissions || []);
     setIsModalOpen(true);
@@ -270,13 +305,14 @@ export default function RolesManagementPage() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  {!role.isSystemRole && (
+                  {!role.isSystemRole ? (
                     <div className="flex justify-end gap-2">
                       <Button 
                         variant="ghost" 
                         size="sm" 
                         className="text-gray-500 hover:text-gray-900"
                         onClick={() => openEditModal(role)}
+                        title="Edit Role"
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
@@ -285,8 +321,21 @@ export default function RolesManagementPage() {
                         size="sm" 
                         className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
                         onClick={() => handleDelete(role.id)}
+                        title="Delete Role"
                       >
                         <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                        onClick={() => openDuplicateModal(role)}
+                        title="Duplicate System Role"
+                      >
+                        <Copy className="w-4 h-4" />
                       </Button>
                     </div>
                   )}

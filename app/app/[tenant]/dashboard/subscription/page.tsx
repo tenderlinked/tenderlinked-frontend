@@ -23,7 +23,11 @@ export default function SubscriptionPage() {
   const fetchSubscription = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${session?.user?.id}/active`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${session?.user?.id}/active`, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`
+        }
+      });
       if (res.ok) {
         const data = await res.json();
         setSubDetails(data.subscription || null);

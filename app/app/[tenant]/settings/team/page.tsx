@@ -60,6 +60,9 @@ export default function TeamSettingsPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRoleId, setInviteRoleId] = useState<string>('');
+  const [inviteFirstName, setInviteFirstName] = useState('');
+  const [inviteLastName, setInviteLastName] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
   const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
@@ -75,7 +78,27 @@ export default function TeamSettingsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setAvailableRoles(data);
+        
+        // Filter roles to only show those with permissions up to the user's max permissions
+        // @ts-ignore
+        const userPermissions = session?.user?.permissions || [];
+        // @ts-ignore
+        const isSuperAdmin = session?.user?.globalRole === 'SUPER_ADMIN';
+        const hasFullAccess = userPermissions.includes('*') || isSuperAdmin;
+
+        const filteredRoles = data.filter((role: any) => {
+          if (hasFullAccess) return true;
+          
+          if (role.permissions?.includes('*')) return false;
+
+          if (role.permissions && role.permissions.length > 0) {
+            return role.permissions.every((p: string) => userPermissions.includes(p));
+          }
+          
+          return true;
+        });
+
+        setAvailableRoles(filteredRoles);
       }
     } catch (error) {
       console.error("Failed to fetch roles:", error);
@@ -108,7 +131,13 @@ export default function TeamSettingsPage() {
           'Authorization': `Bearer ${session?.accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email: inviteEmail, roleId: inviteRoleId || undefined })
+        body: JSON.stringify({ 
+          email: inviteEmail, 
+          roleId: inviteRoleId || undefined, 
+          password: invitePassword || undefined,
+          firstName: inviteFirstName || undefined,
+          lastName: inviteLastName || undefined
+        })
       });
       
       if (!res.ok) {
@@ -118,7 +147,10 @@ export default function TeamSettingsPage() {
       
       toast.success('User invited successfully!');
       setInviteEmail('');
+      setInviteFirstName('');
+      setInviteLastName('');
       setInviteRoleId('');
+      setInvitePassword('');
       setIsInviteOpen(false);
       fetchMembers();
     } catch (error: any) {
@@ -202,8 +234,26 @@ export default function TeamSettingsPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleInvite} className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">First Name</label>
+                  <Input 
+                    placeholder="John" 
+                    value={inviteFirstName}
+                    onChange={(e) => setInviteFirstName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Last Name</label>
+                  <Input 
+                    placeholder="Doe" 
+                    value={inviteLastName}
+                    onChange={(e) => setInviteLastName(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Email Address</label>
+                <label className="text-sm font-medium">Email Address <span className="text-red-500">*</span></label>
                 <Input 
                   type="email" 
                   required 
@@ -227,6 +277,16 @@ export default function TeamSettingsPage() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500">If left blank, the default user role will be assigned.</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Password (Optional)</label>
+                <Input 
+                  type="text" 
+                  placeholder="Set a manual password" 
+                  value={invitePassword}
+                  onChange={(e) => setInvitePassword(e.target.value)}
+                />
+                <p className="text-xs text-gray-500">If left blank, a temporary password will be generated automatically.</p>
               </div>
               <Button type="submit" className="w-full" disabled={inviting}>
                 {inviting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}

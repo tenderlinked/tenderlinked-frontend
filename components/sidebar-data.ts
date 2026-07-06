@@ -26,31 +26,37 @@ export const data = {
       title: "District Tenders",
       url: "/dashboard/district",
       icon: Boxes,
+      requiredPermission: "tenders:read"
     },
     {
       title: "State Tenders",
       url: "/dashboard/state",
       icon: Component,
+      requiredPermission: "tenders:read"
     },
     {
       title: "Today",
       url: "/today",
       icon: CalendarDays,
+      requiredPermission: "tenders:read"
     },
     {
       title: "Bookmarks",
       url: "/bookmarks",
       icon: StickyNote,
+      requiredPermission: "tenders:read"
     },
     {
       title: "Team Settings",
       url: "/settings/team",
       icon: UsersRound,
+      requiredPermission: "members:read"
     },
     {
       title: "Role Management",
       url: "/settings/roles",
       icon: ShieldCheck,
+      requiredPermission: "settings:manage" // Only admins can manage roles
     },
   ],
   adminNavMain: [
