@@ -1,10 +1,30 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { PLANS } from "@/config/pricing";
 
 export default function PricingPage() {
+  const [dbPlans, setDbPlans] = useState<any[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/plans`);
+        if (res.ok) {
+          const data = await res.json();
+          setDbPlans(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch plans", e);
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    fetchPlans();
+  }, []);
+
   return (
     <div className="bg-gray-50 min-h-screen font-sans flex flex-col">
       <main className="flex-1 w-full">
@@ -70,7 +90,7 @@ export default function PricingPage() {
               </span>
               <span className="flex items-center gap-2 bg-gray-100 text-[#2563EB] px-4 py-2 rounded-lg font-medium text-sm">
                 <span className="material-symbols-outlined text-[18px]">schedule</span>
-                3-days Free Trial
+                14-days Free Trial
               </span>
               <span className="flex items-center gap-2 bg-gray-100 text-[#2563EB] px-4 py-2 rounded-lg font-medium text-sm">
                 <span className="material-symbols-outlined text-[18px]">credit_card_off</span>
@@ -79,111 +99,70 @@ export default function PricingPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-[1280px] mx-auto items-end">
-            {Object.values(PLANS).map((plan) => (
-              <div 
-                key={plan.id} 
-                className={`bg-white p-8 rounded-2xl ${
-                  plan.recommended 
-                    ? "border-2 border-[#2563EB] shadow-lg relative transform md:-translate-y-4" 
-                    : "border border-gray-200 shadow-sm"
-                }`}
-              >
-                {plan.recommended && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#2563EB] text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                    Most Popular
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-[1280px] mx-auto items-stretch">
+            {plansLoading ? (
+              <div className="col-span-3 text-center text-gray-500 py-10">Loading plans...</div>
+            ) : dbPlans.length === 0 ? (
+              <div className="col-span-3 text-center text-gray-500 py-10">No subscription plans available right now. Please check back later!</div>
+            ) : dbPlans.map((plan: any) => {
+              const features = [
+                "14 Days Free Trial",
+                plan.hasEmailAlerts ? "Email Alerts Included" : null,
+                plan.hasWhatsappAlerts ? "WhatsApp Alerts Included" : null,
+                plan.hasSmsAlerts ? "SMS Alerts Included" : null,
+                plan.maxKeywords > 0 ? `Up to ${plan.maxKeywords} Keywords` : "Unlimited Keywords",
+                plan.maxStates > 0 ? `Access to ${plan.maxStates} States` : "All States Coverage",
+                plan.monthlyCredits > 0 ? `${plan.monthlyCredits} Monthly AI Credits` : "Unlimited AI Credits",
+                plan.maxTenderViews > 0 ? `${plan.maxTenderViews} Tender Views/mo` : "Unlimited Tender Views",
+                plan.allowedTenderFields?.includes('aiSummary') ? 'AI Summarization' : null
+              ].filter(Boolean) as string[];
+
+              return (
+                <div 
+                  key={plan.id} 
+                  className={`bg-white p-8 rounded-2xl flex flex-col h-full ${
+                    plan.isDefault 
+                      ? "border-2 border-[#2563EB] shadow-lg relative transform md:-translate-y-4" 
+                      : "border border-gray-200 shadow-sm"
+                  }`}
+                >
+                  {plan.isDefault && (
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#2563EB] text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                      Most Popular
+                    </div>
+                  )}
+                  <div className="text-xs font-bold text-[#2563EB] tracking-widest uppercase mb-4">
+                    {plan.name}
                   </div>
-                )}
-                <div className="text-xs font-bold text-[#2563EB] tracking-widest uppercase mb-4">
-                  {plan.name}
+                  <h3 className="font-bold text-[20px] mb-2">{plan.name} Plan</h3>
+                  <p className="text-sm text-gray-500 mb-6 h-16 shrink-0">
+                    Get access to premium government intelligence and tools designed for {plan.name.toLowerCase()} scale.
+                  </p>
+                  <div className="text-[32px] font-bold text-gray-900 mb-8 shrink-0">
+                    ₹{plan.price?.toLocaleString() || 0} <span className="text-sm font-normal text-gray-500">/month</span>
+                  </div>
+                  <ul className="space-y-4 mb-8">
+                    {features.map((feature, idx) => (
+                      <li key={idx} className={`flex items-center gap-3 text-sm ${plan.isDefault ? 'font-medium text-gray-900' : 'text-gray-500'}`}>
+                        <span className="material-symbols-outlined text-[16px] text-[#2563EB]">check</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href={`/checkout?plan=${plan.id}`} className={`block text-center w-full py-3 rounded-xl font-medium transition-colors mt-auto ${
+                    plan.isDefault 
+                      ? 'bg-[#2563EB] text-white hover:bg-blue-700 shadow-md' 
+                      : 'border border-gray-200 text-[#2563EB] hover:bg-gray-100'
+                  }`}>
+                    {plan.price === 0 ? 'Start Free Trial' : 'Get Started Now'}
+                  </Link>
                 </div>
-                <h3 className="font-bold text-[20px] mb-2">{plan.title}</h3>
-                <p className="text-sm text-gray-500 mb-6 h-16">
-                  {plan.description}
-                </p>
-                <div className="text-[32px] font-bold text-gray-900 mb-8">
-                  ₹{plan.price.toLocaleString()} <span className="text-sm font-normal text-gray-500">/{plan.duration}</span>
-                </div>
-                <ul className="space-y-4 mb-8">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className={`flex items-center gap-3 text-sm ${plan.recommended ? 'font-medium text-gray-900' : 'text-gray-500'}`}>
-                      <span className="material-symbols-outlined text-[16px] text-[#2563EB]">check</span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <Link href={`/checkout?plan=${plan.id}`} className={`block text-center w-full py-3 rounded-xl font-medium transition-colors ${
-                  plan.recommended 
-                    ? 'bg-[#2563EB] text-white hover:bg-blue-700 shadow-md' 
-                    : 'border border-gray-200 text-[#2563EB] hover:bg-gray-100'
-                }`}>
-                  {plan.ctaText}
-                </Link>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
-        {/* Detailed Feature Comparison */}
-        <section className="py-20 bg-white px-4 md:px-8 border-y border-gray-200">
-          <div className="max-w-[1000px] mx-auto">
-            <h2 className="text-center font-bold text-[24px] mb-12 text-gray-900">
-              Detailed Feature Comparison
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 border-b border-gray-200">
-                    <th className="p-4 font-bold text-sm text-gray-900">Features</th>
-                    <th className="p-4 font-bold text-sm text-gray-900 text-center">Basic</th>
-                    <th className="p-4 font-bold text-sm text-[#2563EB] text-center">Professional</th>
-                    <th className="p-4 font-bold text-sm text-gray-900 text-center">Enterprise</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-gray-200 hover:bg-white transition-colors">
-                    <td className="p-4 text-sm text-gray-500">Tender Notifications</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">Daily</td>
-                    <td className="p-4 text-sm font-medium text-gray-900 text-center">Real-time</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">Real-time</td>
-                  </tr>
-                  <tr className="border-b border-gray-200 hover:bg-white transition-colors">
-                    <td className="p-4 text-sm text-gray-500">Keywords Search</td>
-                    <td className="p-4 text-sm text-[#2563EB] text-center">Unlimited</td>
-                    <td className="p-4 text-sm text-[#2563EB] text-center">Unlimited</td>
-                    <td className="p-4 text-sm text-[#2563EB] text-center">Unlimited</td>
-                  </tr>
-                  <tr className="border-b border-gray-200 hover:bg-white transition-colors">
-                    <td className="p-4 text-sm text-gray-500">AI Matchmaking</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">—</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">—</td>
-                    <td className="p-4 text-sm text-[#2563EB] text-center">
-                      <span className="material-symbols-outlined text-[18px]">check</span>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-gray-200 hover:bg-white transition-colors">
-                    <td className="p-4 text-sm text-gray-500">Historical Data Archive</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">1 Year</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">5 Years</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">Full History</td>
-                  </tr>
-                  <tr className="border-b border-gray-200 hover:bg-white transition-colors">
-                    <td className="p-4 text-sm text-gray-500">Team Collaboration</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">None</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">Collaborative</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">Advanced Workflow</td>
-                  </tr>
-                  <tr className="hover:bg-white transition-colors">
-                    <td className="p-4 text-sm text-gray-500">API Access</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">—</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">Read-Only</td>
-                    <td className="p-4 text-sm text-gray-500 text-center">Full Read/Write</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+        {/* Detailed Feature Comparison removed because plans are dynamic */}
 
         {/* FAQs */}
         <section className="py-20 bg-white px-4 md:px-8">
