@@ -39,6 +39,7 @@ const RegisterForm = () => {
     email: string;
     firstName: string;
     lastName: string;
+    tenantId: string;
   } | null>(null);
 
   const [step, setStep] = useState(1);
@@ -63,35 +64,8 @@ const RegisterForm = () => {
     },
   });
 
-  const username = form.watch("username");
   const email = form.watch("email");
   const phone = form.watch("phone");
-
-  useEffect(() => {
-    if (!username || username.length < 3) {
-      setIsUsernameAvailable(null);
-      return;
-    }
-
-    setIsCheckingUsername(true);
-    const timeoutId = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
-        const data = await res.json();
-        if (res.ok) {
-          setIsUsernameAvailable(data.available);
-        } else {
-          setIsUsernameAvailable(null);
-        }
-      } catch (error) {
-        setIsUsernameAvailable(null);
-      } finally {
-        setIsCheckingUsername(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [username]);
 
   useEffect(() => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -181,6 +155,7 @@ const RegisterForm = () => {
         email: values.email,
         firstName: values.firstName,
         lastName: values.lastName,
+        tenantId: data.tenantId,
       });
       setStep(2);
     } catch (error: any) {
@@ -196,7 +171,7 @@ const RegisterForm = () => {
     setLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/tenants/by-subdomain/${successData?.username}/alert-preferences`, {
+      const response = await fetch(`${apiUrl}/api/tenants/${successData?.tenantId}/alert-preferences`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,9 +198,7 @@ const RegisterForm = () => {
   if (step === 3 && successData) {
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
     const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https:" : "http:";
-    // If rootDomain has a port in it (e.g., localhost:3000), we just prepend subdomain.
-    // If we're on localhost, the browser might restrict subdomains, but this provides the correct URL.
-    const loginUrl = `${protocol}//${successData.username}.${rootDomain}/auth/login`;
+    const loginUrl = `${protocol}//${rootDomain}/auth/login`;
 
     return (
       <div className="flex flex-col items-center justify-center space-y-6 py-8 text-center animate-in fade-in zoom-in duration-300">
@@ -247,7 +220,7 @@ const RegisterForm = () => {
             <p className="font-semibold">{successData.email}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">Workspace / Subdomain</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">Username</p>
             <p className="font-semibold">{successData.username}</p>
           </div>
           <div className="pt-2 border-t border-slate-200 dark:border-slate-700">

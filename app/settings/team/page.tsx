@@ -50,8 +50,8 @@ interface TenantMember {
 
 export default function TeamSettingsPage() {
   const { data: session } = useSession();
-  const params = useParams();
-  const tenantId = params.tenant as string;
+  // @ts-ignore
+  const tenantId = session?.user?.tenantId as string;
   
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [availableRoles, setAvailableRoles] = useState<any[]>([]);
@@ -341,7 +341,7 @@ export default function TeamSettingsPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {member.isOwner && (
+                    {member.role === 'OWNER' && (
                       <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800 h-6">
                         <Shield className="w-3 h-3 mr-1" /> Owner
                       </Badge>
@@ -349,7 +349,7 @@ export default function TeamSettingsPage() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  {!member.isOwner && (
+                  {member.role !== 'OWNER' && (
                     <Button 
                       variant="ghost" 
                       size="sm" 

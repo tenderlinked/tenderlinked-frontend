@@ -42,7 +42,7 @@ export default function RegionsPage() {
     if (status === "authenticated") fetchStates();
   }, [status]);
 
-  const getHeaders = () => {
+  const getHeaders = (): Record<string, string> => {
     // @ts-ignore
     const token = session?.accessToken;
     return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };

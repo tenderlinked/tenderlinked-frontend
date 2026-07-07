@@ -60,7 +60,7 @@ export default function AddTargetPage() {
     }
   }, [type, stateName, districtId, regions]);
 
-  const getHeaders = () => {
+  const getHeaders = (): Record<string, string> => {
     // @ts-ignore
     const token = session?.accessToken;
     return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };

@@ -21,18 +21,16 @@ interface Member {
   } | null;
 }
 
-export default function SettingsPage({ params }: { params: Promise<{ tenant: string }> }) {
+export default function SettingsPage() {
   const { data: session, status, update } = useSession();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
 
-  const unwrappedParams = use(params);
-  const tenantId = unwrappedParams.tenant;
-
+  // @ts-ignore
+  const tenantId = session?.user?.tenantSubdomain as string || "default";
+  
   const [actualTenantId, setActualTenantId] = useState<string | null>(null);
-  const [subdomainInput, setSubdomainInput] = useState(tenantId);
-  const [isUpdatingSubdomain, setIsUpdatingSubdomain] = useState(false);
 
   useEffect(() => {
     console.log("Settings Session Status:", status);
@@ -75,43 +73,6 @@ export default function SettingsPage({ params }: { params: Promise<{ tenant: str
     } catch (e) {
       console.error(e);
       setLoading(false);
-    }
-  };
-
-  const handleUpdateSubdomain = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!actualTenantId) {
-      toast.error("Your workspace hasn't fully loaded yet. Please refresh the page.");
-      return;
-    }
-    setIsUpdatingSubdomain(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/tenants/${actualTenantId}/subdomain`, {
-        method: "POST", // Actually POST in controller
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': session?.user?.id || ''
-        },
-        body: JSON.stringify({ subdomain: subdomainInput })
-      });
-
-      if (res.ok) {
-        toast.success("Subdomain updated! Redirecting...");
-        // Update NextAuth session cookie so edge middleware recognizes new subdomain
-        await update({ tenantSubdomain: subdomainInput });
-        
-        // Redirect to new subdomain
-        setTimeout(() => {
-          window.location.href = `http://${subdomainInput}.localhost:3000/settings`;
-        }, 1500);
-      } else {
-        const err = await res.json();
-        toast.error(err.message || "Failed to update subdomain");
-      }
-    } catch (error) {
-      toast.error("Error updating subdomain");
-    } finally {
-      setIsUpdatingSubdomain(false);
     }
   };
 
@@ -246,36 +207,6 @@ export default function SettingsPage({ params }: { params: Promise<{ tenant: str
                 </div>
                 <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="w-4 h-4 mr-2" /> Send Invite
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Subdomain Card */}
-          <Card className="shadow-sm border-purple-100 dark:border-purple-900">
-            <CardHeader className="bg-purple-50/50 dark:bg-purple-900/10 border-b border-purple-100 dark:border-purple-900/50">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Settings className="w-4 h-4 text-purple-600" /> Custom Subdomain
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <form onSubmit={handleUpdateSubdomain} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Your Subdomain</label>
-                  <div className="flex items-center gap-2">
-                    <Input 
-                      type="text" 
-                      placeholder="company" 
-                      value={subdomainInput}
-                      onChange={(e) => setSubdomainInput(e.target.value)}
-                      required
-                      className="text-right font-mono"
-                    />
-                    <span className="text-gray-500 font-mono text-sm whitespace-nowrap">.localhost:3000</span>
-                  </div>
-                </div>
-                <Button type="submit" disabled={isUpdatingSubdomain || subdomainInput === tenantId} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
-                  {isUpdatingSubdomain ? "Saving..." : "Change Subdomain"}
                 </Button>
               </form>
             </CardContent>

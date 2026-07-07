@@ -20,7 +20,7 @@ interface TenderFiltersProps {
 
 export function TenderFilters({ type, onSearchChange, onFilterChange, onStatusChange }: TenderFiltersProps) {
   return (
-    <div className="flex flex-col md:flex-row items-center gap-4 py-4 w-full">
+    <div className="flex flex-col md:flex-row items-center gap-4 py-5 px-5 w-full border-b border-slate-100">
       {/* Search Bar */}
       <div className="relative flex-1 max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

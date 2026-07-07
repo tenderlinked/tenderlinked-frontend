@@ -153,6 +153,8 @@ export async function POST(req: Request) {
       );
     }
 
+    let tenantId = "";
+    
     // 4. Create User Profile in local PostgreSQL Database
     try {
       const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/users/profile`, {
@@ -171,13 +173,16 @@ export async function POST(req: Request) {
         console.error("Failed to create PostgreSQL user profile", await profileRes.text());
         // We do not fail the registration if profile sync fails, 
         // because the Keycloak user is already created!
+      } else {
+        const profileData = await profileRes.json();
+        tenantId = profileData.tenantId;
       }
     } catch (dbError) {
       console.error("Database connection failed while creating profile:", dbError);
     }
 
     return NextResponse.json(
-      { message: "User registered successfully" },
+      { message: "User registered successfully", tenantId: tenantId },
       { status: 201 }
     );
     

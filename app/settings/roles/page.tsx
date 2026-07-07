@@ -40,8 +40,8 @@ const AVAILABLE_PERMISSIONS = [
 
 export default function RolesManagementPage() {
   const { data: session } = useSession();
-  const params = useParams();
-  const tenantId = params.tenant as string;
+  // @ts-ignore
+  const tenantId = session?.user?.tenantSubdomain as string;
   
   const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

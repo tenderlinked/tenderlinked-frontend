@@ -68,19 +68,6 @@ const LoginForm = () => {
             
             if ((session?.user as any)?.globalRole === 'SUPER_ADMIN') {
               window.location.href = '/admin/tenants';
-            } else if ((session?.user as any)?.tenantSubdomain) {
-              // Always use NEXT_PUBLIC_ROOT_DOMAIN so the redirect domain
-              // matches the cookie domain set in auth.ts — never parse window.location.host
-              const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || window.location.host;
-              const protocol = window.location.protocol;
-              const targetHost = `${(session.user as any).tenantSubdomain}.${rootDomain}`;
-              const currentHost = window.location.host;
-              
-              if (currentHost !== targetHost) {
-                window.location.href = `${protocol}//${targetHost}/dashboard`;
-              } else {
-                window.location.href = '/dashboard';
-              }
             } else {
               window.location.href = '/dashboard';
             }

@@ -10,7 +10,6 @@ import toast from "react-hot-toast";
 interface Tenant {
   id: string;
   name: string;
-  subdomain: string;
   createdAt: string;
   subscription: {
     planType: string;

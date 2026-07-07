@@ -29,7 +29,6 @@ import toast from "react-hot-toast";
 interface Tenant {
   id: string;
   name: string;
-  subdomain: string;
   createdAt: string;
   subscription: {
     planType: string;
@@ -55,9 +54,7 @@ export default function TenantManagementPage() {
   const [systemRoles, setSystemRoles] = useState<any[]>([]);
   const [rowMessage, setRowMessage] = useState<{ userId: string, message: string, type: 'error' | 'success' } | null>(null);
 
-  // Subdomain Edit State
-  const [subdomainInput, setSubdomainInput] = useState("");
-  const [isUpdatingSubdomain, setIsUpdatingSubdomain] = useState(false);
+
 
   // Bulk Actions State
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
@@ -143,7 +140,6 @@ export default function TenantManagementPage() {
   const openManageModal = async (tenant: Tenant) => {
     setSelectedTenant(tenant);
     setRowMessage(null);
-    setSubdomainInput(tenant.subdomain);
     setIsSheetOpen(true);
     setTenantMembers([]);
     setIsMembersLoading(true);
@@ -165,34 +161,7 @@ export default function TenantManagementPage() {
     }
   };
 
-  const handleUpdateSubdomain = async () => {
-    if (!selectedTenant || !subdomainInput.trim()) return;
-    try {
-      setIsUpdatingSubdomain(true);
-      // @ts-ignore
-      const token = session?.accessToken;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${selectedTenant.id}/subdomain`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ subdomain: subdomainInput.trim() })
-      });
-      if (res.ok) {
-        toast.success("Subdomain updated");
-        setSelectedTenant({ ...selectedTenant, subdomain: subdomainInput.trim() });
-        fetchTenants();
-      } else {
-        const err = await res.json();
-        toast.error(err.message || "Failed to update subdomain");
-      }
-    } catch (e) {
-      toast.error("Error updating subdomain");
-    } finally {
-      setIsUpdatingSubdomain(false);
-    }
-  };
+
 
   const handleDeleteMember = async (userId: string) => {
     if (!selectedTenant) return;
@@ -400,8 +369,7 @@ export default function TenantManagementPage() {
   };
 
   const filteredTenants = tenants.filter(t => 
-    t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.subdomain.toLowerCase().includes(searchTerm.toLowerCase())
+    t.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (status === "loading") {
@@ -478,7 +446,6 @@ export default function TenantManagementPage() {
                   <th className="px-6 py-4 font-semibold">Plan</th>
                   <th className="px-6 py-4 font-semibold">Status</th>
                   <th className="px-6 py-4 font-semibold">Email</th>
-                  <th className="px-6 py-4 font-semibold">Subdomain</th>
                   <th className="px-6 py-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
@@ -541,20 +508,7 @@ export default function TenantManagementPage() {
                       <td className="px-6 py-4 text-gray-600 dark:text-gray-400 font-medium">
                         {tenant.ownerEmail || <span className="text-gray-400 italic">Unknown Email</span>}
                       </td>
-                      <td className="px-6 py-4">
-                        <button 
-                          onClick={() => {
-                            const protocol = window.location.protocol;
-                            const hostparts = window.location.host.split('.');
-                            const rootDomain = hostparts.length > 2 ? hostparts.slice(1).join('.') : hostparts.join('.');
-                            window.open(`${protocol}//${tenant.subdomain}.${rootDomain}/dashboard`, '_blank');
-                          }}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium hover:underline flex items-center gap-1.5 transition-colors"
-                        >
-                          {tenant.subdomain}
-                          <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                        </button>
-                      </td>
+
                       <td className="px-6 py-4 text-right">
                         <Button variant="link" className="font-semibold text-sm" onClick={() => openManageModal(tenant)}>
                           Manage
@@ -596,25 +550,7 @@ export default function TenantManagementPage() {
 
               <TabsContent value="overview" className="space-y-4 pt-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-950">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Subdomain</div>
-                    <div className="flex gap-2">
-                      <Input 
-                        value={subdomainInput} 
-                        onChange={(e) => setSubdomainInput(e.target.value)} 
-                        className="h-8 text-sm"
-                        placeholder="subdomain"
-                      />
-                      <Button 
-                        size="sm" 
-                        className="h-8" 
-                        onClick={handleUpdateSubdomain} 
-                        disabled={isUpdatingSubdomain || subdomainInput.trim() === selectedTenant.subdomain}
-                      >
-                        {isUpdatingSubdomain ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
-                      </Button>
-                    </div>
-                  </div>
+
                   <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-950">
                     <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created Date</div>
                     <div className="font-semibold text-gray-900 dark:text-gray-100">{new Date(selectedTenant.createdAt).toLocaleDateString()}</div>
@@ -786,8 +722,8 @@ export default function TenantManagementPage() {
                           </tr>
                           {rowMessage?.userId === member.userId && (
                             <tr>
-                              <td colSpan={3} className={`px-4 py-2 text-xs text-right border-t-0 font-medium ${rowMessage.type === 'error' ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'}`}>
-                                {rowMessage.message}
+                              <td colSpan={3} className={`px-4 py-2 text-xs text-right border-t-0 font-medium ${rowMessage?.type === 'error' ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'}`}>
+                                {rowMessage?.message}
                               </td>
                             </tr>
                           )}
@@ -801,26 +737,6 @@ export default function TenantManagementPage() {
               <TabsContent value="advanced" className="pt-4">
                 <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
                   <div className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Impersonate Tenant</h4>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Temporarily view the application exactly as this tenant sees it.
-                      </p>
-                    </div>
-                    <Button 
-                      variant="outline"
-                      className="shrink-0 font-medium"
-                      onClick={() => {
-                        const protocol = window.location.protocol;
-                        const hostparts = window.location.host.split('.');
-                        const rootDomain = hostparts.length > 2 ? hostparts.slice(1).join('.') : hostparts.join('.');
-                        window.open(`${protocol}//${selectedTenant.subdomain}.${rootDomain}/dashboard`, '_blank');
-                      }}
-                    >
-                      Log in as Tenant
-                    </Button>
-                  </div>
-                  <div className="border-t border-gray-200 dark:border-gray-800 p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                       <h4 className="text-sm font-semibold text-red-600 dark:text-red-500">Delete Workspace</h4>
                       <p className="text-sm text-gray-500 mt-1">

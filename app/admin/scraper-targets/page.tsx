@@ -39,6 +39,7 @@ interface ScraperTarget {
   isActive: boolean;
   isVerified?: boolean;
   cronSchedule?: string;
+  regionDistrictId?: string;
   createdAt: string;
 }
 
@@ -89,7 +90,7 @@ export default function ScraperTargetsPage() {
     }
   }, [status]);
 
-  const getHeaders = () => {
+  const getHeaders = (): Record<string, string> => {
     // @ts-ignore
     const token = session?.accessToken;
     return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };

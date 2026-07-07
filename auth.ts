@@ -80,7 +80,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           
           // Check backend for active subscription
           let hasActivePlan = false;
-          let tenantSubdomain = null;
+          let tenantId = null;
+          let tenantName = null;
           let isSuspended = false;
           try {
              const profRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/users/profile/${user.sub}?email=${encodeURIComponent(user.email || '')}`, {
@@ -88,7 +89,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
              });
              if (profRes.ok) {
                const profData = await profRes.json();
-               tenantSubdomain = profData.tenant?.subdomain || null;
+               tenantId = profData.tenant?.id || null;
+               tenantName = profData.tenant?.name || null;
                user.globalRole = profData.globalRole || 'USER';
                user.permissions = profData.permissions || [];
                if (profData.tenant?.subscription?.status === 'SUSPENDED') {
@@ -114,7 +116,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name || (user.given_name ? `${user.given_name} ${user.family_name || ''}`.trim() : user.preferred_username),
             email: user.email,
             hasActivePlan,
-            tenantSubdomain,
+            tenantId,
+            tenantName,
             globalRole: user.globalRole || 'USER',
             permissions: user.permissions || [],
             accessToken: tokens.access_token,
@@ -145,7 +148,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // @ts-ignore
         if (user.hasActivePlan !== undefined) token.hasActivePlan = user.hasActivePlan;
         // @ts-ignore
-        if (user.tenantSubdomain !== undefined) token.tenantSubdomain = user.tenantSubdomain;
+        if (user.tenantId !== undefined) token.tenantId = user.tenantId;
+        // @ts-ignore
+        if (user.tenantName !== undefined) token.tenantName = user.tenantName;
         // @ts-ignore
         if (user.globalRole !== undefined) token.globalRole = user.globalRole;
         // @ts-ignore
@@ -164,7 +169,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
            });
            if (profRes.ok) {
              const profData = await profRes.json();
-             token.tenantSubdomain = profData.tenant?.subdomain || null;
+             token.tenantId = profData.tenant?.id || null;
+             token.tenantName = profData.tenant?.name || null;
              token.globalRole = profData.globalRole || 'USER';
              token.permissions = profData.permissions || [];
              
@@ -190,11 +196,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (session?.hasActivePlan !== undefined) {
           token.hasActivePlan = session.hasActivePlan;
         } 
-        if (session?.tenantSubdomain !== undefined) {
-          token.tenantSubdomain = session.tenantSubdomain;
+        if (session?.tenantId !== undefined) {
+          token.tenantId = session.tenantId;
+        }
+        if (session?.tenantName !== undefined) {
+          token.tenantName = session.tenantName;
         }
         
-        if (token.id && session?.hasActivePlan === undefined && session?.tenantSubdomain === undefined) {
+        if (token.id && session?.hasActivePlan === undefined && session?.tenantId === undefined) {
           try {
              const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${token.id}/active`);
              if (subRes.ok) {
@@ -220,7 +229,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // @ts-ignore
         session.user.hasActivePlan = token.hasActivePlan as boolean;
         // @ts-ignore
-        session.user.tenantSubdomain = token.tenantSubdomain as string | null;
+        session.user.tenantId = token.tenantId as string | null;
+        // @ts-ignore
+        session.user.tenantName = token.tenantName as string | null;
         // @ts-ignore
         session.user.globalRole = (token.globalRole as string) || 'USER';
         // @ts-ignore
