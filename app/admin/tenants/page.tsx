@@ -52,6 +52,7 @@ export default function TenantManagementPage() {
   const [tenantMembers, setTenantMembers] = useState<any[]>([]);
   const [isMembersLoading, setIsMembersLoading] = useState(false);
   const [systemRoles, setSystemRoles] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
   const [rowMessage, setRowMessage] = useState<{ userId: string, message: string, type: 'error' | 'success' } | null>(null);
 
 
@@ -73,8 +74,21 @@ export default function TenantManagementPage() {
     if (status === "authenticated") {
       fetchTenants();
       fetchSystemRoles();
+      fetchPlans();
     }
   }, [status]);
+
+  const fetchPlans = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/plans`);
+      if (res.ok) {
+        const data = await res.json();
+        setPlans(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch plans", e);
+    }
+  };
 
   const fetchSystemRoles = async () => {
     try {
@@ -99,7 +113,8 @@ export default function TenantManagementPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants`, {
         headers: token ? {
           'Authorization': `Bearer ${token}`
-        } : {}
+        } : {},
+        cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
@@ -128,6 +143,19 @@ export default function TenantManagementPage() {
       });
       if (res.ok) {
         toast.success("Subscription updated");
+        
+        // Update local selectedTenant state so it doesn't revert if another dropdown changes
+        if (selectedTenant) {
+          setSelectedTenant({
+            ...selectedTenant,
+            subscription: {
+              ...(selectedTenant.subscription || {}),
+              planType: planType,
+              status: newStatus
+            }
+          });
+        }
+        
         fetchTenants();
       } else {
         toast.error("Failed to update subscription");
@@ -569,9 +597,9 @@ export default function TenantManagementPage() {
                         defaultValue={selectedTenant.subscription?.planType || 'FREE'}
                         onChange={(e) => handleUpdateSubscription(selectedTenant.id, e.target.value, selectedTenant.subscription?.status || 'ACTIVE')}
                       >
-                        <option value="FREE">Free Tier</option>
-                        <option value="PRO">Pro Tier</option>
-                        <option value="ENTERPRISE">Enterprise</option>
+                        {plans.map(plan => (
+                          <option key={plan.id} value={plan.name}>{plan.name}</option>
+                        ))}
                       </select>
                     </div>
 

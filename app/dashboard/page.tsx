@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CheckSquare, AlertCircle, Clock, Flame, Sparkles, BrainCircuit } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -251,13 +252,23 @@ export default function DashboardPage() {
             <CardContent className="text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-4 pt-4 relative">
               {selectedTender ? (
                 <>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                      {selectedTender.title}
-                    </h4>
-                    <p className="text-xs text-gray-500 mb-3 capitalize">
-                      {selectedTender.district} • Ends {new Date(selectedTender.endDate).toLocaleDateString()}
-                    </p>
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        {selectedTender.title}
+                      </h4>
+                      <p className="text-xs text-gray-500 mb-3 capitalize">
+                        {selectedTender.district} • Ends {new Date(selectedTender.endDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="shrink-0 text-blue-600 border-blue-200 hover:bg-blue-50"
+                      onClick={() => window.location.href = `/dashboard/tenders/${selectedTender.id}`}
+                    >
+                      View Full Details
+                    </Button>
                   </div>
                   
                   {selectedTender.aiProcessed ? (

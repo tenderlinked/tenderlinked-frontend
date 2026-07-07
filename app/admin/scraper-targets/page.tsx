@@ -70,6 +70,7 @@ export default function ScraperTargetsPage() {
   const [selectedDistrictIds, setSelectedDistrictIds] = useState<Set<string>>(new Set());
   const [selectedStateView, setSelectedStateView] = useState<string | null>(null);
   const [runningScrape, setRunningScrape] = useState(false);
+  const [scrapeLoadingId, setScrapeLoadingId] = useState<string | null>(null);
 
   // New Target Form State
   const [isAdding, setIsAdding] = useState(false);
@@ -401,6 +402,31 @@ export default function ScraperTargetsPage() {
     }
   };
 
+  const handleScrapeTarget = async (targetId: string, targetName: string) => {
+    try {
+      setScrapeLoadingId(targetId);
+      toast.loading(`Starting scrape for ${targetName}...`, { id: `scrape-${targetId}` });
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ targetIds: [targetId] })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(data.message || `Scraper started for ${targetName}.`, { id: `scrape-${targetId}` });
+      } else {
+        const err = await res.json();
+        toast.error(err.message || `Failed to scrape ${targetName}`, { id: `scrape-${targetId}` });
+      }
+    } catch (error) {
+      toast.error(`Error scraping ${targetName}`, { id: `scrape-${targetId}` });
+    } finally {
+      setScrapeLoadingId(null);
+    }
+  };
+
   const toggleSelection = (id: string) => {
     const next = new Set(selectedIds);
     if (next.has(id)) next.delete(id);
@@ -582,6 +608,16 @@ export default function ScraperTargetsPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleScrapeTarget(target.id, target.name)} 
+                    disabled={scrapeLoadingId === target.id}
+                    className="text-green-600 hover:text-green-700 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30" 
+                    title={`Scrape ${target.name}`}
+                  >
+                    {scrapeLoadingId === target.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleToggleVerified(target)} className={`hover:bg-blue-100 dark:hover:bg-blue-900/30 ${target.isVerified ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} title={target.isVerified ? "Mark unverified" : "Mark verified manually"}>
                     <CheckCircle className="w-4 h-4" />
                   </Button>

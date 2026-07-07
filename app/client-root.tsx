@@ -5,11 +5,12 @@ import Footer from "@/components/layout/footer";
 import Header from "@/components/layout/header";
 import ThemeCustomizer from "@/components/theme-customizer/theme-customizer";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { ReactNode } from "react";
 import { Toaster } from "react-hot-toast";
 import { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
+import { usePathname } from "next/navigation";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 export function ClientRoot({
   defaultOpen,
@@ -20,6 +21,9 @@ export function ClientRoot({
   children: ReactNode;
   session?: Session | null;
 }) {
+  const pathname = usePathname();
+  const isAdmin = pathname?.startsWith('/admin');
+
   return (
     // Pass the server-fetched session so SessionProvider starts as "authenticated"
     // immediately — no cold fetch, no race condition with the unauthenticated redirect
@@ -31,19 +35,17 @@ export function ClientRoot({
         disableTransitionOnChange
       >
         <SidebarProvider defaultOpen={defaultOpen}>
-          <AppSidebar />
-          <main className="dashboard-body-wrapper grow-[1] flex flex-col">
-            <SidebarInset>
-              <Header />
-            </SidebarInset>
-            <div className="dashboard-body bg-neutral-100 dark:bg-[#1e2734] md:p-6 p-4 flex-1">
+          {isAdmin && <AppSidebar />}
+          <main className="dashboard-body-wrapper grow-[1] flex flex-col min-h-screen w-full">
+            <Header />
+            <div className="dashboard-body bg-neutral-100 dark:bg-[#1e2734] flex-1">
               {children}
             </div>
             <Footer />
           </main>
-          <ThemeCustomizer />
-          <Toaster position="top-center" reverseOrder={false} />
         </SidebarProvider>
+        <ThemeCustomizer />
+        <Toaster position="top-center" reverseOrder={false} />
       </ThemeProvider>
     </SessionProvider>
   );

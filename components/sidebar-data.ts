@@ -23,15 +23,9 @@ export const data = {
       isActive: true,
     },
     {
-      title: "District Tenders",
-      url: "/dashboard/district",
+      title: "Search Tenders",
+      url: "/dashboard/tenders",
       icon: Boxes,
-      requiredPermission: "tenders:read"
-    },
-    {
-      title: "State Tenders",
-      url: "/dashboard/state",
-      icon: Component,
       requiredPermission: "tenders:read"
     },
     {

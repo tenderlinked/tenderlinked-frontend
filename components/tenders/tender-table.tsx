@@ -4,6 +4,7 @@ import { CheckCircle2, Download, ExternalLink, Sparkles, Star, Lock } from "luci
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, differenceInDays } from "date-fns";
+import Link from "next/link";
 
 export interface TenderData {
   id: string;
@@ -82,7 +83,9 @@ export function TenderTable({ type, tenders, loading }: TenderTableProps) {
 
                 {/* Title & AI Summary */}
                 <td className="px-5 py-5 align-top space-y-4">
-                  <div className="font-semibold text-slate-900 leading-snug group-hover:text-blue-700 transition-colors">{tender.title}</div>
+                  <Link href={`/dashboard/tenders/${tender.id}`} className="block font-semibold text-slate-900 leading-snug group-hover:text-blue-700 transition-colors">
+                    {tender.title}
+                  </Link>
                   
                   {tender.tags && tender.tags.filter(t => !t.includes('PREMIUM_LOCKED')).length > 0 && (
                     <div className="flex flex-wrap gap-2">

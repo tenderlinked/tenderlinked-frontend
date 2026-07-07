@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import userImg from "@/public/assets/images/user.png";
-import { Mail, Settings, User, Calendar, CreditCard, Clock } from "lucide-react";
+import { Mail, Settings, User, Calendar, CreditCard, Clock, Users, ShieldCheck } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -137,6 +137,22 @@ const ProfileDropdown = () => {
                 className="text-black dark:text-white hover:text-primary dark:hover:text-primary flex items-center gap-3"
               >
                 <Settings className="w-5 h-5" /> Settings
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/settings/team"
+                className="text-black dark:text-white hover:text-primary dark:hover:text-primary flex items-center gap-3"
+              >
+                <Users className="w-5 h-5" /> Team Settings
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/settings/roles"
+                className="text-black dark:text-white hover:text-primary dark:hover:text-primary flex items-center gap-3"
+              >
+                <ShieldCheck className="w-5 h-5" /> Role Management
               </Link>
             </li>
             <li>
