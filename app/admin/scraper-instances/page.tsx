@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pause, Play, Square, Activity } from "lucide-react";
+import { Loader2, Pause, Play, Square, Activity, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
@@ -33,19 +33,16 @@ export default function ScraperInstancesPage() {
   const [instances, setInstances] = useState<ScrapeInstance[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const getHeaders = useCallback((): Record<string, string> => {
-    // @ts-ignore
-    const token = session?.accessToken;
-    return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+  const getHeaders = useCallback(() => {
+    return {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${(session as any)?.accessToken || ''}`
+    };
   }, [session]);
 
   const fetchInstances = useCallback(async () => {
-    if (sessionStatus === "loading") return;
-    if (sessionStatus === "unauthenticated") {
-      setLoading(false);
-      return;
-    }
     try {
+      if (sessionStatus !== "authenticated") return;
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape/instances`, {
         headers: getHeaders()
       });
@@ -88,12 +85,30 @@ export default function ScraperInstancesPage() {
     }
   };
 
+  const rerunScrape = async (targetId: string) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ targetIds: [targetId] })
+      });
+      if (res.ok) {
+        toast.success("Scrape restarted successfully");
+        fetchInstances();
+      } else {
+        toast.error("Failed to restart scrape");
+      }
+    } catch (e) {
+      toast.error("Network error");
+    }
+  };
+
   const getStatusBadge = (status: ScrapeStatus) => {
     switch (status) {
       case 'PENDING': return <Badge variant="outline" className="text-slate-500">Pending</Badge>;
       case 'RUNNING': return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200">Running</Badge>;
       case 'PAUSED': return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200">Paused</Badge>;
-      case 'STOPPED': return <Badge variant="outline">Stopped</Badge>;
+      case 'STOPPED': return <Badge variant="secondary" className="bg-slate-100 text-slate-700 dark:bg-slate-800">Stopped</Badge>;
       case 'SUCCESS': return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200">Success</Badge>;
       case 'FAILED': return <Badge variant="destructive">Failed</Badge>;
       default: return <Badge>{status}</Badge>;
@@ -101,20 +116,17 @@ export default function ScraperInstancesPage() {
   };
 
   if (loading) {
-    return <div className="flex h-96 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className="p-8 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-blue-600" /></div>;
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Activity className="w-8 h-8 text-primary" />
-            Active Scrapes
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Activity className="w-6 h-6 text-blue-600" /> Active Scrapes
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Monitor and manage running scraper instances in real-time.
-          </p>
+          <p className="text-slate-500 mt-1">Monitor and manage running scraper instances in real-time.</p>
         </div>
       </div>
 
@@ -176,6 +188,13 @@ export default function ScraperInstancesPage() {
                            ) : null}
                            <Button variant="ghost" size="icon" onClick={() => updateStatus(inst.id, 'STOPPED')} title="Stop">
                              <Square className="w-4 h-4 text-red-500" />
+                           </Button>
+                         </div>
+                       )}
+                       {(inst.status === 'STOPPED' || inst.status === 'SUCCESS' || inst.status === 'FAILED') && inst.targetId && (
+                         <div className="flex items-center justify-end gap-1">
+                           <Button variant="ghost" size="sm" onClick={() => rerunScrape(inst.targetId)} title="Rerun" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                             <RotateCw className="w-4 h-4 mr-1.5" /> Rerun
                            </Button>
                          </div>
                        )}

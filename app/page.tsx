@@ -1,7 +1,79 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+    const router = useRouter();
+    const [searchValue, setSearchValue] = useState("");
+    const [suggestions, setSuggestions] = useState<{ text: string, type: string, category: string }[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchRef = useRef<HTMLDivElement>(null);
+
+    // Click outside listener
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (!searchValue || searchValue.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+        
+        const fetchSuggestions = async () => {
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders/autocomplete?q=${encodeURIComponent(searchValue)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setSuggestions(data);
+                }
+            } catch (err) {
+                console.error("Autocomplete fetch error", err);
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestions, 300);
+        return () => clearTimeout(timer);
+    }, [searchValue]);
+
+    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchValue(e.target.value);
+        setShowSuggestions(true);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            setShowSuggestions(false);
+            if (searchValue) {
+                router.push(`/tenders?q=${encodeURIComponent(searchValue)}`);
+            } else {
+                router.push(`/tenders`);
+            }
+        }
+    };
+
+    const handleSuggestionClick = (suggestion: { text: string, type: string, category: string }) => {
+        setShowSuggestions(false);
+        const params = new URLSearchParams();
+        params.set(suggestion.category, suggestion.text);
+        router.push(`/tenders?${params.toString()}`);
+    };
+
+    const handleSearchClick = () => {
+        setShowSuggestions(false);
+        if (searchValue) {
+            router.push(`/tenders?q=${encodeURIComponent(searchValue)}`);
+        } else {
+            router.push(`/tenders`);
+        }
+    };
+
     useEffect(() => {
         const observerOptions = {
             threshold: 0.1
@@ -37,23 +109,47 @@ export default function Home() {
 <h1 className="font-bold text-4xl text-display-lg text-white mb-6 animate-fade-in-up">Find relevant Indian government tenders easily</h1>
 
 <div className="max-w-3xl mx-auto mb-12">
-<div className="glass-effect p-2 rounded-xl flex flex-col md:flex-row items-stretch md:items-center gap-2 shadow-xl border border-white/20">
-<div className="flex-1 flex items-center px-4 gap-3 border-r border-gray-200/30">
-<span className="material-symbols-outlined text-outline">search</span>
-<input className="w-full bg-transparent border-none focus:ring-0 text-gray-900 py-3 font-body-md" placeholder="Search by keywords, GeM ID, or Indian authority..." type="text" />
+<div className="bg-white p-2 rounded-xl flex flex-col md:flex-row items-stretch md:items-center gap-2 shadow-xl relative" ref={searchRef}>
+<div className="flex-1 flex items-center px-4 gap-3">
+<span className="material-symbols-outlined text-outline text-gray-400">search</span>
+<input 
+  className="w-full bg-transparent border-none focus:ring-0 text-gray-900 placeholder:text-gray-500 py-3 font-body-md outline-none" 
+  placeholder="Search by keywords, GeM ID, or Indian authority..." 
+  type="text" 
+  value={searchValue}
+  onChange={handleSearch}
+  onKeyDown={handleKeyDown}
+  onFocus={() => setShowSuggestions(true)}
+/>
 </div>
-<div className="flex items-center px-4 gap-3 border-r border-gray-200/30">
-<span className="material-symbols-outlined text-outline">location_on</span>
-<select className="bg-transparent border-none focus:ring-0 text-gray-900 font-body-md pr-8">
-<option className="">All Indian States</option>
-<option>United States</option>
-<option>United Kingdom</option>
-<option>India</option>
-</select>
-</div>
-<button className="bg-blue-700 text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:brightness-110 transition-all">
+<button onClick={handleSearchClick} className="bg-blue-700 text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:brightness-110 transition-all">
                             Search Tenders
                         </button>
+                        
+{/* Autocomplete Dropdown */}
+{showSuggestions && suggestions.length > 0 && (
+    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-[100] max-h-96 overflow-y-auto text-left">
+        {suggestions.map((s, idx) => (
+            <div 
+                key={`${s.text}-${s.type}-${idx}`} 
+                onClick={() => handleSuggestionClick(s)}
+                className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex items-center gap-3 border-b border-slate-100 last:border-0 transition-colors"
+            >
+                <div className="flex-shrink-0 text-slate-400">
+                    <span className="material-symbols-outlined text-sm">search</span>
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700">
+                        {s.text}
+                    </span>
+                    <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                        in {s.type}
+                    </span>
+                </div>
+            </div>
+        ))}
+    </div>
+)}
 </div>
 </div>
 

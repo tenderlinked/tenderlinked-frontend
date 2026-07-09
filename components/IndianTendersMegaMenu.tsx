@@ -117,15 +117,22 @@ const IndianTendersMegaMenu = () => {
           <h4 className="text-sm font-bold text-[#2563EB]">View all {activeTab.replace("By ", "")}</h4>
         </div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-          {currentData.map((item) => (
-            <Link
-              key={item}
-              href="#"
-              className="text-[13px] text-gray-600 dark:text-gray-300 hover:text-[#2563EB] transition-colors"
-            >
-              {item}
-            </Link>
-          ))}
+          {currentData.map((item) => {
+            const stateName = item.replace(" Tenders", "");
+            const href = activeTab === "By States" 
+              ? `/tenders?state=${encodeURIComponent(stateName)}`
+              : `/tenders?q=${encodeURIComponent(stateName)}`;
+              
+            return (
+              <Link
+                key={item}
+                href={href}
+                className="text-[13px] text-gray-600 dark:text-gray-300 hover:text-[#2563EB] transition-colors"
+              >
+                {item}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </motion.div>

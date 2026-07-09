@@ -34,7 +34,7 @@ export default auth(async (req) => {
   }
 
   // Protect dashboard routes
-  if (path.startsWith('/dashboard') || path.startsWith('/checkout') || path.startsWith('/pricing') || path.startsWith('/settings') || path.startsWith('/admin')) {
+  if (path.startsWith('/dashboard') || path.startsWith('/tenders') || path.startsWith('/checkout') || path.startsWith('/pricing') || path.startsWith('/settings') || path.startsWith('/admin')) {
     const session = req.auth; 
     
     if (!session) {

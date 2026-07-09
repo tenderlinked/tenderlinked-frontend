@@ -40,6 +40,7 @@ interface ScraperTarget {
   isVerified?: boolean;
   cronSchedule?: string;
   regionDistrictId?: string;
+  scraperType?: string;
   createdAt: string;
 }
 
@@ -78,6 +79,7 @@ export default function ScraperTargetsPage() {
   const [previewTarget, setPreviewTarget] = useState<ScraperTarget | null>(null);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("STATE");
+  const [newScraperType, setNewScraperType] = useState("AUTO");
   const [newStateName, setNewStateName] = useState("Odisha");
   const [newUrl, setNewUrl] = useState("");
 
@@ -129,6 +131,7 @@ export default function ScraperTargetsPage() {
     setNewType("STATE");
     setNewStateName("Odisha");
     setNewUrl("");
+    setNewScraperType("AUTO");
     setSelectedDistrictIds(new Set());
     setIsAdding(false);
   };
@@ -139,6 +142,7 @@ export default function ScraperTargetsPage() {
     setNewType(target.type);
     setNewStateName(target.state);
     setNewUrl(target.url);
+    setNewScraperType(target.scraperType || "AUTO");
   };
 
   const handleAddTarget = async () => {
@@ -226,7 +230,8 @@ export default function ScraperTargetsPage() {
           state: newStateName, 
           url: newUrl,
           regionStateId: stateObj?.id,
-          regionDistrictId: districtObj?.id
+          regionDistrictId: districtObj?.id,
+          scraperType: newScraperType
         })
       });
       
@@ -365,6 +370,25 @@ export default function ScraperTargetsPage() {
     }
   };
 
+  const handleSetEngine = async (engine: string) => {
+    if (selectedIds.size === 0) return;
+    const targetIds = Array.from(selectedIds);
+    toast.promise(
+      Promise.all(targetIds.map(async (id) => {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scraper-targets/${id}`, {
+          method: 'PATCH',
+          headers: getHeaders(),
+          body: JSON.stringify({ scraperType: engine })
+        });
+      })).then(() => fetchTargets(false)),
+      {
+        loading: `Setting engine to ${engine === 'AP_EPROCUREMENT' ? 'AP eProc' : engine} for ${targetIds.length} targets...`,
+        success: 'Engine updated successfully!',
+        error: 'Failed to update engines'
+      }
+    );
+  };
+
   const handleCheckFormat = (target: ScraperTarget) => {
     setPreviewTarget(target);
   };
@@ -496,6 +520,7 @@ export default function ScraperTargetsPage() {
             <th className="px-4 py-3">Type</th>
             <th className="px-4 py-3">State</th>
             <th className="px-4 py-3">URL</th>
+            <th className="px-4 py-3">Engine</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3 text-right">Actions</th>
           </tr>
@@ -557,6 +582,17 @@ export default function ScraperTargetsPage() {
                 <td className="px-4 py-3">
                   <Input value={newUrl} onChange={e => setNewUrl(e.target.value)} className="h-8 min-w-[200px]" />
                 </td>
+                <td className="px-4 py-3">
+                  <select 
+                    className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary w-full"
+                    value={newScraperType} 
+                    onChange={e => setNewScraperType(e.target.value)}
+                  >
+                    <option value="AUTO">Auto</option>
+                    <option value="NICGEP">NICGEP</option>
+                    <option value="AP_EPROCUREMENT">AP eProc</option>
+                  </select>
+                </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">Editing...</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   <Button variant="ghost" size="sm" onClick={handleAddTarget} className="text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30 mr-1" title="Save">
@@ -589,6 +625,11 @@ export default function ScraperTargetsPage() {
                     <span className="truncate max-w-[200px]">{target.url}</span>
                     <HealthBadge url={target.url} token={(session as any)?.accessToken} />
                   </a>
+                </td>
+                <td className="px-4 py-3">
+                  <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-900/50">
+                    {target.scraperType === 'AP_EPROCUREMENT' ? 'AP eProc' : (target.scraperType === 'NICGEP' ? 'NICGEP' : 'Auto')}
+                  </Badge>
                 </td>
                 <td className="px-4 py-3 flex items-center gap-2 flex-wrap">
                   <button onClick={() => handleToggleActive(target)}>
@@ -724,6 +765,21 @@ export default function ScraperTargetsPage() {
                     Set Auto-Scrape Cron
                   </DropdownMenuItem>
                   
+                  <DropdownMenuSeparator className="my-1" />
+                  
+                  <DropdownMenuLabel className="px-3 text-xs text-muted-foreground uppercase tracking-wider font-semibold">Set Scraper Engine</DropdownMenuLabel>
+                  <DropdownMenuItem className="cursor-pointer py-1.5 px-3 focus:bg-muted" onClick={() => handleSetEngine('AUTO')}>
+                    Engine: Auto
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer py-1.5 px-3 focus:bg-muted" onClick={() => handleSetEngine('NICGEP')}>
+                    Engine: NICGEP
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer py-1.5 px-3 focus:bg-muted" onClick={() => handleSetEngine('AP_EPROCUREMENT')}>
+                    Engine: AP eProcurement
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator className="my-1" />
+
                   <DropdownMenuItem 
                     className="cursor-pointer py-2 px-3 focus:bg-muted"
                     onClick={async () => {
@@ -815,7 +871,7 @@ export default function ScraperTargetsPage() {
             <CardTitle className="text-lg">{editingTargetId ? "Update Target" : "Add New Target"}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
               <div className="space-y-2">
                 <label className="text-sm font-medium">State (Group)</label>
                 <select 
@@ -852,7 +908,20 @@ export default function ScraperTargetsPage() {
                 </select>
               </div>
 
-              <div className={`space-y-2 ${newType === 'DISTRICT' ? 'md:col-span-2' : 'md:col-span-1'}`}>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Scraper Engine</label>
+                <select 
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={newScraperType} 
+                  onChange={e => setNewScraperType(e.target.value)}
+                >
+                  <option value="AUTO">Auto-Detect (URL)</option>
+                  <option value="NICGEP">NICGEP (Standard)</option>
+                  <option value="AP_EPROCUREMENT">AP eProcurement</option>
+                </select>
+              </div>
+
+              <div className={`space-y-2 ${newType === 'DISTRICT' ? 'md:col-span-3' : 'md:col-span-1'}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
                   <label className="text-sm font-medium">
                     Base URL {selectedDistrictIds.size > 1 && <span className="text-muted-foreground font-normal ml-1">(Use {'{district}'} placeholder)</span>}

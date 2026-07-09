@@ -24,7 +24,7 @@ export const data = {
     },
     {
       title: "Search Tenders",
-      url: "/dashboard/tenders",
+      url: "/tenders",
       icon: Boxes,
       requiredPermission: "tenders:read"
     },
