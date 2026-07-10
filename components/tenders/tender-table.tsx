@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, differenceInDays } from "date-fns";
 import Link from "next/link";
+import { handleTenderDownload } from "@/lib/download";
 
 export interface TenderData {
   id: string;
@@ -19,6 +20,7 @@ export interface TenderData {
   startDate?: string | Date;
   endDate?: string | Date;
   bidOpeningDate?: string | Date;
+  noticePdfUrl?: string;
   tenderPdfUrl?: string;
   sourceUrl?: string;
 }
@@ -200,10 +202,7 @@ export function TenderTable({ type, tenders, loading }: TenderTableProps) {
                     variant="outline" 
                     size="sm" 
                     className="text-fuchsia-700 border-fuchsia-200 hover:bg-fuchsia-600 hover:text-white hover:border-fuchsia-600 bg-white transition-all shadow-sm font-semibold h-8 px-3"
-                    onClick={() => {
-                        if (tender.tenderPdfUrl) window.open(tender.tenderPdfUrl, '_blank');
-                        else if (tender.sourceUrl) window.open(tender.sourceUrl, '_blank');
-                    }}
+                    onClick={(e) => handleTenderDownload(tender, e)}
                   >
                     <Download className="w-3.5 h-3.5 mr-1.5" />
                     Tender

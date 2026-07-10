@@ -31,6 +31,7 @@ import {
 import { format } from "date-fns";
 import { MultiSelectPopover } from "@/components/filters/MultiSelectPopover";
 import { AmountRangePopover } from "@/components/filters/AmountRangePopover";
+import { handleTenderDownload } from "@/lib/download";
 
 interface Tender {
   id: string;
@@ -43,6 +44,9 @@ interface Tender {
   aiProcessed: boolean;
   aiSummary: string | null;
   tags: string[];
+  noticePdfUrl?: string | null;
+  tenderPdfUrl?: string | null;
+  sourceUrl?: string | null;
 }
 
 // States and cities will be loaded dynamically from the API
@@ -508,7 +512,11 @@ export default function UnifiedTendersPage() {
                             </div>
                           </Button>
                         ) : (
-                          <Button size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm px-4">
+                          <Button 
+                            size="sm" 
+                            className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm px-4"
+                            onClick={(e) => handleTenderDownload(tender, e)}
+                          >
                             <Download className="w-3.5 h-3.5 mr-1.5" />
                             Download
                           </Button>
