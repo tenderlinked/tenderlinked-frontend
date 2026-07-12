@@ -229,9 +229,14 @@ export default function SettingsPage() {
                     {session?.user?.hasActivePlan ? 'Pro' : 'Trial / Basic'}
                   </Badge>
                 </div>
-                <Button variant="outline" className="w-full text-xs h-8" onClick={() => window.location.href='/pricing'}>
-                  Manage Plan
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="w-full text-xs h-8" onClick={() => window.location.href='/pricing'}>
+                    Manage Plan
+                  </Button>
+                  <Button variant="outline" className="w-full text-xs h-8" onClick={() => window.location.href='/settings/credits'}>
+                    View History
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

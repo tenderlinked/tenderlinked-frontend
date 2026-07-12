@@ -15,8 +15,10 @@ export default function FrontLayoutWrapper({ children }: { children: ReactNode }
   const isAppRoute = pathname?.startsWith("/app");
   const isSettings = pathname?.startsWith("/settings");
   const isAdmin = pathname?.startsWith("/admin");
+  const isTenders = pathname?.startsWith("/tenders");
+  const isCheckout = pathname?.startsWith("/checkout");
 
-  if (isDashboard || isAuth || isAppRoute || isSettings || isAdmin) {
+  if (isDashboard || isAuth || isAppRoute || isSettings || isAdmin || isTenders || isCheckout) {
     return <>{children}</>;
   }
 

@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, differenceInDays } from "date-fns";
 import Link from "next/link";
-import { handleTenderDownload } from "@/lib/download";
+import { useSession } from "next-auth/react";
+import { useTenderDownload } from "@/hooks/use-tender-download";
 
 export interface TenderData {
   id: string;
@@ -32,6 +33,8 @@ interface TenderTableProps {
 }
 
 export function TenderTable({ type, tenders, loading }: TenderTableProps) {
+  const { initiateDownload, DownloadModal } = useTenderDownload();
+
   const getDaysDiff = (date: string | Date | undefined) => {
     if (!date) return null;
     return differenceInDays(new Date(date), new Date());
@@ -202,7 +205,7 @@ export function TenderTable({ type, tenders, loading }: TenderTableProps) {
                     variant="outline" 
                     size="sm" 
                     className="text-fuchsia-700 border-fuchsia-200 hover:bg-fuchsia-600 hover:text-white hover:border-fuchsia-600 bg-white transition-all shadow-sm font-semibold h-8 px-3"
-                    onClick={(e) => handleTenderDownload(tender, e)}
+                    onClick={(e) => initiateDownload(tender, e)}
                   >
                     <Download className="w-3.5 h-3.5 mr-1.5" />
                     Tender
@@ -240,6 +243,7 @@ export function TenderTable({ type, tenders, loading }: TenderTableProps) {
           })}
         </tbody>
       </table>
+      <DownloadModal />
     </div>
   );
 }

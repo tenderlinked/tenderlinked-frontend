@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 
-export const handleTenderDownload = async (tender: { id: string, title: string, noticePdfUrl?: string | null, tenderPdfUrl?: string | null, sourceUrl?: string | null }, event?: React.MouseEvent) => {
+export const handleTenderDownload = async (tender: { id: string, title: string, noticePdfUrl?: string | null, tenderPdfUrl?: string | null, sourceUrl?: string | null }, event?: React.MouseEvent, token?: string) => {
   const targetElement = event?.currentTarget as HTMLElement | undefined;
   
   let docs: string[] = [];
@@ -10,7 +10,10 @@ export const handleTenderDownload = async (tender: { id: string, title: string, 
   let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   
   try {
-    const res = await fetch(`${apiUrl}/api/tenders/${tender.id}/documents`);
+    const headers: HeadersInit = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${apiUrl}/api/tenders/${tender.id}/documents`, { headers });
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.data && data.data.length > 0) {
@@ -23,7 +26,8 @@ export const handleTenderDownload = async (tender: { id: string, title: string, 
 
   if (useBackendDownload) {
     // Top-level navigation to trigger download without blob restrictions
-    window.location.href = `${apiUrl}/api/tenders/${tender.id}/download-all`;
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+    window.location.href = `${apiUrl}/api/tenders/${tender.id}/download-all${tokenQuery}`;
     return;
   }
 

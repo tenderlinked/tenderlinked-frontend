@@ -78,6 +78,7 @@ export default function PricingPlansPage() {
           hasEmailAlerts: editingPlan.hasEmailAlerts || false,
           hasWhatsappAlerts: editingPlan.hasWhatsappAlerts || false,
           hasSmsAlerts: editingPlan.hasSmsAlerts || false,
+          freeRedownloads: editingPlan.freeRedownloads ?? 3,
         })
       });
 
@@ -167,6 +168,10 @@ export default function PricingPlansPage() {
                 <label className="text-sm font-medium mb-1 block">Max States</label>
                 <Input type="number" value={editingPlan.maxStates} onChange={e => setEditingPlan({...editingPlan, maxStates: parseInt(e.target.value)})} />
               </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Free Redownloads</label>
+                <Input type="number" value={editingPlan.freeRedownloads ?? 3} onChange={e => setEditingPlan({...editingPlan, freeRedownloads: parseInt(e.target.value)})} />
+              </div>
             </div>
 
             <div>
@@ -233,6 +238,7 @@ export default function PricingPlansPage() {
                 <div>Views: <b>{plan.maxTenderViews || 0}</b></div>
                 <div>Keywords: <b>{plan.maxKeywords || 0}</b></div>
                 <div>States: <b>{plan.maxStates || 0}</b></div>
+                <div className="col-span-2">Free Redownloads: <b>{plan.freeRedownloads ?? 3}</b></div>
               </div>
               <h4 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">Alerts</h4>
               <div className="flex gap-2 text-xs mb-4">

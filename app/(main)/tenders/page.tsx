@@ -31,7 +31,7 @@ import {
 import { format } from "date-fns";
 import { MultiSelectPopover } from "@/components/filters/MultiSelectPopover";
 import { AmountRangePopover } from "@/components/filters/AmountRangePopover";
-import { handleTenderDownload } from "@/lib/download";
+import { useTenderDownload } from "@/hooks/use-tender-download";
 
 interface Tender {
   id: string;
@@ -53,6 +53,7 @@ interface Tender {
 
 export default function UnifiedTendersPage() {
   const { data: session, status } = useSession();
+  const { initiateDownload, DownloadModal } = useTenderDownload();
   
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
@@ -515,7 +516,7 @@ export default function UnifiedTendersPage() {
                           <Button 
                             size="sm" 
                             className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm px-4"
-                            onClick={(e) => handleTenderDownload(tender, e)}
+                            onClick={(e) => initiateDownload(tender, e)}
                           >
                             <Download className="w-3.5 h-3.5 mr-1.5" />
                             Download
@@ -678,6 +679,7 @@ export default function UnifiedTendersPage() {
 
         </div>
       </div>
+      <DownloadModal />
     </div>
   );
 }

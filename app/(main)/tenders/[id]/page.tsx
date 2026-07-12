@@ -3,18 +3,22 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3 } from "lucide-react";
-import { handleTenderDownload } from "@/lib/download";
+import { useTenderDownload } from "@/hooks/use-tender-download";
 
 interface TenderDetail {
   id: string;
   title: string;
+  tenderId?: string;
   tenderCode?: string;
   district?: string;
+  city?: string;
+  location?: string;
+  state?: string;
   organisation?: string;
   tenderValue?: string;
   emd?: string;
@@ -35,16 +39,48 @@ export default function TenderDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const { data: session, status } = useSession();
+  const { initiateDownload, DownloadModal } = useTenderDownload();
   
   const [tender, setTender] = useState<TenderDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [downloadedDocs, setDownloadedDocs] = useState<string[]>([]);
+  const [downloadedDocs, setDownloadedDocs] = useState<any[]>([]);
+  const [activeSection, setActiveSection] = useState('overview');
 
   useEffect(() => {
     if (status === "authenticated" && params.id) {
       fetchTender(params.id as string);
     }
   }, [status, params.id]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ['overview', 'documents', 'boq', 'notes', 'potential-partner', 'related-tenders'];
+      let found = false;
+      for (const section of [...sections].reverse()) {
+        const el = document.getElementById(section);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= 140) { // threshold considering sticky header
+            setActiveSection(section);
+            found = true;
+            break;
+          }
+        }
+      }
+      if (!found && window.scrollY < 100) setActiveSection('overview');
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+       const y = el.getBoundingClientRect().top + window.scrollY - 120;
+       window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  }
 
   const fetchTender = async (id: string) => {
     try {
@@ -71,7 +107,11 @@ export default function TenderDetailsPage() {
   const fetchDocs = async (id: string) => {
     try {
        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-       const res = await fetch(`${apiUrl}/api/tenders/${id}/documents`);
+       const headers: HeadersInit = {};
+       if (session && (session as any).accessToken) {
+         headers['Authorization'] = `Bearer ${(session as any).accessToken}`;
+       }
+       const res = await fetch(`${apiUrl}/api/tenders/${id}/documents`, { headers });
        if (res.ok) {
          const data = await res.json();
          if (data.success && data.data) {
@@ -104,23 +144,37 @@ export default function TenderDetailsPage() {
 
   const isLocked = tender.aiSummary === '__PREMIUM_LOCKED__';
 
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const docList: { title: string; url?: string; type: string; size: string }[] = [];
   if (downloadedDocs.length > 0) {
-    downloadedDocs.forEach((doc, idx) => {
-       const filename = decodeURIComponent(doc.split('/').pop() || `Document-${idx+1}`);
+    downloadedDocs.forEach((doc: any, idx) => {
+       const docUrl = typeof doc === 'string' ? doc : doc.url;
+       const docSize = typeof doc === 'object' && doc.size ? formatBytes(doc.size) : 'Unknown Size';
+       const filenameWithParams = docUrl.split('/').pop() || '';
+       const filename = decodeURIComponent(filenameWithParams.split('?')[0]) || `Document-${idx+1}`;
+       const isExternal = docUrl.startsWith('http');
        docList.push({
          title: filename,
-         url: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${doc}`,
+         url: isExternal ? docUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${docUrl}`,
          type: filename.toLowerCase().includes('.zip') ? 'ZIP Archive' : 'PDF Document',
-         size: 'Unknown Size'
+         size: docSize
        });
     });
   } else {
     if (tender.noticePdfUrl && tender.noticePdfUrl !== '__CREDIT_LOCKED__') {
-       docList.push({ title: 'Tender Notice', url: tender.noticePdfUrl, type: 'PDF Document', size: 'Unknown Size' });
+       const isExternal = tender.noticePdfUrl.startsWith('http');
+       docList.push({ title: 'Tender Notice', url: isExternal ? tender.noticePdfUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${tender.noticePdfUrl}`, type: 'PDF Document', size: 'Unknown Size' });
     }
     if (tender.tenderPdfUrl && tender.tenderPdfUrl !== '__CREDIT_LOCKED__') {
-       docList.push({ title: 'Tender Document', url: tender.tenderPdfUrl, type: 'PDF Document', size: 'Unknown Size' });
+       const isExternal = tender.tenderPdfUrl.startsWith('http');
+       docList.push({ title: 'Tender Document', url: isExternal ? tender.tenderPdfUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${tender.tenderPdfUrl}`, type: 'PDF Document', size: 'Unknown Size' });
     }
   }
 
@@ -129,7 +183,7 @@ export default function TenderDetailsPage() {
   }
 
   return (
-    <div className="flex flex-col w-full bg-[#f3f4f6] min-h-screen pb-12 -mt-6 -mx-6 px-6 pt-6 overflow-x-hidden">
+    <div className="flex flex-col w-full bg-[#f3f4f6] min-h-screen pb-12 mt-0 -mx-6 px-6 pt-2">
       
       {/* Breadcrumbs */}
       <div className="flex items-center text-sm text-slate-500 mb-4 px-2">
@@ -149,10 +203,10 @@ export default function TenderDetailsPage() {
       </div>
 
       {/* Main Container */}
-      <div className="w-full bg-white shadow-sm border border-slate-200 rounded-md overflow-hidden">
+      <div className="w-full bg-white shadow-sm border border-slate-200 rounded-md">
         
         {/* Header Section */}
-        <div className="p-6 md:p-8">
+        <div className="p-5 md:p-6">
           <h1 className="text-2xl md:text-3xl font-semibold text-slate-800 mb-3 leading-snug">
             {tender.title}
           </h1>
@@ -177,11 +231,28 @@ export default function TenderDetailsPage() {
 
           <div className="flex items-center text-blue-600 text-sm mb-6 font-medium">
              <MapPin className="w-4 h-4 mr-1" />
-             {tender.district || tender.organisation || "Location N/A"}
+             {(() => {
+               const parts = [];
+               const loc = tender.location || tender.city;
+               if (loc) parts.push({ label: loc, href: `/tenders?q=${encodeURIComponent(loc)}` });
+               if (tender.district && tender.district !== loc) parts.push({ label: tender.district, href: `/tenders?districts=${encodeURIComponent(tender.district)}` });
+               if (tender.state && tender.state !== tender.district && tender.state !== loc) parts.push({ label: tender.state, href: `/tenders?states=${encodeURIComponent(tender.state)}` });
+               
+               if (parts.length === 0) return <span>{tender.organisation || "Location N/A"}</span>;
+               
+               return parts.map((part, index) => (
+                 <span key={index}>
+                   <Link href={part.href} className="hover:underline cursor-pointer">
+                     {part.label}
+                   </Link>
+                   {index < parts.length - 1 && ",\u00A0"}
+                 </span>
+               ));
+             })()}
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between border-t border-slate-100 pt-6 gap-4">
-             <div className="flex flex-wrap gap-8 md:gap-16">
+          <div className="flex flex-col md:flex-row md:items-end justify-between border-t border-slate-100 pt-5 gap-4">
+             <div className="flex flex-wrap gap-6 md:gap-12">
                 <div>
                   <p className="text-xs text-slate-500 mb-1 font-medium">Opening Date</p>
                   <p className="font-semibold text-slate-800">
@@ -217,7 +288,7 @@ export default function TenderDetailsPage() {
                 </Button>
                 <Button 
                    className="h-9 bg-blue-600 hover:bg-blue-700 text-white px-4 shadow-sm"
-                   onClick={(e) => handleTenderDownload(tender as any, e)}
+                   onClick={(e) => initiateDownload(tender, e)}
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Download
@@ -226,48 +297,63 @@ export default function TenderDetailsPage() {
           </div>
         </div>
 
-        {/* Tabs & Content */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="w-full justify-start border-y border-slate-200 rounded-none bg-slate-50/50 h-14 px-6 space-x-6 overflow-x-auto overflow-y-hidden flex-nowrap hide-scrollbar">
-            {['Overview', 'Documents', 'BOQ', 'Notes', 'Potential Partner', 'Related Tenders'].map((tab) => (
-               <TabsTrigger 
-                 key={tab} 
-                 value={tab.toLowerCase()} 
-                 className="rounded-full border border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-blue-600 data-[state=active]:text-white px-5 py-1.5 font-medium text-slate-500 transition-all hover:text-slate-800 whitespace-nowrap data-[state=active]:shadow-md"
+        {/* Sticky Navigation */}
+        <div className="sticky top-16 z-40 w-full justify-start border-y border-slate-200 bg-slate-50/95 backdrop-blur-md h-14 px-4 flex items-center space-x-2 md:space-x-4 overflow-x-auto overflow-y-hidden flex-nowrap hide-scrollbar">
+          {['Overview', 'Documents', 'BOQ', 'Notes', 'Potential Partner', 'Related Tenders'].map((tab) => {
+             const id = tab.toLowerCase().replace(' ', '-');
+             const isActive = activeSection === id;
+             return (
+               <button 
+                 key={id} 
+                 onClick={() => scrollToSection(id)}
+                 className={`rounded-full px-5 py-1.5 font-medium text-sm transition-all whitespace-nowrap ${isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
                >
                  {tab}
-               </TabsTrigger>
-            ))}
-          </TabsList>
+               </button>
+             )
+          })}
+        </div>
 
-          <TabsContent value="overview" className="p-0 m-0 bg-[#f3f4f6]">
-            <div className="flex flex-col gap-4 p-4 md:p-6 w-full">
+        {/* Scrollable Content Sections */}
+        <div className="flex flex-col w-full bg-[#f3f4f6]">
+          
+          <div id="overview" className="flex flex-col gap-3 p-4 md:p-5 w-full pt-6">
                
                {/* Costs */}
                <Card className="border-0 shadow-sm rounded-md overflow-hidden">
-                 <div className="bg-slate-100 px-6 py-3 border-b border-slate-200 font-bold text-slate-700">
+                 <div className="bg-slate-100 px-5 py-2.5 border-b border-slate-200 text-sm font-bold text-slate-700">
                    Costs
                  </div>
                  <CardContent className="p-0">
-                   <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-                     <div className="px-6 py-4 flex items-center justify-between">
-                       <span className="text-slate-500 text-sm">EMD</span>
-                       <span className="font-semibold text-slate-800">{isLocked ? <span className="blur-sm select-none">₹ 1,50,000</span> : (tender.emd || "N/A")}</span>
+                   <div className="divide-y divide-slate-100">
+                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-3 items-center">
+                       <span className="text-slate-500 text-sm md:col-span-1">EMD</span>
+                       <span className="font-medium text-slate-800 text-sm md:col-span-3">
+                         {isLocked ? <span className="blur-sm select-none">₹ 1,50,000</span> : (tender.emd || "N/A")}
+                       </span>
                      </div>
-                     <div className="px-6 py-4 flex items-center justify-between">
-                       <span className="text-slate-500 text-sm">Document Cost</span>
-                       <span className="font-semibold text-slate-800">{isLocked ? <span className="blur-sm select-none">₹ 5,000</span> : (tender.applicationCost || "N/A")}</span>
+                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-3 items-center">
+                       <span className="text-slate-500 text-sm md:col-span-1">Tender Value</span>
+                       <span className="font-medium text-slate-800 text-sm md:col-span-3">
+                         {isLocked ? <span className="blur-sm select-none">₹ 50,00,000</span> : (tender.tenderValue || "N/A")}
+                       </span>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-3 items-center">
+                       <span className="text-slate-500 text-sm md:col-span-1">Tender Fee</span>
+                       <span className="font-medium text-slate-800 text-sm md:col-span-3">
+                         {isLocked ? <span className="blur-sm select-none">₹ 5,000</span> : (tender.applicationCost || "N/A")}
+                       </span>
                      </div>
                    </div>
                  </CardContent>
                </Card>
 
                {/* Description */}
-               <Card className="border-0 shadow-sm rounded-md overflow-hidden mt-2">
-                 <div className="bg-slate-100 px-6 py-3 border-b border-slate-200 font-bold text-slate-700">
+               <Card className="border-0 shadow-sm rounded-md overflow-hidden">
+                 <div className="bg-slate-100 px-5 py-2.5 border-b border-slate-200 text-sm font-bold text-slate-700">
                    Description
                  </div>
-                 <CardContent className="p-6 relative">
+                 <CardContent className="p-5 relative">
                     {isLocked ? (
                       <>
                         <div className="blur-md select-none text-slate-400 text-sm space-y-2">
@@ -275,8 +361,8 @@ export default function TenderDetailsPage() {
                           <p>It contains critical requirements, potential risks, and competitor analysis that can give you a significant edge in bidding.</p>
                         </div>
                         <div className="absolute inset-0 flex items-center justify-center z-10">
-                          <Button className="bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg">
-                            <Lock className="w-4 h-4 mr-2" /> Unlock Insights
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg">
+                            <Lock className="w-3.5 h-3.5 mr-2" /> Unlock Insights
                           </Button>
                         </div>
                       </>
@@ -289,40 +375,56 @@ export default function TenderDetailsPage() {
                </Card>
 
                {/* Contact */}
-               <Card className="border-0 shadow-sm rounded-md overflow-hidden mt-2">
-                 <div className="bg-slate-100 px-6 py-3 border-b border-slate-200 font-bold text-slate-700">
+               <Card className="border-0 shadow-sm rounded-md overflow-hidden">
+                 <div className="bg-slate-100 px-5 py-2.5 border-b border-slate-200 text-sm font-bold text-slate-700">
                    Contact
                  </div>
                  <CardContent className="p-0">
                    <div className="divide-y divide-slate-100">
-                     <div className="grid grid-cols-1 md:grid-cols-4 px-6 py-4">
+                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-2.5 items-center">
                        <span className="text-slate-500 text-sm md:col-span-1">Tender Id</span>
-                       <span className="font-semibold text-slate-800 text-sm md:col-span-3">{tender.tenderId || tender.tenderCode || tender.id || "N/A"}</span>
+                       <span className="font-medium text-slate-800 text-sm md:col-span-3">{tender.tenderId || tender.tenderCode || tender.id || "N/A"}</span>
                      </div>
-                     <div className="grid grid-cols-1 md:grid-cols-4 px-6 py-4">
+                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-2.5 items-center">
                        <span className="text-slate-500 text-sm md:col-span-1">Tender Authority</span>
-                       <span className="font-semibold text-slate-800 text-sm md:col-span-3">{tender.organisation || "N/A"}</span>
+                       <span className="font-medium text-slate-800 text-sm md:col-span-3">{tender.organisation || "N/A"}</span>
                      </div>
-                     <div className="grid grid-cols-1 md:grid-cols-4 px-6 py-4">
+                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-2.5 items-center">
                        <span className="text-slate-500 text-sm md:col-span-1">Address</span>
-                       <span className="font-semibold text-slate-800 text-sm md:col-span-3">{tender.district || "Address not available"}</span>
+                       <span className="font-medium text-slate-800 text-sm md:col-span-3">
+                         {(() => {
+                           const parts = [];
+                           const loc = tender.location || tender.city;
+                           if (loc) parts.push({ label: loc, href: `/tenders?q=${encodeURIComponent(loc)}` });
+                           if (tender.district && tender.district !== loc) parts.push({ label: tender.district, href: `/tenders?districts=${encodeURIComponent(tender.district)}` });
+                           if (tender.state && tender.state !== tender.district && tender.state !== loc) parts.push({ label: tender.state, href: `/tenders?states=${encodeURIComponent(tender.state)}` });
+                           
+                           if (parts.length === 0) return <span>Address not available</span>;
+                           
+                           return parts.map((part, index) => (
+                             <span key={index}>
+                               <Link href={part.href} className="text-blue-600 hover:underline cursor-pointer">
+                                 {part.label}
+                               </Link>
+                               {index < parts.length - 1 && ",\u00A0"}
+                             </span>
+                           ));
+                         })()}
+                       </span>
                      </div>
                    </div>
                  </CardContent>
                </Card>
                
             </div>
-          </TabsContent>
 
-          {/* Documents Tab */}
-          <TabsContent value="documents" className="p-0 m-0 bg-[#f3f4f6]">
-            <div className="flex flex-col gap-4 p-4 md:p-6 w-full">
+          <div id="documents" className="flex flex-col gap-4 p-4 md:p-5 w-full border-t border-slate-200/60 pt-6">
                <Card className="border-0 shadow-sm rounded-md overflow-hidden">
                  <div className="bg-slate-100 px-6 py-3 border-b border-slate-200 flex justify-between items-center">
                    <span className="font-bold text-slate-700">Documents</span>
                    <Button 
                       className="h-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                      onClick={(e) => handleTenderDownload(tender as any, e)}
+                      onClick={(e) => initiateDownload(tender, e)}
                    >
                      Download All
                    </Button>
@@ -359,18 +461,19 @@ export default function TenderDetailsPage() {
                  </CardContent>
                </Card>
             </div>
-          </TabsContent>
 
-          {/* Placeholder Tabs */}
-          {['boq', 'notes', 'potential partner', 'related tenders'].map(tab => (
-            <TabsContent key={tab} value={tab.replace(' ', '-')} className="p-6 text-center text-slate-500 bg-[#f3f4f6]">
-               Information for {tab.toUpperCase()} will be populated here.
-            </TabsContent>
-          ))}
+          {['boq', 'notes', 'potential partner', 'related tenders'].map(tab => {
+            const id = tab.replace(' ', '-');
+            return (
+              <div key={id} id={id} className="p-8 text-center text-slate-500 bg-[#f3f4f6] border-t border-slate-200/60 w-full h-[200px] flex items-center justify-center">
+                 Information for {tab.toUpperCase()} will be populated here.
+              </div>
+            )
+          })}
 
-        </Tabs>
+        </div>
       </div>
-
+      <DownloadModal />
     </div>
   );
 }
