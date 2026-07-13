@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3 } from "lucide-react";
+import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3, Bookmark, Bell, PhoneCall, Copy, Link as LinkIcon, Check, AlertTriangle, ArrowDown } from "lucide-react";
 import { useTenderDownload } from "@/hooks/use-tender-download";
 
 interface TenderDetail {
@@ -33,6 +33,13 @@ interface TenderDetail {
   tenderPdfUrl?: string | null;
   sourceUrl?: string | null;
   documentsDownloaded?: boolean;
+  tenderType?: string;
+  formOfContract?: string;
+  emdExemptionAllowed?: string;
+  productCategory?: string;
+  invitingAuthorityName?: string;
+  invitingAuthorityAddress?: string;
+  paymentMode?: string;
 }
 
 export default function TenderDetailsPage() {
@@ -45,6 +52,102 @@ export default function TenderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [downloadedDocs, setDownloadedDocs] = useState<any[]>([]);
   const [activeSection, setActiveSection] = useState('overview');
+  const [copiedId, setCopiedId] = useState(false);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiGenerationStep, setAiGenerationStep] = useState('');
+  const [aiSummaryHtml, setAiSummaryHtml] = useState<string | null>(null);
+  const [isLoadingHtml, setIsLoadingHtml] = useState(false);
+
+  const handleGenerateAiSummary = async () => {
+    try {
+      setIsGeneratingAi(true);
+      setAiSummaryHtml(null);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      
+      // Call backend to trigger processing
+      await fetch(`${apiUrl}/api/tenders/${tender?.id}/retry-ai`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${session?.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Simulated UI Steps
+      const steps = [
+        "Fetching Tender Documents...",
+        "Analyzing Document 1...",
+        "Extracting BOQ Data...",
+        "Finalizing AI Summary..."
+      ];
+      let stepIndex = 0;
+      setAiGenerationStep(steps[0]);
+      
+      const stepInterval = setInterval(() => {
+        stepIndex++;
+        if (stepIndex < steps.length) {
+          setAiGenerationStep(steps[stepIndex]);
+        }
+      }, 3000);
+
+      // Poll for completion
+      const pollInterval = setInterval(async () => {
+        const res = await fetch(`${apiUrl}/api/tenders/${tender?.id}`, {
+          headers: { 'Authorization': `Bearer ${session?.accessToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.data?.aiSummary) {
+            clearInterval(pollInterval);
+            clearInterval(stepInterval);
+            setTender(data.data);
+            setIsGeneratingAi(false);
+          }
+        }
+      }, 5000);
+
+    } catch (error) {
+      console.error(error);
+      alert('Error triggering AI summary.');
+      setIsGeneratingAi(false);
+    }
+  };
+
+  const handleDownloadAiPdf = async () => {
+    if (!tender?.id) return;
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/tenders/${tender.id}/ai-summary-pdf`, {
+        headers: {
+          'Authorization': `Bearer ${session?.accessToken}`
+        }
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `AI_Summary_${tender.tenderId || 'Tender'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } else {
+        alert('Failed to download PDF.');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('An error occurred while downloading.');
+    }
+  };
+
+  const handleCopyId = () => {
+    const id = tender?.tenderId || tender?.tenderCode;
+    if (id) {
+      navigator.clipboard.writeText(id);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
+  };
 
   useEffect(() => {
     if (status === "authenticated" && params.id) {
@@ -52,35 +155,30 @@ export default function TenderDetailsPage() {
     }
   }, [status, params.id]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const sections = ['overview', 'documents', 'boq', 'notes', 'potential-partner', 'related-tenders'];
-      let found = false;
-      for (const section of [...sections].reverse()) {
-        const el = document.getElementById(section);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          if (rect.top <= 140) { // threshold considering sticky header
-            setActiveSection(section);
-            found = true;
-            break;
-          }
-        }
-      }
-      if (!found && window.scrollY < 100) setActiveSection('overview');
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const [activeTab, setActiveTab] = useState('Overview');
 
-  const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-       const y = el.getBoundingClientRect().top + window.scrollY - 120;
-       window.scrollTo({ top: y, behavior: 'smooth' });
+  useEffect(() => {
+    if (tender?.id && tender?.aiSummary && activeTab === 'AI Tender Summary' && !aiSummaryHtml && !isLoadingHtml) {
+      const fetchHtml = async () => {
+        setIsLoadingHtml(true);
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+          const response = await fetch(`${apiUrl}/api/tenders/${tender.id}/ai-summary-html`, {
+            headers: { Authorization: `Bearer ${(session as any)?.accessToken}` },
+          });
+          if (response.ok) {
+            const html = await response.text();
+            setAiSummaryHtml(html);
+          }
+        } catch (err) {
+          console.error("Failed to fetch HTML summary:", err);
+        } finally {
+          setIsLoadingHtml(false);
+        }
+      };
+      fetchHtml();
     }
-  }
+  }, [tender?.id, tender?.aiSummary, activeTab, session, aiSummaryHtml]);
 
   const fetchTender = async (id: string) => {
     try {
@@ -183,7 +281,7 @@ export default function TenderDetailsPage() {
   }
 
   return (
-    <div className="flex flex-col w-full bg-[#f3f4f6] min-h-screen pb-12 mt-0 -mx-6 px-6 pt-2">
+    <div className="flex flex-col w-full bg-[#f3f4f6] min-h-screen pb-12 mt-0 px-4 md:px-8 lg:px-12 pt-2">
       
       {/* Breadcrumbs */}
       <div className="flex items-center text-sm text-slate-500 mb-4 px-2">
@@ -202,274 +300,451 @@ export default function TenderDetailsPage() {
         </div>
       </div>
 
-      {/* Main Container */}
-      <div className="w-full bg-white shadow-sm border border-slate-200 rounded-md">
+      {/* Main Content Area */}
+      <div className="w-full">
         
-        {/* Header Section */}
-        <div className="p-5 md:p-6">
-          <h1 className="text-2xl md:text-3xl font-semibold text-slate-800 mb-3 leading-snug">
-            {tender.title}
-          </h1>
-          
-          <p className="text-slate-500 text-sm mb-4 line-clamp-2">
-             {tender.aiSummary !== '__PREMIUM_LOCKED__' && tender.aiSummary ? tender.aiSummary : tender.title}
-          </p>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-             {tender.tags && tender.tags.length > 0 ? (
-                tender.tags.map((tag, idx) => (
-                  <Badge key={idx} variant="secondary" className="bg-slate-100 text-slate-600 font-normal rounded px-3 py-0.5 shadow-none border border-slate-200 hover:bg-slate-200">
-                    {tag}
-                  </Badge>
-                ))
-             ) : (
-                <Badge variant="secondary" className="bg-slate-100 text-slate-600 font-normal rounded px-3 py-0.5 shadow-none border border-slate-200">
-                  General
-                </Badge>
-             )}
+        {/* Title & Actions */}
+        <div className="flex flex-col gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2 leading-snug">
+              {tender.title}
+            </h1>
+            <p className="text-slate-500 text-sm">
+              Issued by <span className="font-semibold text-slate-700">{tender.organisation || "Government Departments"}</span>, {tender.state || "India"}
+            </p>
           </div>
 
-          <div className="flex items-center text-blue-600 text-sm mb-6 font-medium">
-             <MapPin className="w-4 h-4 mr-1" />
-             {(() => {
-               const parts = [];
-               const loc = tender.location || tender.city;
-               if (loc) parts.push({ label: loc, href: `/tenders?q=${encodeURIComponent(loc)}` });
-               if (tender.district && tender.district !== loc) parts.push({ label: tender.district, href: `/tenders?districts=${encodeURIComponent(tender.district)}` });
-               if (tender.state && tender.state !== tender.district && tender.state !== loc) parts.push({ label: tender.state, href: `/tenders?states=${encodeURIComponent(tender.state)}` });
-               
-               if (parts.length === 0) return <span>{tender.organisation || "Location N/A"}</span>;
-               
-               return parts.map((part, index) => (
-                 <span key={index}>
-                   <Link href={part.href} className="hover:underline cursor-pointer">
-                     {part.label}
-                   </Link>
-                   {index < parts.length - 1 && ",\u00A0"}
-                 </span>
-               ));
-             })()}
-          </div>
-
-          <div className="flex flex-col md:flex-row md:items-end justify-between border-t border-slate-100 pt-5 gap-4">
-             <div className="flex flex-wrap gap-6 md:gap-12">
-                <div>
-                  <p className="text-xs text-slate-500 mb-1 font-medium">Opening Date</p>
-                  <p className="font-semibold text-slate-800">
-                     {tender.startDate ? new Date(tender.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-1 font-medium">Closing Date</p>
-                  <p className="font-semibold text-slate-800">
-                     {tender.endDate ? new Date(tender.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-1 font-medium">Tender Amount</p>
-                  <p className="font-semibold text-slate-800">
-                     {tender.tenderValue || "N/A"}
-                  </p>
-                </div>
-             </div>
-
-             <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" className="h-9 w-9 text-blue-600 border-blue-200 hover:bg-blue-50">
-                  <Edit3 className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-9 w-9 text-blue-600 border-blue-200 hover:bg-blue-50">
-                  <Mail className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-9 w-9 text-blue-600 border-blue-200 hover:bg-blue-50">
-                  <Share2 className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-9 w-9 text-blue-600 border-blue-200 hover:bg-blue-50">
-                  <Heart className="w-4 h-4" />
-                </Button>
-                <Button 
-                   className="h-9 bg-blue-600 hover:bg-blue-700 text-white px-4 shadow-sm"
-                   onClick={(e) => initiateDownload(tender, e)}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
-                </Button>
-             </div>
+          {/* Action Buttons Row */}
+          <div className="flex flex-wrap gap-3">
+            <Button className="bg-[#f97316] hover:bg-[#ea580c] text-white shadow-sm font-semibold rounded-md h-9">
+              <Sparkles className="w-4 h-4 mr-2" /> AI Tender Summary
+            </Button>
+            <Button variant="outline" className="h-9 font-medium text-slate-600 bg-white shadow-sm border-slate-200">
+              <Bookmark className="w-4 h-4 mr-2" /> Save Tender
+            </Button>
+            <Button variant="outline" className="h-9 font-medium text-slate-600 bg-white shadow-sm border-slate-200">
+              <Share2 className="w-4 h-4 mr-2" /> Share
+            </Button>
+            <Button variant="outline" className="h-9 font-medium text-slate-600 bg-white shadow-sm border-slate-200">
+              <Bell className="w-4 h-4 mr-2" /> Set Alert
+            </Button>
           </div>
         </div>
 
-        {/* Sticky Navigation */}
-        <div className="sticky top-16 z-40 w-full justify-start border-y border-slate-200 bg-slate-50/95 backdrop-blur-md h-14 px-4 flex items-center space-x-2 md:space-x-4 overflow-x-auto overflow-y-hidden flex-nowrap hide-scrollbar">
-          {['Overview', 'Documents', 'BOQ', 'Notes', 'Potential Partner', 'Related Tenders'].map((tab) => {
-             const id = tab.toLowerCase().replace(' ', '-');
-             const isActive = activeSection === id;
-             return (
-               <button 
-                 key={id} 
-                 onClick={() => scrollToSection(id)}
-                 className={`rounded-full px-5 py-1.5 font-medium text-sm transition-all whitespace-nowrap ${isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
-               >
-                 {tab}
-               </button>
-             )
-          })}
+        {/* KPI Row */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+          <div className="p-4 md:p-5 border-r border-b md:border-b-0 border-slate-100 flex flex-col justify-center">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Tender Value</p>
+            <p className="font-bold text-blue-600 text-base">{tender.tenderValue || "Ref. Documents"}</p>
+            <p className="text-xs text-slate-400 mt-1">Estimated cost</p>
+          </div>
+          <div className="p-4 md:p-5 border-r border-b md:border-b-0 border-slate-100 flex flex-col justify-center">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Bid Submission</p>
+            <p className="font-bold text-[#c2410c] text-base">{tender.endDate ? new Date(tender.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A"}</p>
+            <p className="text-xs text-slate-400 mt-1">
+              {tender.endDate ? (() => {
+                const diffTime = new Date(tender.endDate).getTime() - new Date().getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays > 0 ? `${diffDays} days left` : 'Expired';
+              })() : "N/A"}
+            </p>
+          </div>
+          <div className="p-4 md:p-5 border-r border-b md:border-b-0 border-slate-100 flex flex-col justify-center">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">EMD</p>
+            <p className="font-bold text-slate-800 text-base">{tender.emd || "Ref. Documents"}</p>
+            <p className="text-xs text-slate-400 mt-1">Bank guarantee accepted</p>
+          </div>
+          <div className="p-4 md:p-5 border-r border-slate-100 flex flex-col justify-center">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Document Fee</p>
+            <p className="font-bold text-slate-800 text-base">{tender.applicationCost || "Ref. Documents"}</p>
+            <p className="text-xs text-slate-400 mt-1">Non-refundable</p>
+          </div>
+          <div className="p-4 md:p-5 flex flex-col justify-center">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Tender Type</p>
+            <p className={`font-bold text-base ${tender.paymentMode?.toLowerCase().includes('online') ? 'text-emerald-600' : 'text-slate-800'}`}>
+              {tender.paymentMode || "Offline"}
+            </p>
+          </div>
         </div>
 
-        {/* Scrollable Content Sections */}
-        <div className="flex flex-col w-full bg-[#f3f4f6]">
+        {/* Main 2-Column Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           
-          <div id="overview" className="flex flex-col gap-3 p-4 md:p-5 w-full pt-6">
-               
-               {/* Costs */}
-               <Card className="border-0 shadow-sm rounded-md overflow-hidden">
-                 <div className="bg-slate-100 px-5 py-2.5 border-b border-slate-200 text-sm font-bold text-slate-700">
-                   Costs
-                 </div>
-                 <CardContent className="p-0">
-                   <div className="divide-y divide-slate-100">
-                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-3 items-center">
-                       <span className="text-slate-500 text-sm md:col-span-1">EMD</span>
-                       <span className="font-medium text-slate-800 text-sm md:col-span-3">
-                         {isLocked ? <span className="blur-sm select-none">₹ 1,50,000</span> : (tender.emd || "N/A")}
-                       </span>
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-3 items-center">
-                       <span className="text-slate-500 text-sm md:col-span-1">Tender Value</span>
-                       <span className="font-medium text-slate-800 text-sm md:col-span-3">
-                         {isLocked ? <span className="blur-sm select-none">₹ 50,00,000</span> : (tender.tenderValue || "N/A")}
-                       </span>
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-3 items-center">
-                       <span className="text-slate-500 text-sm md:col-span-1">Tender Fee</span>
-                       <span className="font-medium text-slate-800 text-sm md:col-span-3">
-                         {isLocked ? <span className="blur-sm select-none">₹ 5,000</span> : (tender.applicationCost || "N/A")}
-                       </span>
-                     </div>
-                   </div>
-                 </CardContent>
-               </Card>
-
-               {/* Description */}
-               <Card className="border-0 shadow-sm rounded-md overflow-hidden">
-                 <div className="bg-slate-100 px-5 py-2.5 border-b border-slate-200 text-sm font-bold text-slate-700">
-                   Description
-                 </div>
-                 <CardContent className="p-5 relative">
-                    {isLocked ? (
-                      <>
-                        <div className="blur-md select-none text-slate-400 text-sm space-y-2">
-                          <p>This is a highly detailed AI generated summary of the tender document that is currently locked.</p>
-                          <p>It contains critical requirements, potential risks, and competitor analysis that can give you a significant edge in bidding.</p>
-                        </div>
-                        <div className="absolute inset-0 flex items-center justify-center z-10">
-                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg">
-                            <Lock className="w-3.5 h-3.5 mr-2" /> Unlock Insights
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                        {tender.aiSummary || tender.title}
-                      </p>
+          {/* Left Column - Tabs & Content */}
+          <div className="md:col-span-8 lg:col-span-9 flex flex-col gap-6">
+            
+            {/* Tabs */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="flex flex-nowrap overflow-x-auto hide-scrollbar border-b border-slate-100">
+                {['Overview', 'Project Description', 'AI Tender Summary', 'Timeline', 'Documents'].map((tab) => (
+                  <button 
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-5 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${activeTab === tab ? 'border-blue-600 text-blue-600 bg-blue-50/30' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+                  >
+                    {tab}
+                    {tab === 'Documents' && docList.length > 0 && (
+                      <span className="ml-2 inline-flex items-center justify-center bg-slate-100 text-slate-500 rounded-full h-5 w-5 text-xs font-bold">
+                        {docList.length}
+                      </span>
                     )}
-                 </CardContent>
-               </Card>
-
-               {/* Contact */}
-               <Card className="border-0 shadow-sm rounded-md overflow-hidden">
-                 <div className="bg-slate-100 px-5 py-2.5 border-b border-slate-200 text-sm font-bold text-slate-700">
-                   Contact
-                 </div>
-                 <CardContent className="p-0">
-                   <div className="divide-y divide-slate-100">
-                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-2.5 items-center">
-                       <span className="text-slate-500 text-sm md:col-span-1">Tender Id</span>
-                       <span className="font-medium text-slate-800 text-sm md:col-span-3">{tender.tenderId || tender.tenderCode || tender.id || "N/A"}</span>
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-2.5 items-center">
-                       <span className="text-slate-500 text-sm md:col-span-1">Tender Authority</span>
-                       <span className="font-medium text-slate-800 text-sm md:col-span-3">{tender.organisation || "N/A"}</span>
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-4 px-5 py-2.5 items-center">
-                       <span className="text-slate-500 text-sm md:col-span-1">Address</span>
-                       <span className="font-medium text-slate-800 text-sm md:col-span-3">
-                         {(() => {
-                           const parts = [];
-                           const loc = tender.location || tender.city;
-                           if (loc) parts.push({ label: loc, href: `/tenders?q=${encodeURIComponent(loc)}` });
-                           if (tender.district && tender.district !== loc) parts.push({ label: tender.district, href: `/tenders?districts=${encodeURIComponent(tender.district)}` });
-                           if (tender.state && tender.state !== tender.district && tender.state !== loc) parts.push({ label: tender.state, href: `/tenders?states=${encodeURIComponent(tender.state)}` });
-                           
-                           if (parts.length === 0) return <span>Address not available</span>;
-                           
-                           return parts.map((part, index) => (
-                             <span key={index}>
-                               <Link href={part.href} className="text-blue-600 hover:underline cursor-pointer">
-                                 {part.label}
-                               </Link>
-                               {index < parts.length - 1 && ",\u00A0"}
-                             </span>
-                           ));
-                         })()}
-                       </span>
-                     </div>
-                   </div>
-                 </CardContent>
-               </Card>
-               
-            </div>
-
-          <div id="documents" className="flex flex-col gap-4 p-4 md:p-5 w-full border-t border-slate-200/60 pt-6">
-               <Card className="border-0 shadow-sm rounded-md overflow-hidden">
-                 <div className="bg-slate-100 px-6 py-3 border-b border-slate-200 flex justify-between items-center">
-                   <span className="font-bold text-slate-700">Documents</span>
-                   <Button 
-                      className="h-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                      onClick={(e) => initiateDownload(tender, e)}
-                   >
-                     Download All
-                   </Button>
-                 </div>
-                 <CardContent className="p-0 relative">
-                   {isLocked && (
-                    <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center z-10">
-                       <div className="bg-white px-6 py-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-4">
-                          <Lock className="w-5 h-5 text-slate-600" />
-                          <p className="text-sm font-bold text-slate-900">Subscribe to download documents</p>
-                       </div>
-                    </div>
-                   )}
-                   <div className={`divide-y divide-slate-100 ${isLocked ? 'blur-sm select-none opacity-50' : ''}`}>
-                     {docList.map((doc, i) => (
-                       <div key={i} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
-                         <div className="flex items-center gap-4">
-                           <div className={`w-10 h-10 rounded flex items-center justify-center ${doc.type.includes('ZIP') ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-500'}`}>
-                             <FileText className="w-5 h-5" />
-                           </div>
-                           <div>
-                             <p className="text-sm font-semibold text-blue-600 hover:underline cursor-pointer" onClick={() => doc.url && window.open(doc.url, '_blank')}>{doc.title}</p>
-                             <p className="text-xs text-slate-400 mt-0.5">{doc.type} • {doc.size}</p>
-                           </div>
-                         </div>
-                         {doc.url && (
-                           <Button variant="ghost" size="icon" className="text-blue-600 hover:bg-blue-50" onClick={() => window.open(doc.url, '_blank')}>
-                             <Download className="w-4 h-4" />
-                           </Button>
-                         )}
-                       </div>
-                     ))}
-                   </div>
-                 </CardContent>
-               </Card>
-            </div>
-
-          {['boq', 'notes', 'potential partner', 'related tenders'].map(tab => {
-            const id = tab.replace(' ', '-');
-            return (
-              <div key={id} id={id} className="p-8 text-center text-slate-500 bg-[#f3f4f6] border-t border-slate-200/60 w-full h-[200px] flex items-center justify-center">
-                 Information for {tab.toUpperCase()} will be populated here.
+                  </button>
+                ))}
               </div>
-            )
-          })}
+
+              <div className="p-6">
+                
+                {/* OVERVIEW TAB */}
+                {activeTab === 'Overview' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-800">Tender Overview</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border border-slate-200 rounded-xl overflow-hidden">
+                      {/* Row 1 */}
+                      <div className="p-4 border-b border-r border-slate-100 bg-slate-50/50">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><Building2 className="w-3 h-3 mr-1"/> Organization</p>
+                        <p className="text-sm font-semibold text-blue-600 hover:underline cursor-pointer">{tender.organisation || "N/A"}</p>
+                      </div>
+                      <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><LinkIcon className="w-3 h-3 mr-1"/> Tender ID</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-800">{tender.tenderId || tender.tenderCode || "N/A"}</p>
+                          <button 
+                            onClick={handleCopyId}
+                            className="text-slate-400 hover:text-blue-600 transition-colors"
+                            title="Copy Tender ID"
+                          >
+                            {copiedId ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Row 2 */}
+                      <div className="p-4 border-b border-r border-slate-100">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><Sparkles className="w-3 h-3 mr-1"/> Competition Type</p>
+                        <p className="text-sm font-semibold text-slate-800">{tender.tenderType || "N/A"}</p>
+                      </div>
+                      <div className="p-4 border-b border-slate-100">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><Sparkles className="w-3 h-3 mr-1"/> Bidding Type</p>
+                        <p className="text-sm font-semibold text-slate-800">{tender.formOfContract || "N/A"}</p>
+                      </div>
+
+                      {/* Row 3 */}
+                      <div className="p-4 border-b border-r border-slate-100 bg-slate-50/50">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><MapPin className="w-3 h-3 mr-1"/> Location / State</p>
+                        <p className="text-sm font-semibold text-slate-800">
+                          {[tender.location, tender.city, tender.district, tender.state]
+                            .filter(Boolean)
+                            .filter((val, i, arr) => arr.indexOf(val) === i)
+                            .join(', ') || "N/A"}
+                        </p>
+                      </div>
+                      <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><Sparkles className="w-3 h-3 mr-1"/> EMD Exemption</p>
+                        <p className="text-sm font-semibold text-slate-800">{tender.emdExemptionAllowed || "Not Available"}</p>
+                      </div>
+
+                      {/* Row 4 */}
+                      <div className="p-4 border-b border-r border-slate-100">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><Sparkles className="w-3 h-3 mr-1"/> Product Category</p>
+                        <p className="text-sm font-semibold text-slate-800">{tender.productCategory || "Not Available"}</p>
+                      </div>
+                      <div className="p-4 border-b border-slate-100">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><LinkIcon className="w-3 h-3 mr-1"/> Website</p>
+                        <p className="text-sm font-semibold text-blue-600 hover:underline cursor-pointer" onClick={() => tender.sourceUrl && window.open(tender.sourceUrl, '_blank')}>{tender.sourceUrl ? "View Original Tender" : "N/A"}</p>
+                      </div>
+
+                      {/* Row 5 */}
+                      <div className="p-4 border-r border-slate-100 bg-slate-50/50">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><PhoneCall className="w-3 h-3 mr-1"/> Contact Person</p>
+                        <p className="text-sm font-semibold text-slate-800">{tender.invitingAuthorityName || "Not Available"}</p>
+                      </div>
+                      <div className="p-4 border-slate-100 bg-slate-50/50">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><MapPin className="w-3 h-3 mr-1"/> Bid Opening Place</p>
+                        <p className="text-sm font-semibold text-slate-800">{tender.invitingAuthorityAddress || "Not Available"}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* PROJECT DESCRIPTION TAB */}
+                {activeTab === 'Project Description' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                     <h3 className="text-lg font-bold text-slate-800 mb-4">Project Description</h3>
+                     <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 p-5 rounded-lg border border-slate-100">
+                       {tender.title}
+                     </p>
+                  </div>
+                )}
+
+                {/* AI TENDER SUMMARY TAB */}
+                {activeTab === 'AI Tender Summary' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative">
+                     <div className="flex items-center gap-2 mb-4">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <h3 className="text-lg font-bold text-slate-800">AI Tender Summary</h3>
+                     </div>
+                     {isLocked ? (
+                       <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 p-6 rounded-xl border border-purple-100 relative overflow-hidden">
+                         <div className="blur-md select-none text-slate-400 text-sm space-y-4">
+                           <p>This is a highly detailed AI generated summary of the tender document that is currently locked. It contains critical requirements, potential risks, and competitor analysis that can give you a significant edge in bidding.</p>
+                           <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                         </div>
+                         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/40 backdrop-blur-[2px]">
+                           <Lock className="w-8 h-8 text-purple-600 mb-3" />
+                           <h4 className="font-bold text-slate-900 mb-1">Premium Feature</h4>
+                           <p className="text-sm text-slate-700 mb-4 text-center px-8">Upgrade your plan to unlock AI-powered insights, key requirements, and risk analysis for this tender.</p>
+                           <Button className="bg-purple-600 hover:bg-purple-700 rounded-full shadow-lg px-6">
+                             Upgrade to Unlock
+                           </Button>
+                         </div>
+                       </div>
+                      ) : tender.aiSummary ? (
+                        <div className="relative">
+                          <div className="absolute right-4 top-4 flex gap-2 z-10">
+                            <Button 
+                              onClick={handleGenerateAiSummary} 
+                              variant="outline" 
+                              className="group bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors"
+                              size="sm"
+                            >
+                              <Sparkles className="w-4 h-4 mr-2 text-purple-500 group-hover:text-white" /> Regenerate
+                            </Button>
+                            <Button 
+                              onClick={handleDownloadAiPdf} 
+                              variant="outline" 
+                              className="group bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors"
+                              size="sm"
+                            >
+                              <Download className="w-4 h-4 mr-2 group-hover:text-white" /> Download PDF
+                            </Button>
+                          </div>
+                          <div className="bg-white p-5 pt-16 rounded-xl border border-blue-100 shadow-[inset_0_1px_1px_rgba(255,255,255,1)] min-h-[600px]">
+                            {isLoadingHtml || !aiSummaryHtml ? (
+                              <div className="flex flex-col items-center justify-center py-20">
+                                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+                                <p className="text-sm text-slate-500 font-medium">Loading designed summary...</p>
+                              </div>
+                            ) : (
+                              <iframe 
+                                srcDoc={aiSummaryHtml}
+                                className="w-full h-[800px] border-0 rounded-lg shadow-sm"
+                                title="AI Summary"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border border-slate-100 rounded-xl">
+                          {isGeneratingAi ? (
+                            <div className="flex flex-col items-center">
+                              <Sparkles className="w-8 h-8 text-purple-400 mb-4 animate-pulse" />
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="w-4 h-4 rounded-full border-2 border-purple-500 border-t-transparent animate-spin"></div>
+                                <span className="text-sm font-bold text-purple-700 animate-pulse">{aiGenerationStep || 'Initializing...'}</span>
+                              </div>
+                              <div className="w-48 h-1.5 bg-purple-100 rounded-full overflow-hidden mt-3">
+                                <div className="h-full bg-purple-500 rounded-full w-full origin-left animate-[shimmer_2s_infinite]"></div>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <Sparkles className="w-8 h-8 text-purple-400 mb-3" />
+                              <p className="text-sm font-semibold text-slate-700 mb-2">AI Summary Not Available</p>
+                              <p className="text-xs text-slate-500 text-center max-w-md mb-6">Generate a comprehensive AI summary for this tender to quickly understand key requirements and scope.</p>
+                              <Button 
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                                onClick={handleGenerateAiSummary}
+                              >
+                                <Sparkles className="w-4 h-4 mr-2" /> Generate AI Summary
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                  </div>
+                )}
+
+                {/* TIMELINE TAB */}
+                {activeTab === 'Timeline' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                     <div className="flex items-center gap-2 mb-8">
+                        <Calendar className="w-5 h-5 text-blue-500" />
+                        <h3 className="text-lg font-bold text-slate-800">Tender Timeline</h3>
+                     </div>
+                     
+                     <div className="relative pl-[9.5rem] max-w-2xl">
+                       {/* Vertical Line */}
+                       <div className="absolute left-[7.5rem] top-2 bottom-8 w-[2px] bg-slate-200"></div>
+
+                       {/* Published Item */}
+                       <div className="relative mb-10">
+                         <div className="absolute -left-[9.5rem] top-0 w-[6.5rem] text-right">
+                            <p className="font-bold text-sm text-slate-800">{tender.startDate ? new Date(tender.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A"}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{tender.startDate ? new Date(tender.startDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' IST' : ""}</p>
+                         </div>
+                         <div className="absolute -left-[2rem] -ml-[5px] w-3 h-3 rounded-full bg-green-500 ring-[3px] ring-white top-1"></div>
+                         <div>
+                           <h4 className="font-bold text-slate-800 text-sm">Tender Published</h4>
+                           <p className="text-sm text-slate-500 mb-3 mt-1">Tender notice published.</p>
+                           <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-0 shadow-none font-semibold text-[10px] px-2 py-0.5 rounded">Completed</Badge>
+                         </div>
+                       </div>
+
+                       {/* Deadline Item */}
+                       <div className="relative">
+                         <div className="absolute -left-[9.5rem] top-0 w-[6.5rem] text-right">
+                            <p className="font-bold text-sm text-slate-800">{tender.endDate ? new Date(tender.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A"}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{tender.endDate ? new Date(tender.endDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' IST' : ""}</p>
+                         </div>
+                         <div className="absolute -left-[2rem] -ml-[6px] w-[14px] h-[14px] rounded-full bg-white border-[2.5px] border-slate-300 top-1"></div>
+                         <div>
+                           <h4 className="font-bold text-slate-800 text-sm">Bid Submission Deadline</h4>
+                           <p className="text-sm text-slate-500 mb-3 mt-1">Offline submission at the designated office.</p>
+                           <Badge variant="secondary" className="bg-slate-100 text-slate-500 hover:bg-slate-200 border-0 shadow-none font-semibold text-[10px] px-2 py-0.5 rounded">
+                              {tender.endDate ? (() => {
+                                const diffTime = new Date(tender.endDate).getTime() - new Date().getTime();
+                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                return diffDays > 0 ? `Upcoming · ${diffDays} days` : 'Expired';
+                              })() : "Upcoming"}
+                           </Badge>
+                         </div>
+                       </div>
+                     </div>
+                  </div>
+                )}
+
+                {/* DOCUMENTS TAB */}
+                {activeTab === 'Documents' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative">
+                     <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-2">
+                           <FileText className="w-5 h-5 text-blue-400" />
+                           <h3 className="text-lg font-bold text-slate-800">Tender Documents</h3>
+                        </div>
+                        <button 
+                          className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center transition-colors"
+                          onClick={(e) => initiateDownload(tender, e)}
+                        >
+                          Download All (ZIP) <ArrowDown className="w-3 h-3 ml-1" />
+                        </button>
+                     </div>
+                     
+                     {isLocked && (
+                      <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center z-10 rounded-lg">
+                         <div className="bg-white px-6 py-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-4">
+                            <Lock className="w-5 h-5 text-slate-600" />
+                            <p className="text-sm font-bold text-slate-900">Subscribe to download documents</p>
+                         </div>
+                      </div>
+                     )}
+                     
+                     <div className={`space-y-4 mb-8 ${isLocked ? 'blur-sm select-none opacity-50' : ''}`}>
+                       {docList.length > 0 ? docList.map((doc, i) => {
+                         const docExt = doc.type.toLowerCase().includes('pdf') ? 'pdf' : doc.type.toLowerCase().includes('zip') || doc.type.toLowerCase().includes('rar') ? 'rar' : 'doc';
+                         return (
+                           <div key={i} className="flex items-center justify-between px-5 py-4 bg-[#f8fafc] rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                             <div className="flex items-center gap-4">
+                               <div className="w-12 h-8 rounded-md bg-blue-50/50 border border-blue-100 flex items-center justify-center">
+                                 <span className="text-[10px] font-bold uppercase text-blue-500 tracking-wider">{docExt}</span>
+                               </div>
+                               <p className="text-sm font-medium text-slate-700">{doc.title}</p>
+                             </div>
+                             {doc.url && (
+                               <button 
+                                 className="w-8 h-8 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"
+                                 onClick={() => window.open(doc.url, '_blank')}
+                                 title="Download Document"
+                               >
+                                 <Download className="w-3.5 h-3.5" />
+                               </button>
+                             )}
+                           </div>
+                         );
+                       }) : (
+                         <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-slate-100">
+                           No documents available for this tender.
+                         </div>
+                       )}
+                     </div>
+
+                     {/* Disclaimer */}
+                     <div className="bg-[#fffbeb] border border-[#fef3c7] rounded-lg p-5">
+                       <div className="flex items-center gap-2 mb-2.5">
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          <h4 className="font-bold text-amber-800 text-sm">Disclaimer</h4>
+                       </div>
+                       <p className="text-xs text-amber-700/80 leading-relaxed max-w-4xl">
+                         We takes all possible care for accurate & authentic tender information. However users are requested to refer Original source of Tender Notice / Tender Document published by Tender Issuing Agency before taking any call regarding this tender
+                       </p>
+                     </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Sidebar */}
+          <div className="md:col-span-4 lg:col-span-3 flex flex-col gap-6">
+             
+             {/* Bidding Support Card */}
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center text-center">
+                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-3">
+                  <PhoneCall className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-lg mb-2">Need Bidding Support?</h3>
+                <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+                  Get end-to-end help with documentation, EMD, JV structuring & portal submission from our expert team.
+                </p>
+                <div className="w-full flex flex-col gap-3">
+                  <Button className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white">
+                    <PhoneCall className="w-4 h-4 mr-2" /> Talk to a Bid Expert
+                  </Button>
+                  <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" onClick={(e) => initiateDownload(tender, e)}>
+                    <Download className="w-4 h-4 mr-2" /> Download All Docs (ZIP)
+                  </Button>
+                </div>
+             </div>
+
+             {/* Share Tender */}
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Share this tender</p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" className="h-10 w-10 text-slate-600"><Copy className="w-4 h-4"/></Button>
+                  <Button variant="outline" size="icon" className="h-10 w-10 text-blue-600"><Share2 className="w-4 h-4"/></Button>
+                  <Button variant="outline" size="icon" className="h-10 w-10 text-sky-500"><Mail className="w-4 h-4"/></Button>
+                </div>
+             </div>
+
+             {/* Related Tender Results */}
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex items-center gap-2">
+                   <Sparkles className="w-4 h-4 text-blue-600" />
+                   <h4 className="font-bold text-slate-800 text-sm">Related Tender Results</h4>
+                </div>
+                <div className="p-4 text-sm text-slate-500 text-center">
+                   No related tenders found.
+                </div>
+             </div>
+
+             {/* View Also */}
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex items-center gap-2">
+                   <Sparkles className="w-4 h-4 text-blue-600" />
+                   <h4 className="font-bold text-slate-800 text-sm">View Also</h4>
+                </div>
+                <div className="p-4 text-sm text-slate-500 text-center">
+                   No suggestions at this time.
+                </div>
+             </div>
+
+          </div>
 
         </div>
       </div>

@@ -433,7 +433,7 @@ export default function UnifiedTendersPage() {
                         
                         <div className="flex items-center gap-1 text-slate-500 text-xs ml-2 font-medium">
                           <MapPin className="w-3.5 h-3.5" />
-                          {tender.district || tender.organisation || selectedState}
+                          {tender.district || tender.organisation || tender.state}
                         </div>
                       </div>
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,9 +39,16 @@ export default function DashboardPage() {
   const [selectedTender, setSelectedTender] = useState<Tender | null>(null);
 
   const { data: session, status } = useSession();
+  const router = useRouter();
   
   useEffect(() => {
     if (status === "authenticated") {
+      // @ts-ignore
+      if (session?.user?.globalRole !== 'SUPER_ADMIN') {
+        router.push('/tenders');
+        return;
+      }
+
       fetchTenders();
       
       // Set up real-time polling every 5 seconds
@@ -50,7 +58,7 @@ export default function DashboardPage() {
       
       return () => clearInterval(interval);
     }
-  }, [status]);
+  }, [status, session, router]);
 
   // IMPORTANT: Do NOT redirect while status is still "loading".
   // The session is fetched asynchronously — redirecting during loading causes a race condition.

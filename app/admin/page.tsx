@@ -25,11 +25,40 @@ export default function SuperAdminPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [stats, setStats] = useState({
+    totalTenants: 0,
+    totalTenantsFormatted: "0",
+    activeSubs: 0,
+    platformMRR: 0,
+    platformMRRFormatted: "$0",
+    globalTenders: 0,
+    globalTendersFormatted: "0"
+  });
+
   useEffect(() => {
     if (status === "authenticated") {
       fetchTenants();
+      fetchStats();
     }
   }, [status]);
+
+  const fetchStats = async () => {
+    try {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/admin/dashboard-stats`, {
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (e) {
+      console.error("Error fetching stats", e);
+    }
+  };
 
   const fetchTenants = async () => {
     try {
@@ -88,8 +117,7 @@ export default function SuperAdminPage() {
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Tenants</p>
               <div className="flex items-baseline gap-2 mt-1">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{tenants.length || "1,284"}</h2>
-                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">+12%</span>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalTenantsFormatted}</h2>
               </div>
             </div>
             <div className="w-10 h-10 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
@@ -104,9 +132,9 @@ export default function SuperAdminPage() {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Active Subs</p>
               <div className="flex items-baseline gap-2 mt-1">
                 <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {tenants.filter(t => t.subscription?.status === 'ACTIVE').length || "942"}
+                  {stats.activeSubs}
                 </h2>
-                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Pro/Ent</span>
+                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Paid</span>
               </div>
             </div>
             <div className="w-10 h-10 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
@@ -120,7 +148,7 @@ export default function SuperAdminPage() {
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Platform MRR</p>
               <div className="flex items-baseline gap-2 mt-1">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">$2.4M</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{stats.platformMRRFormatted}</h2>
                 <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">USD</span>
               </div>
             </div>
@@ -135,7 +163,7 @@ export default function SuperAdminPage() {
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Global Tenders</p>
               <div className="flex items-baseline gap-2 mt-1">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">45.2k</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{stats.globalTendersFormatted}</h2>
                 <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Live</span>
               </div>
             </div>

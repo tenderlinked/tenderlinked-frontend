@@ -12,6 +12,7 @@ import { ModeToggle } from '../shared/mode-toggle';
 import ProfileDropdown from '../shared/profile-dropdown';
 import SearchBox from '../shared/search-box';
 import { Button } from '../ui/button';
+import { SidebarTrigger } from '../ui/sidebar';
 import NotificationDropdown from './../shared/notification-dropdown';
 import { Coins, LayoutDashboard, Search as SearchIcon, CalendarDays, Bookmark, ShieldCheck, MapPin, Building2, Map } from 'lucide-react';
 import LogoIcon from "@/public/assets/images/logo-icon.png";
@@ -123,23 +124,26 @@ const Header = () => {
         <header className="dashboard-header flex items-center justify-between sm:h-16 h-16 shrink-0 gap-4 md:px-8 px-4 bg-blue-600 dark:bg-blue-700 text-white shadow-md sticky top-0 z-50">
             
             {/* Left: Logo & Nav Links */}
-            <div className="flex items-center gap-8 h-full">
+            <div className="flex items-center gap-4 h-full">
+                {isAdmin && <SidebarTrigger className="text-white hover:bg-white/10 hover:text-white" />}
                 
-                {/* Logo */}
-                <Link href="/dashboard" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity shrink-0">
-                    <Image
-                        src={LogoIcon}
-                        alt="TenderLinked"
-                        width={32}
-                        height={32}
-                        className="brightness-0 invert"
-                        style={{ objectFit: "contain" }}
-                        priority
-                    />
-                    <span className="text-xl font-bold tracking-tight text-white hidden sm:block">
-                        TenderLinked
-                    </span>
-                </Link>
+                {/* Logo (Hidden in admin since it's in the sidebar) */}
+                {!isAdmin && (
+                    <Link href="/dashboard" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity shrink-0">
+                        <Image
+                            src={LogoIcon}
+                            alt="TenderLinked"
+                            width={32}
+                            height={32}
+                            className="brightness-0 invert"
+                            style={{ objectFit: "contain" }}
+                            priority
+                        />
+                        <span className="text-xl font-bold tracking-tight text-white hidden sm:block">
+                            TenderLinked
+                        </span>
+                    </Link>
+                )}
 
                 {/* Primary Nav Links */}
                 <nav className="hidden md:flex items-center gap-2 h-full">
