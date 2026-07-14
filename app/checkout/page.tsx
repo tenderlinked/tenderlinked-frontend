@@ -92,7 +92,7 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify({
           userId: session.user.id,
-          planType: selectedPlan.name,
+          planType: selectedPlanId,
           amount: trialSetupFee // Auth charge based on env
         })
       });
@@ -123,7 +123,7 @@ export default function CheckoutPage() {
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature,
                 userId: session?.user?.id || "",
-                planType: selectedPlan.name,
+                planType: selectedPlanId,
                 amount: trialSetupFee // Auth charge
               })
             });
