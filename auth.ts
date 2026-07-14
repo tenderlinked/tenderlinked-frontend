@@ -49,11 +49,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const issuer = process.env.KEYCLOAK_ISSUER;
           const tokenUrl = `${issuer}/protocol/openid-connect/token`;
           
+          let finalUsername = credentials.email as string;
+          
+          try {
+            const resolveRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/resolve-identifier?identifier=${encodeURIComponent(finalUsername)}`);
+            if (resolveRes.ok) {
+              const resolvedData = await resolveRes.json();
+              if (resolvedData.username) {
+                 finalUsername = resolvedData.username;
+              }
+            } else {
+              // If backend rejects the identifier (e.g. phone not found), fail early
+              return null;
+            }
+          } catch (e) {
+            console.error("Failed to resolve identifier", e);
+          }
+
           const body = new URLSearchParams({
             grant_type: "password",
             client_id: process.env.KEYCLOAK_CLIENT_ID!,
             client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
-            username: credentials.email as string,
+            username: finalUsername,
             password: credentials.password as string,
             scope: "openid profile email",
           });
@@ -93,6 +110,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                tenantName = profData.tenant?.name || null;
                user.globalRole = profData.globalRole || 'USER';
                user.permissions = profData.permissions || [];
+               user.phoneNumber = profData.phoneNumber || null;
                if (profData.tenant?.subscription?.status === 'SUSPENDED') {
                  isSuspended = true;
                }
@@ -120,6 +138,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             tenantName,
             globalRole: user.globalRole || 'USER',
             permissions: user.permissions || [],
+            phoneNumber: user.phoneNumber || null,
             accessToken: tokens.access_token,
             isSuspended
           };
@@ -159,6 +178,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (user.accessToken) token.accessToken = user.accessToken;
         // @ts-ignore
         if (user.isSuspended !== undefined) token.isSuspended = user.isSuspended;
+        // @ts-ignore
+        if (user.phoneNumber !== undefined) token.phoneNumber = user.phoneNumber;
       }
       
       // If we log in via OAuth Keycloak (not Credentials), we need to fetch subscription here
@@ -173,6 +194,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
              token.tenantName = profData.tenant?.name || null;
              token.globalRole = profData.globalRole || 'USER';
              token.permissions = profData.permissions || [];
+             token.phoneNumber = profData.phoneNumber || null;
              
              if (profData.tenant?.subscription?.status === 'SUSPENDED') {
                token.isSuspended = true;
@@ -201,6 +223,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
         if (session?.tenantName !== undefined) {
           token.tenantName = session.tenantName;
+        }
+        if (session?.phoneNumber !== undefined) {
+          token.phoneNumber = session.phoneNumber;
         }
         
         if (token.id && session?.hasActivePlan === undefined && session?.tenantId === undefined) {
@@ -240,6 +265,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.accessToken = token.accessToken as string | undefined;
         // @ts-ignore
         session.user.isSuspended = token.isSuspended as boolean | undefined;
+        // @ts-ignore
+        session.user.phoneNumber = token.phoneNumber as string | null;
       }
       return session;
     }

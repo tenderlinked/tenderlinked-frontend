@@ -10,6 +10,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { MultiSelect, OptionType } from "@/components/ui/multi-select";
 import { useLoading } from "@/contexts/LoadingContext";
 import { registerSchema } from "@/lib/zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +22,16 @@ import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { z } from "zod";
 import SocialLogin from "./social-login";
+
+const ALL_INDIAN_STATES = [
+  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam",
+  "Bihar", "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir",
+  "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh",
+  "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha",
+  "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
+  "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "All India"
+].map(state => ({ label: state, value: state }));
 
 const RegisterForm = () => {
   const router = useRouter();
@@ -42,13 +53,56 @@ const RegisterForm = () => {
     tenantId: string;
   } | null>(null);
 
-  const [step, setStep] = useState(1);
-  const [preferencesForm, setPreferencesForm] = useState({
-    keywords: "",
-    states: "",
-    valueRange: "",
+  const [otp, setOtp] = useState("");
+  const [phoneOnly, setPhoneOnly] = useState("");
+  const [phoneExists, setPhoneExists] = useState(false);
+  const [pendingValues, setPendingValues] = useState<z.infer<typeof registerSchema> | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  const [step, setStep] = useState(0);
+  const [preferencesForm, setPreferencesForm] = useState<{
+    keywords: string[];
+    states: string[];
+    valueRange: string[];
+    website: string;
+  }>({
+    keywords: [],
+    states: [],
+    valueRange: [],
     website: "",
   });
+
+  const [aggregateFilters, setAggregateFilters] = useState<{
+    keywords: OptionType[];
+    states: OptionType[];
+    tenderValues: OptionType[];
+  }>({ keywords: [], states: [], tenderValues: [] });
+
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    fetch(`${apiUrl}/api/tenders/filters/aggregate`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.keywords) {
+          setAggregateFilters({
+            keywords: data.keywords.map((k: any) => ({ label: k.name, value: k.name, count: k.count })),
+            states: data.states.map((s: any) => ({ label: s.name, value: s.name, count: s.count })),
+            tenderValues: data.tenderValues.map((v: any) => ({ label: v.name, value: v.name, count: v.count }))
+          });
+        }
+      })
+      .catch(err => console.error(err));
+  }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -66,6 +120,7 @@ const RegisterForm = () => {
 
   const email = form.watch("email");
   const phone = form.watch("phone");
+  const username = form.watch("username");
 
   useEffect(() => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -95,6 +150,32 @@ const RegisterForm = () => {
   }, [email]);
 
   useEffect(() => {
+    if (!username || username.length < 2) {
+      setIsUsernameAvailable(null);
+      return;
+    }
+
+    setIsCheckingUsername(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
+        const data = await res.json();
+        if (res.ok) {
+          setIsUsernameAvailable(data.available);
+        } else {
+          setIsUsernameAvailable(null);
+        }
+      } catch (error) {
+        setIsUsernameAvailable(null);
+      } finally {
+        setIsCheckingUsername(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [username]);
+
+  useEffect(() => {
     if (!phone || phone.replace(/\D/g, '').length < 10) {
       setIsPhoneAvailable(null);
       return;
@@ -120,6 +201,99 @@ const RegisterForm = () => {
     return () => clearTimeout(timeoutId);
   }, [phone]);
 
+  const handleSendOtpFirst = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phoneOnly || phoneOnly.replace(/\D/g, '').length < 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+    setLoading(true);
+    setIsSubmitting(true);
+    setPhoneExists(false);
+    
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      
+      // 1. Check if phone exists
+      const checkRes = await fetch(`/api/auth/check-phone?phone=${encodeURIComponent(phoneOnly)}`);
+      const checkData = await checkRes.json();
+      if (checkData.available === false) {
+         setPhoneExists(true);
+         setLoading(false);
+         setIsSubmitting(false);
+         return;
+      }
+
+      // 2. Send OTP if it doesn't exist
+      const response = await fetch(`${apiUrl}/api/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneOnly }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Failed to send OTP");
+      toast.success("OTP sent to your phone number!");
+      
+      // Update the main form's phone value
+      form.setValue("phone", phoneOnly);
+      setStep(1);
+      setResendTimer(60);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setLoading(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneOnly }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Failed to resend OTP");
+      toast.success("OTP resent successfully!");
+      setResendTimer(60);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to resend OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtpFirst = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp || otp.length !== 6) {
+      toast.error("Please enter a valid 6-digit OTP");
+      return;
+    }
+    setLoading(true);
+    setIsSubmitting(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const verifyRes = await fetch(`${apiUrl}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneOnly, otp }),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok) throw new Error(verifyData.message || "Invalid OTP");
+      toast.success("Phone number verified!");
+      setStep(2);
+    } catch (error: any) {
+      toast.error(error.message || "Verification failed");
+    } finally {
+      setLoading(false);
+      setIsSubmitting(false);
+    }
+  };
+
   const handleRegisterFormSubmit = async (
     values: z.infer<typeof registerSchema>
   ) => {
@@ -127,13 +301,12 @@ const RegisterForm = () => {
     setIsSubmitting(true);
 
     try {
+      // Direct registration since OTP is already verified in step 1
       const response = await fetch("/api/auth/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: values.username, // custom username
+          name: values.username,
           firstName: values.firstName,
           lastName: values.lastName,
           phone: values.phone,
@@ -151,15 +324,15 @@ const RegisterForm = () => {
 
       toast.success("Account created successfully!");
       setSuccessData({
-        username: values.username,
-        email: values.email,
-        firstName: values.firstName,
-        lastName: values.lastName,
+        username: values.username || "",
+        email: values.email || "",
+        firstName: values.firstName || "",
+        lastName: values.lastName || "",
         tenantId: data.tenantId,
       });
-      setStep(2);
+      setStep(3);
     } catch (error: any) {
-      toast.error(error.message || "Failed to create account");
+      toast.error(error.message || "Registration failed");
     } finally {
       setLoading(false);
       setIsSubmitting(false);
@@ -171,13 +344,14 @@ const RegisterForm = () => {
     setLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/tenants/${successData?.tenantId}/alert-preferences`, {
+      const response = await fetch(`${apiUrl}/api/tenants/setup-preferences`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          keywords: preferencesForm.keywords.split(',').map(s => s.trim()).filter(Boolean),
-          preferredStates: preferencesForm.states.split(',').map(s => s.trim()).filter(Boolean),
-          tenderValueRange: preferencesForm.valueRange,
+          tenantId: successData?.tenantId,
+          keywords: preferencesForm.keywords,
+          preferredStates: preferencesForm.states,
+          tenderValueRange: preferencesForm.valueRange.join(', '),
           companyWebsite: preferencesForm.website
         })
       });
@@ -191,11 +365,11 @@ const RegisterForm = () => {
       toast.error('Failed to save preferences, but you can configure them later.');
     } finally {
       setLoading(false);
-      setStep(3); // Proceed to success screen regardless
+      setStep(4); // Proceed to success screen regardless
     }
   };
 
-  if (step === 3 && successData) {
+  if (step === 4 && successData) {
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
     const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https:" : "http:";
     const loginUrl = `${protocol}//${rootDomain}/auth/login`;
@@ -241,7 +415,7 @@ const RegisterForm = () => {
     );
   }
 
-  if (step === 2 && successData) {
+  if (step === 3 && successData) {
     return (
       <div className="flex flex-col space-y-6 py-4 animate-in fade-in zoom-in duration-300">
         <div className="text-center">
@@ -254,62 +428,33 @@ const RegisterForm = () => {
         <form onSubmit={handlePreferencesSubmit} className="space-y-4">
           <div>
             <label className="text-sm font-medium mb-1 block">Keywords</label>
-            <Input 
-              list="keywords-list"
-              placeholder="e.g. Road Construction, IT Consultancy" 
-              value={preferencesForm.keywords}
-              onChange={e => setPreferencesForm({...preferencesForm, keywords: e.target.value})}
-              className="h-12 bg-neutral-100 dark:bg-slate-800"
+            <MultiSelect
+              options={aggregateFilters.keywords}
+              selected={preferencesForm.keywords}
+              onChange={(selected) => setPreferencesForm({ ...preferencesForm, keywords: selected })}
+              placeholder="e.g. Road Construction, IT Consultancy"
+              className="bg-neutral-100 dark:bg-slate-800"
             />
-            <datalist id="keywords-list">
-              <option value="Road Construction" />
-              <option value="IT Services" />
-              <option value="Medical Equipment" />
-              <option value="Solar Projects" />
-              <option value="Consultancy" />
-              <option value="Manpower Supply" />
-              <option value="Security Services" />
-            </datalist>
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Preferred States</label>
-            <Input 
-              list="states-list"
-              placeholder="e.g. Tamil Nadu, Karnataka" 
-              value={preferencesForm.states}
-              onChange={e => setPreferencesForm({...preferencesForm, states: e.target.value})}
-              className="h-12 bg-neutral-100 dark:bg-slate-800"
+            <MultiSelect
+              options={ALL_INDIAN_STATES}
+              selected={preferencesForm.states}
+              onChange={(selected) => setPreferencesForm({ ...preferencesForm, states: selected })}
+              placeholder="e.g. Tamil Nadu, Karnataka"
+              className="bg-neutral-100 dark:bg-slate-800"
             />
-            <datalist id="states-list">
-              <option value="All India" />
-              <option value="Maharashtra" />
-              <option value="Delhi" />
-              <option value="Karnataka" />
-              <option value="Tamil Nadu" />
-              <option value="Gujarat" />
-              <option value="Uttar Pradesh" />
-              <option value="Telangana" />
-              <option value="West Bengal" />
-              <option value="Kerala" />
-            </datalist>
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Tender Value Range</label>
-            <Input 
-              list="value-list"
-              placeholder="e.g. More than 10 Lakhs or 10 - 50 Lakhs" 
-              value={preferencesForm.valueRange}
-              onChange={e => setPreferencesForm({...preferencesForm, valueRange: e.target.value})}
-              className="h-12 bg-neutral-100 dark:bg-slate-800"
+            <MultiSelect
+              options={aggregateFilters.tenderValues}
+              selected={preferencesForm.valueRange}
+              onChange={(selected) => setPreferencesForm({ ...preferencesForm, valueRange: selected })}
+              placeholder="e.g. More than 10 Lakhs or 10 - 50 Lakhs"
+              className="bg-neutral-100 dark:bg-slate-800"
             />
-            <datalist id="value-list">
-              <option value="Any Value" />
-              <option value="Under 10 Lakhs" />
-              <option value="10 - 50 Lakhs" />
-              <option value="50 Lakhs - 1 Crore" />
-              <option value="1 Crore - 10 Crores" />
-              <option value="Above 10 Crores" />
-            </datalist>
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Your company website (Optional)</label>
@@ -329,8 +474,134 @@ const RegisterForm = () => {
     );
   }
 
+  if (step === 0) {
+    if (phoneExists) {
+      return (
+        <div className="flex flex-col space-y-6 py-4 animate-in fade-in zoom-in duration-300">
+           <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4 text-center">
+              <h3 className="font-bold text-lg mb-2">Number Already Registered</h3>
+              <p className="text-sm mb-6">The mobile number <b>{phoneOnly}</b> is already registered with an account.</p>
+              <div className="flex flex-col gap-3">
+                 <Link href="/auth/login" className="w-full">
+                   <Button className="w-full h-[52px] bg-[#244376] hover:bg-[#1b345c] text-white">Go to Login</Button>
+                 </Link>
+                 <Button variant="outline" className="w-full h-[52px]" onClick={() => { setPhoneExists(false); setPhoneOnly(''); }}>
+                   Change Mobile Number
+                 </Button>
+              </div>
+           </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col space-y-6 py-4 animate-in fade-in zoom-in duration-300">
+        <form onSubmit={handleSendOtpFirst} className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Mobile Number *</label>
+            <Input
+              type="tel"
+              placeholder="Enter 10-digit mobile number"
+              value={phoneOnly}
+              onChange={(e) => setPhoneOnly(e.target.value)}
+              className="h-12 border-slate-300"
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full rounded-lg mt-4 h-[52px] font-semibold bg-[#244376] hover:bg-[#1b345c]"
+            disabled={loading || phoneOnly.length < 10}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin h-4.5 w-4.5 mr-2" />
+                Generating...
+              </>
+            ) : (
+              "Generate OTP"
+            )}
+          </Button>
+        </form>
+
+        {/* Divider */}
+        <div className="mt-8 relative text-center before:absolute before:w-full before:h-px before:bg-neutral-300 dark:before:bg-slate-600 before:top-1/2 before:left-0">
+          <span className="relative z-10 px-4 bg-white dark:bg-slate-900 text-base">
+            Or sign up with
+          </span>
+        </div>
+
+        {/* Social Login */}
+        <div className="mt-2">
+          <SocialLogin />
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 1) {
+    return (
+      <div className="flex flex-col space-y-6 py-4 animate-in fade-in zoom-in duration-300">
+        <div className="text-center">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Verify Phone Number</h3>
+          <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
+            We've sent a 6-digit OTP to {phoneOnly}. Please enter it below.
+          </p>
+        </div>
+        <form onSubmit={handleVerifyOtpFirst} className="space-y-4">
+          <div>
+            <Input
+              type="text"
+              placeholder="Enter 6-digit OTP"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              maxLength={6}
+              className="text-center tracking-widest text-lg font-semibold h-12"
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full rounded-lg mt-4 h-[52px] font-semibold bg-[#244376] hover:bg-[#1b345c]"
+            disabled={loading || otp.length !== 6}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin h-4.5 w-4.5 mr-2" />
+                Verifying...
+              </>
+            ) : (
+              "Verify OTP"
+            )}
+          </Button>
+          <div className="flex flex-col space-y-2 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-11"
+              onClick={handleResendOtp}
+              disabled={loading || resendTimer > 0}
+            >
+              {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full h-11"
+              onClick={() => { setStep(0); setResendTimer(0); }}
+              disabled={loading}
+            >
+              Change Phone Number
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <>
+      <div className="mb-4 bg-green-50 text-green-700 p-3 rounded-md text-sm border border-green-200 flex items-center">
+        <Check className="w-4 h-4 mr-2" /> Phone number verified. Complete your profile.
+      </div>
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(handleRegisterFormSubmit)}
@@ -477,6 +748,7 @@ const RegisterForm = () => {
 
           <div className="flex gap-4">
             {/* Phone Field */}
+            {/* Phone Field */}
             <FormField
               control={form.control}
               name="phone"
@@ -488,34 +760,11 @@ const RegisterForm = () => {
                         {...field}
                         type="text"
                         placeholder="Phone Number"
-                        className={`px-4 pe-12 h-14 rounded-xl bg-neutral-100 dark:bg-slate-800 border ${
-                          isPhoneAvailable === true
-                            ? "border-green-500 focus-visible:border-green-500"
-                            : isPhoneAvailable === false
-                            ? "border-red-500 focus-visible:border-red-500"
-                            : "border-neutral-300 dark:border-slate-700 focus-visible:border-primary"
-                        } focus:border-primary dark:focus:border-primary !shadow-none !ring-0`}
-                        disabled={loading}
+                        disabled
+                        className="px-4 h-14 rounded-xl bg-slate-100 text-slate-500 border border-neutral-300 dark:border-slate-700 !shadow-none !ring-0 cursor-not-allowed"
                       />
-                      <div className="absolute end-4 top-1/2 transform -translate-y-1/2 flex items-center">
-                        {isCheckingPhone && (
-                          <Loader2 className="w-5 h-5 text-neutral-500 animate-spin" />
-                        )}
-                        {!isCheckingPhone && isPhoneAvailable === true && (
-                          <Check className="w-5 h-5 text-green-500" />
-                        )}
-                        {!isCheckingPhone && isPhoneAvailable === false && (
-                          <X className="w-5 h-5 text-red-500" />
-                        )}
-                      </div>
                     </div>
                   </FormControl>
-                  {!isCheckingPhone && isPhoneAvailable === true && (
-                    <p className="text-sm text-green-600 mt-1 font-medium">Available</p>
-                  )}
-                  {!isCheckingPhone && isPhoneAvailable === false && (
-                    <p className="text-sm text-red-600 mt-1 font-medium">Already taken</p>
-                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -662,7 +911,7 @@ const RegisterForm = () => {
                 Loading...
               </>
             ) : (
-              "Sign Up"
+              "Register"
             )}
           </Button>
         </form>

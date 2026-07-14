@@ -39,7 +39,7 @@ export default function KeywordManagementPage() {
   const [loadingExpansions, setLoadingExpansions] = useState(true);
   const [searchExpansions, setSearchExpansions] = useState("");
   const [aiLoading, setAiLoading] = useState<string | null>(null);
-  const [expansionInput, setExpansionInput] = useState<{ [key: string]: string }>({});
+  const [expansionInput, setExpansionInput] = useState<Record<string, string>>({});
 
   // State for new keyword generation
   const [suggestedExpansions, setSuggestedExpansions] = useState<string[] | null>(null);
@@ -85,7 +85,7 @@ export default function KeywordManagementPage() {
         setExpansions(data);
         
         // Initialize inputs for editing expansions
-        const initInputs: { [key: string]: string } = {};
+        const initInputs: Record<string, string> = {};
         data.forEach((exp: KeywordExpansion) => {
           initInputs[exp.id] = exp.expansions.join(", ");
         });

@@ -46,9 +46,9 @@ const ForgotPasswordComponent = () => {
 
         if (result?.success) {
           toast.success('Password Reset code has been sent to your email')
-          router.push('/auth/create-password')
+          router.push(`/auth/create-password?email=${encodeURIComponent(result.email as string)}`)
         } else {
-          toast.error('Please enter a valid email')
+          toast.error(result?.message || 'Please enter a valid email')
         }
       } catch (error) {
         console.error('Forgot password error:', error)

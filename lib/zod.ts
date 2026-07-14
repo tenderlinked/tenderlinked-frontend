@@ -51,6 +51,7 @@ export const forgotPasswordSchema = z.object({
 // Create Password Schema
 export const createPasswordSchema = z
   .object({
+    otp: z.string().min(6, "OTP must be 6 digits").max(6, "OTP must be 6 digits"),
     password: passwordField,
     confirmPassword: z.string({
       required_error: "Confirm Password is required",

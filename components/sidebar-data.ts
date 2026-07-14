@@ -105,5 +105,10 @@ export const data = {
       url: "/admin/billing",
       icon: Server,
     },
+    {
+      title: "System Settings",
+      url: "/admin/settings",
+      icon: Settings,
+    },
   ],
 };

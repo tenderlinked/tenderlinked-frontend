@@ -4,8 +4,8 @@ import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSession } from "next-auth/react";
-import { doLogout } from "@/components/auth/actions/logout";
+import { useSession, signOut } from "next-auth/react";
+import { getLogoutUrl } from "@/components/auth/actions/logout";
 import IndianTendersMegaMenu from "./IndianTendersMegaMenu";
 import { Network, Search, Menu, X, ChevronDown, CheckCircle2, LogOut, LayoutDashboard } from "lucide-react";
 import {
@@ -201,7 +201,10 @@ const Header = () => {
                     <span className="text-sm font-medium">Dashboard</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => doLogout()} className="cursor-pointer py-2.5 rounded-md text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 dark:hover:bg-red-900/20">
+                  <DropdownMenuItem onClick={async () => {
+                    const url = await getLogoutUrl();
+                    await signOut({ callbackUrl: url });
+                  }} className="cursor-pointer py-2.5 rounded-md text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 dark:hover:bg-red-900/20">
                     <LogOut className="w-4 h-4 mr-2" />
                     <span className="text-sm font-medium">Sign Out</span>
                   </DropdownMenuItem>
@@ -291,7 +294,10 @@ const Header = () => {
                       <button onClick={() => router.push('/dashboard')} className="flex items-center justify-center gap-2 w-full text-[14px] font-medium text-[#111827] dark:text-gray-200 py-3 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                         <LayoutDashboard className="w-4 h-4" /> Dashboard
                       </button>
-                      <button onClick={() => doLogout()} className="flex items-center justify-center gap-2 w-full text-[14px] font-medium text-red-600 py-3 border border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl transition-colors">
+                      <button onClick={async () => {
+                        const url = await getLogoutUrl();
+                        await signOut({ callbackUrl: url });
+                      }} className="flex items-center justify-center gap-2 w-full text-[14px] font-medium text-red-600 py-3 border border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl transition-colors">
                         <LogOut className="w-4 h-4" /> Sign Out
                       </button>
                     </div>

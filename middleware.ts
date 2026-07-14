@@ -33,12 +33,27 @@ export default auth(async (req) => {
     return NextResponse.redirect(new URL(url.pathname + url.search, `${protocol}://${rootDomain}`));
   }
 
+  // Redirect to dashboard if trying to access complete-profile but already has phone number
+  if (path.startsWith('/auth/complete-profile')) {
+    const session = req.auth;
+    // @ts-ignore
+    if (session?.user?.phoneNumber) {
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+  }
+
   // Protect dashboard routes
   if (path.startsWith('/dashboard') || path.startsWith('/tenders') || path.startsWith('/checkout') || path.startsWith('/pricing') || path.startsWith('/settings') || path.startsWith('/admin')) {
     const session = req.auth; 
     
     if (!session) {
       return NextResponse.redirect(new URL('/auth/login', req.url));
+    }
+
+    // Enforce mobile number collection for social logins
+    // @ts-ignore
+    if (!session.user?.phoneNumber) {
+      return NextResponse.redirect(new URL('/auth/complete-profile', req.url));
     }
   }
 

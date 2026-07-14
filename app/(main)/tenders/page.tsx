@@ -40,6 +40,7 @@ interface Tender {
   state: string;
   organisation: string;
   tenderValue: string;
+  startDate?: string;
   endDate: string;
   aiProcessed: boolean;
   aiSummary: string | null;

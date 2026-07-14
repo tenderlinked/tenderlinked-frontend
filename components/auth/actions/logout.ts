@@ -3,7 +3,7 @@
 import { signOut } from "@/auth";
 import { headers } from "next/headers";
 
-export async function doLogout() {
+export async function getLogoutUrl() {
   const issuer = process.env.KEYCLOAK_ISSUER || "https://auth.enfycon.com/realms/enfycon-tender";
   const clientId = process.env.KEYCLOAK_CLIENT_ID || "enfycon-tender";
   
@@ -13,7 +13,10 @@ export async function doLogout() {
   const protocol = host.includes("localhost") || host.includes("lvh.me") ? "http" : "https";
   const postLogoutRedirectUri = `${protocol}://${host}/auth/login`;
 
-  const keycloakLogoutUrl = `${issuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
+  return `${issuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
+}
 
-  await signOut({ redirectTo: keycloakLogoutUrl });
+export async function doLogout() {
+  const url = await getLogoutUrl();
+  await signOut({ redirectTo: url });
 }

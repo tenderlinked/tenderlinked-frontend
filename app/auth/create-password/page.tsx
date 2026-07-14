@@ -6,6 +6,7 @@ import AuthImage from "@/public/assets/images/auth/forgot-pass-img.png";
 import { StaticImg } from "@/types/static-image";
 import type { Metadata } from "next";
 import Image from "next/image";
+import { Suspense } from "react";
 
 const metadata: Metadata = {
   title: "Create Password & Account Security | Enfycon Admin Dashboard",
@@ -47,7 +48,9 @@ const CreatePassword = () => {
           </div>
 
           {/* Form */}
-          <CreatePasswordComponent />
+          <Suspense fallback={<div className="h-40 flex items-center justify-center">Loading...</div>}>
+            <CreatePasswordComponent />
+          </Suspense>
         </div>
       </div>
     </section>

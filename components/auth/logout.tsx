@@ -4,14 +4,16 @@
 import { Loader2, LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/button";
-import { doLogout } from "./actions/logout";
+import { getLogoutUrl } from "./actions/logout";
+import { signOut } from "next-auth/react";
 
 const Logout = () => {
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
     setLoading(true);
-    await doLogout();
+    const url = await getLogoutUrl();
+    await signOut({ callbackUrl: url });
   };
 
   return (
