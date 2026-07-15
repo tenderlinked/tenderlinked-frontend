@@ -22,7 +22,11 @@ const ProfileDropdown = () => {
   useEffect(() => {
     if (session?.user?.id) {
       setLoading(true);
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${session.user.id}/active`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/subscriptions/${session.user.id}/active`, {
+        headers: {
+          "Authorization": `Bearer ${(session as any).accessToken}`
+        }
+      })
         .then(res => res.json())
         .then(data => {
           if (data.subscription) {
@@ -78,7 +82,7 @@ const ProfileDropdown = () => {
           <div>
             {(session?.user as any)?.hasActivePlan ? (
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800">
-                Active Plan: {subDetails?.planType || (session?.user as any)?.planType || 'Active'}
+                Active Plan: {(subDetails?.planType || (session?.user as any)?.planType || 'Active').charAt(0).toUpperCase() + (subDetails?.planType || (session?.user as any)?.planType || 'Active').slice(1).toLowerCase()}
               </span>
             ) : (
               <Link href="/checkout" className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 hover:opacity-80 transition-opacity ring-1 ring-rose-200 dark:ring-rose-800">
@@ -86,23 +90,6 @@ const ProfileDropdown = () => {
               </Link>
             )}
           </div>
-
-          {subDetails && (
-            <div className="mt-2 space-y-2 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3">
-              <div className="flex justify-between items-center">
-                <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Start Date</span>
-                <span className="font-medium text-slate-900 dark:text-slate-300">{format(new Date(subDetails.startDate), 'MMM dd, yyyy')}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Next Renew</span>
-                <span className="font-medium text-slate-900 dark:text-slate-300">{format(new Date(subDetails.endDate), 'MMM dd, yyyy')}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5" /> Payment</span>
-                <span className="font-medium text-slate-900 dark:text-slate-300">₹{subDetails.amount} via {subDetails.paymentMethod}</span>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="max-h-[400px] overflow-y-auto scroll-sm pt-4">

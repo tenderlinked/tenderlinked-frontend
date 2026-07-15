@@ -36,12 +36,15 @@ import { useTenderDownload } from "@/hooks/use-tender-download";
 interface Tender {
   id: string;
   title: string;
+  location?: string | null;
   district: string;
   state: string;
   organisation: string;
   tenderValue: string;
   startDate?: string;
   endDate: string;
+  description?: string | null;
+  isBookmarked?: boolean;
   aiProcessed: boolean;
   aiSummary: string | null;
   tags: string[];
@@ -59,6 +62,9 @@ export default function UnifiedTendersPage() {
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [tabCounts, setTabCounts] = useState({ active: 0, archived: 0, followed: 0 });
 
   const searchParams = useSearchParams();
   const globalQuery = searchParams.get('q') || "";
@@ -82,6 +88,7 @@ export default function UnifiedTendersPage() {
   const [authoritiesList, setAuthoritiesList] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState(globalQuery);
   const [activeTab, setActiveTab] = useState("active");
+  const [sortOption, setSortOption] = useState("newest");
   const [sidebarStats, setSidebarStats] = useState<{ states: {name:string,count:number}[], cities: {name:string,count:number}[], keywords: {keyword:string,count:number}[] }>({ states: [], cities: [], keywords: [] });
 
   // Sidebar collapse & show-more state
@@ -137,8 +144,9 @@ export default function UnifiedTendersPage() {
   useEffect(() => {
     if (status === "authenticated") {
       fetchTenders();
+      fetchTabCounts();
     }
-  }, [status, selectedStates, selectedCities, selectedCategories, selectedAuthorities, selectedKeywords, minAmount, maxAmount, searchQuery, activeTab]);
+  }, [status, selectedStates, selectedCities, selectedCategories, selectedAuthorities, selectedKeywords, minAmount, maxAmount, searchQuery, activeTab, sortOption, page, pageSize]);
 
   useEffect(() => {
     const fetchAuthorities = async () => {
@@ -163,26 +171,51 @@ export default function UnifiedTendersPage() {
     }
   }, [selectedStates, status]);
 
+  const buildBaseUrl = () => {
+    let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders?`;
+    if (selectedStates.length > 0) url += `&states=${encodeURIComponent(selectedStates.join(','))}`;
+    if (selectedCities.length > 0) url += `&districts=${encodeURIComponent(selectedCities.join(','))}`;
+    if (selectedCategories.length > 0) url += `&categories=${encodeURIComponent(selectedCategories.join(','))}`;
+    if (selectedAuthorities.length > 0) url += `&authorities=${encodeURIComponent(selectedAuthorities.join(','))}`;
+    if (selectedKeywords.length > 0) url += `&keywords=${encodeURIComponent(selectedKeywords.join(','))}`;
+    if (minAmount) url += `&minAmount=${encodeURIComponent(minAmount)}`;
+    if (maxAmount) url += `&maxAmount=${encodeURIComponent(maxAmount)}`;
+    if (searchQuery) url += `&search=${searchQuery}`;
+    return url;
+  };
+
+  const fetchTabCounts = async () => {
+    try {
+      const baseUrl = buildBaseUrl();
+      const headers = { Authorization: `Bearer ${(session as any)?.accessToken}` };
+      const [activeRes, archivedRes, followedRes] = await Promise.all([
+        fetch(`${baseUrl}&active=true&limit=1`, { headers }).then(r => r.json()),
+        fetch(`${baseUrl}&active=false&limit=1`, { headers }).then(r => r.json()),
+        fetch(`${baseUrl}&bookmarked=true&limit=1`, { headers }).then(r => r.json()),
+      ]);
+      setTabCounts({
+        active: activeRes.meta?.total || 0,
+        archived: archivedRes.meta?.total || 0,
+        followed: followedRes.meta?.total || 0,
+      });
+    } catch (e) {
+      console.error("Failed to fetch tab counts", e);
+    }
+  };
+
   const fetchTenders = async () => {
     setLoading(true);
     try {
-      let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders?limit=20`;
-      
-      if (selectedStates.length > 0) url += `&states=${encodeURIComponent(selectedStates.join(','))}`;
-      if (selectedCities.length > 0) url += `&districts=${encodeURIComponent(selectedCities.join(','))}`;
-      if (selectedCategories.length > 0) url += `&categories=${encodeURIComponent(selectedCategories.join(','))}`;
-      if (selectedAuthorities.length > 0) url += `&authorities=${encodeURIComponent(selectedAuthorities.join(','))}`;
-      if (selectedKeywords.length > 0) url += `&keywords=${encodeURIComponent(selectedKeywords.join(','))}`;
-      if (minAmount) url += `&minAmount=${encodeURIComponent(minAmount)}`;
-      if (maxAmount) url += `&maxAmount=${encodeURIComponent(maxAmount)}`;
-      
-      if (searchQuery) url += `&search=${searchQuery}`;
+      let url = `${buildBaseUrl()}&page=${page}&pageSize=${pageSize}`;
       if (activeTab === "active") {
         url += `&active=true`;
       } else if (activeTab === "archived") {
         url += `&active=false`;
       } else if (activeTab === "followed") {
         url += `&bookmarked=true`;
+      }
+      if (sortOption) {
+        url += `&sort=${sortOption}`;
       }
 
       const response = await fetch(url, {
@@ -206,10 +239,60 @@ export default function UnifiedTendersPage() {
     ? statesList.filter(s => selectedStates.includes(s.name)).flatMap(s => s.districts?.map((d: any) => d.name) || [])
     : [];
 
+  const handleSaveFilter = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${(session?.user as any)?.tenantId || 'dummy'}/alert-preferences`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(session as any)?.accessToken}`
+        },
+        body: JSON.stringify({
+          keywords: selectedKeywords,
+          preferredStates: selectedStates,
+          tenderValueRange: minAmount || maxAmount ? `${minAmount || 0}-${maxAmount || 'Max'}` : undefined
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.message || 'Failed to save filter limits. Check your plan restrictions.');
+      } else {
+        alert('Filters saved successfully as Alert Preferences!');
+      }
+    } catch (err) {
+      alert('An error occurred while saving filters.');
+    }
+  };
+
+  const handleToggleBookmark = async (id: string, currentStatus?: boolean) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders/${id}/bookmark`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(session as any)?.accessToken}`
+        },
+        body: JSON.stringify({ isBookmarked: !currentStatus })
+      });
+      if (res.ok) {
+        setTenders(prev => prev.map(t => t.id === id ? { ...t, isBookmarked: !currentStatus } : t));
+        fetchTabCounts();
+      }
+    } catch (err) {
+      console.error('Failed to toggle bookmark', err);
+    }
+  };
+
   const displayStateName = selectedStates.length === 1 ? selectedStates[0] : selectedStates.length > 1 ? "Multiple States" : "All";
+  
+  const hasActivePlan = (session?.user as any)?.hasActivePlan === true;
+  const userPlan = ((session?.user as any)?.planType || '').toLowerCase();
+  
+  // Hide if they have an active plan (Starter and above)
+  const showAdBanner = !hasActivePlan && userPlan !== 'starter' && userPlan !== 'standard' && userPlan !== 'premium';
 
   return (
-    <div className="flex flex-col gap-6 w-full pb-10">
+    <div className="flex flex-col gap-6 w-full pb-24">
       
       {/* Top Navigation & Filter Bar */}
       <div className="bg-white border-b border-slate-200 sticky top-16 z-20 shadow-sm px-4 md:px-8 py-3">
@@ -277,9 +360,22 @@ export default function UnifiedTendersPage() {
               }}
             />
 
-            <Button size="sm" className="h-9 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm ml-auto rounded-full px-5">
-              Save Filter
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <Select value={sortOption} onValueChange={setSortOption}>
+                <SelectTrigger className="w-[140px] h-9 text-xs">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest" className="text-xs">Newest</SelectItem>
+                  <SelectItem value="closing_soon" className="text-xs">Closing Soon</SelectItem>
+                  <SelectItem value="high_value" className="text-xs">High Value</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button size="sm" onClick={handleSaveFilter} className="h-9 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm rounded-full px-5">
+                Save Filter
+              </Button>
+            </div>
           </div>
 
         </div>
@@ -388,13 +484,13 @@ export default function UnifiedTendersPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="bg-transparent border-b border-slate-200 rounded-none w-full justify-start h-10 p-0 gap-6">
               <TabsTrigger value="active" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 py-2 data-[state=active]:text-blue-600 font-bold text-sm text-slate-600">
-                Active ({activeTab === 'active' ? total : '...'})
+                Active ({tabCounts.active})
               </TabsTrigger>
               <TabsTrigger value="archived" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 py-2 data-[state=active]:text-blue-600 font-bold text-sm text-slate-600">
-                Archived
+                Archived ({tabCounts.archived})
               </TabsTrigger>
               <TabsTrigger value="followed" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 py-2 data-[state=active]:text-blue-600 font-bold text-sm text-slate-600">
-                Followed
+                Followed ({tabCounts.followed})
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -421,20 +517,38 @@ export default function UnifiedTendersPage() {
                       </Link>
 
                       {/* Tags & Location */}
-                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                        <Badge variant="secondary" className="bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium px-2 py-0.5 text-xs flex items-center gap-1 capitalize">
-                          <Briefcase className="w-3.5 h-3.5" />
-                          Works
-                        </Badge>
-                        {tender.tags && tender.tags.filter(t => !t.includes('PREMIUM_LOCKED')).slice(0, 2).map((tag, idx) => (
-                          <Badge key={idx} variant="outline" className="text-slate-600 border-slate-200 font-medium px-2 py-0.5 text-xs capitalize">
-                            {tag}
+                      <div className="flex flex-col gap-2 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary" className="bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium px-2 py-0.5 text-xs flex items-center gap-1 capitalize">
+                            <Briefcase className="w-3.5 h-3.5" />
+                            Works
                           </Badge>
-                        ))}
+                          {tender.tags && tender.tags.filter(t => !t.includes('PREMIUM_LOCKED')).slice(0, 2).map((tag, idx) => (
+                            <Badge key={idx} variant="outline" className="text-slate-600 border-slate-200 font-medium px-2 py-0.5 text-xs capitalize">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
                         
-                        <div className="flex items-center gap-1 text-slate-500 text-xs ml-2 font-medium">
-                          <MapPin className="w-3.5 h-3.5" />
-                          {tender.district || tender.organisation || tender.state}
+                        <div className="flex flex-wrap items-center gap-1 text-slate-500 text-xs font-medium">
+                          <MapPin className="w-3.5 h-3.5 mr-0.5" />
+                          {(() => {
+                            const parts = [tender.location, tender.district, tender.state].filter(Boolean) as string[];
+                            if (parts.length === 0) return <span>{tender.organisation}</span>;
+                            return parts.map((part, index) => (
+                              <span key={index}>
+                                <a 
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(part)}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="hover:text-blue-600 hover:underline"
+                                >
+                                  {part}
+                                </a>
+                                {index < parts.length - 1 && ', '}
+                              </span>
+                            ));
+                          })()}
                         </div>
                       </div>
 
@@ -459,6 +573,10 @@ export default function UnifiedTendersPage() {
                         ) : tender.aiSummary ? (
                           <div className="line-clamp-2">
                             {tender.aiSummary}
+                          </div>
+                        ) : tender.description ? (
+                          <div className="line-clamp-2">
+                            {tender.description}
                           </div>
                         ) : (
                           <span className="italic text-slate-400">No summary available.</span>
@@ -499,9 +617,14 @@ export default function UnifiedTendersPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50 font-semibold px-4">
-                          <Heart className="w-3.5 h-3.5 mr-1.5" />
-                          Follow
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`h-8 font-semibold px-4 transition-colors ${tender.isBookmarked ? 'bg-red-50 border-red-200 text-red-600 hover:bg-blue-600 hover:text-white hover:border-blue-600' : 'text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white'}`}
+                          onClick={() => handleToggleBookmark(tender.id, tender.isBookmarked)}
+                        >
+                          <Heart className={`w-3.5 h-3.5 mr-1.5 ${tender.isBookmarked ? 'fill-current' : ''}`} />
+                          {tender.isBookmarked ? 'Following' : 'Follow'}
                         </Button>
                         {tender.noticePdfUrl === '__CREDIT_LOCKED__' || tender.tenderPdfUrl === '__CREDIT_LOCKED__' ? (
                           <Button size="sm" variant="outline" className="h-8 border-slate-200 text-slate-500 bg-slate-50 shadow-sm px-4 relative overflow-hidden group cursor-pointer" title="Upgrade to plan to download">
@@ -531,21 +654,99 @@ export default function UnifiedTendersPage() {
               ))
             )}
           </div>
+          
+          {/* Pagination Controls */}
+          {tenders.length > 0 && (
+            <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] px-4 md:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2 w-full sm:w-1/3 justify-center sm:justify-start">
+                <span className="text-xs text-slate-500 font-medium">Show</span>
+                <Select value={pageSize.toString()} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+                  <SelectTrigger className="w-16 h-8 text-xs bg-slate-50 border-slate-200">
+                    <SelectValue placeholder="20" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10" className="text-xs">10</SelectItem>
+                    <SelectItem value="20" className="text-xs">20</SelectItem>
+                    <SelectItem value="25" className="text-xs">25</SelectItem>
+                    <SelectItem value="50" className="text-xs">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-slate-500 font-medium">per page</span>
+              </div>
+              
+              <div className="flex items-center justify-center gap-1 w-full sm:w-1/3">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-2 text-xs border-slate-200"
+                  disabled={page === 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                >
+                  Prev
+                </Button>
+                {(() => {
+                  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+                  const pages = [];
+                  for (let i = 1; i <= totalPages; i++) {
+                    if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) {
+                      pages.push(i);
+                    } else if (i === page - 2 || i === page + 2) {
+                      pages.push('...');
+                    }
+                  }
+                  return pages.filter((p, idx, arr) => p !== '...' || arr[idx - 1] !== '...').map((p, idx) => (
+                    p === '...' ? (
+                      <span key={`dots-${idx}`} className="px-1 text-slate-400 text-xs">...</span>
+                    ) : (
+                      <Button
+                        key={`page-${p}`}
+                        variant={p === page ? "default" : "outline"}
+                        size="sm"
+                        className={`h-8 w-8 p-0 text-xs ${p === page ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 hover:text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                        onClick={() => setPage(p as number)}
+                      >
+                        {p}
+                      </Button>
+                    )
+                  ));
+                })()}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-2 text-xs border-slate-200"
+                  disabled={page >= Math.ceil(total / pageSize)}
+                  onClick={() => setPage(p => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-center sm:justify-end w-full sm:w-1/3">
+                <span className="text-xs text-slate-500 font-medium hidden sm:inline-block">
+                  Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column - Sidebars */}
-        <div className="xl:col-span-1 flex flex-col gap-3">
+        <div className="xl:col-span-1 flex flex-col gap-3 sticky top-36 h-fit max-h-[calc(100vh-160px)] overflow-y-auto pb-4 scrollbar-invisible">
 
           {/* Ad Banner */}
-          <div className="bg-blue-600 text-white overflow-hidden rounded-lg relative group cursor-pointer p-4 min-h-[110px] flex flex-col justify-center">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-700 opacity-90"></div>
-            <div className="absolute top-0 right-0 -mt-6 -mr-6 w-20 h-20 bg-white/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
-            <div className="relative z-10">
-              <p className="font-bold text-sm leading-tight mb-1">Don't miss any tender opportunities</p>
-              <p className="text-xs text-blue-100 uppercase font-bold tracking-wider mb-3">HURRY UP!</p>
-              <Button size="sm" className="bg-white text-blue-700 hover:bg-blue-50 font-bold text-xs h-7 px-3">BUY NOW</Button>
+          {showAdBanner && (
+            <div className="bg-blue-600 text-white overflow-hidden rounded-lg relative group cursor-pointer p-4 min-h-[110px] flex flex-col justify-center shrink-0">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-700 opacity-90"></div>
+              <div className="absolute top-0 right-0 -mt-6 -mr-6 w-20 h-20 bg-white/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+              <div className="relative z-10">
+                <p className="font-bold text-sm leading-tight mb-1">Don't miss any tender opportunities</p>
+                <p className="text-xs text-blue-100 uppercase font-bold tracking-wider mb-3">HURRY UP!</p>
+                <Link href="/pricing">
+                  <Button size="sm" className="bg-white text-blue-700 hover:bg-blue-50 font-bold text-xs h-7 px-3">BUY NOW</Button>
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Tenders By Keywords */}
           {(() => {
