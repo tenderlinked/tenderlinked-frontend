@@ -46,7 +46,7 @@ const Register = () => {
             <div className="absolute inset-0 opacity-10 bg-[url('/assets/images/auth/pattern.png')] bg-cover mix-blend-overlay"></div>
             
             <div className="relative z-10">
-              <h1 className="text-3xl font-bold leading-tight mb-2">
+              <h1 className="text-3xl font-bold leading-tight mb-2 text-white">
                 Your Complete Tender<br/>Intelligence Platform
               </h1>
               <p className="text-blue-200 text-sm mb-8 font-medium">
