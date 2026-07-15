@@ -14,6 +14,14 @@ interface AmountRangePopoverProps {
   className?: string;
 }
 
+const PREDEFINED_RANGES = [
+  { label: "Under ₹10 Lakhs", min: "", max: "1000000" },
+  { label: "₹10L - ₹50L", min: "1000000", max: "5000000" },
+  { label: "₹50L - ₹1Cr", min: "5000000", max: "10000000" },
+  { label: "₹1Cr - ₹5Cr", min: "10000000", max: "50000000" },
+  { label: "Above ₹5Cr", min: "50000000", max: "" },
+];
+
 export function AmountRangePopover({
   minAmount = "",
   maxAmount = "",
@@ -66,6 +74,29 @@ export function AmountRangePopover({
       </PopoverTrigger>
       <PopoverContent className="w-[450px] p-0" align="start">
         <div className="p-4 bg-white rounded-t-md">
+          <div className="mb-4">
+            <label className="text-xs font-semibold text-slate-600 mb-2 block">Quick Ranges</label>
+            <div className="flex flex-wrap gap-2">
+              {PREDEFINED_RANGES.map((range, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setLocalMin(range.min);
+                    setLocalMax(range.max);
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 text-[11px] font-semibold rounded-full border transition-colors",
+                    localMin === range.min && localMax === range.max
+                      ? "bg-blue-50 border-blue-300 text-blue-700"
+                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+                  )}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
           <div className="flex gap-4 items-end">
             <div className="flex-1 space-y-1">
               <label className="text-xs font-semibold text-slate-600">Minimum</label>

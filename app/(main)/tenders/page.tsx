@@ -26,7 +26,12 @@ import {
   ChevronRight,
   Filter,
   Sparkles,
-  Lock
+  Lock,
+  Calendar,
+  Clock,
+  LayoutGrid,
+  List,
+  PanelRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { MultiSelectPopover } from "@/components/filters/MultiSelectPopover";
@@ -91,6 +96,8 @@ export default function UnifiedTendersPage() {
   const [searchQuery, setSearchQuery] = useState(globalQuery);
   const [activeTab, setActiveTab] = useState("active");
   const [sortOption, setSortOption] = useState("newest");
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [sidebarStats, setSidebarStats] = useState<{ states: {name:string,count:number}[], cities: {name:string,count:number}[], keywords: {keyword:string,count:number}[] }>({ states: [], cities: [], keywords: [] });
 
   // Sidebar collapse state
@@ -318,6 +325,17 @@ export default function UnifiedTendersPage() {
               Saved Filters
             </Button>
 
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="w-[150px] h-9 text-xs font-semibold bg-white border-slate-200">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active" className="text-xs font-medium">Active <span className="text-slate-400 ml-1">({tabCounts.active})</span></SelectItem>
+                <SelectItem value="archived" className="text-xs font-medium">Archived <span className="text-slate-400 ml-1">({tabCounts.archived})</span></SelectItem>
+                <SelectItem value="followed" className="text-xs font-medium">Followed <span className="text-slate-400 ml-1">({tabCounts.followed})</span></SelectItem>
+              </SelectContent>
+            </Select>
+
             <MultiSelectPopover
               label="Keyword"
               options={sidebarStats.keywords.map(k => k.keyword)}
@@ -373,7 +391,32 @@ export default function UnifiedTendersPage() {
               }}
             />
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-3">
+              <div className="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-md border border-slate-200">
+                <button 
+                  onClick={() => { setViewMode('card'); setIsSidebarVisible(true); }}
+                  className={`p-1.5 rounded ${viewMode === 'card' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                  title="Card View"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => { setViewMode('table'); setIsSidebarVisible(false); }}
+                  className={`p-1.5 rounded ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                  title="Table View"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <div className="w-px h-4 bg-slate-300/50 mx-1"></div>
+                <button 
+                  onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+                  className={`p-1.5 rounded ${isSidebarVisible ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                  title="Toggle Sidebar"
+                >
+                  <PanelRight className="w-4 h-4" />
+                </button>
+              </div>
+
               <Select value={sortOption} onValueChange={setSortOption}>
                 <SelectTrigger className="w-[140px] h-9 text-xs">
                   <SelectValue placeholder="Sort by" />
@@ -481,10 +524,10 @@ export default function UnifiedTendersPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="w-full mx-auto grid grid-cols-1 xl:grid-cols-5 gap-6 px-4 md:px-8 pt-6">
+      <div className={`w-full mx-auto grid grid-cols-1 ${isSidebarVisible ? 'xl:grid-cols-5' : 'xl:grid-cols-1'} gap-6 px-4 md:px-8 pt-6 transition-all duration-300`}>
         
         {/* Left Column - Tenders List */}
-        <div className="xl:col-span-4 flex flex-col gap-4">
+        <div className={`${isSidebarVisible ? 'xl:col-span-4' : 'xl:col-span-1'} flex flex-col gap-4 transition-all duration-300`}>
           
           <div className="mb-2">
             <h1 className="text-lg font-bold text-slate-900 tracking-tight">{displayStateName} Tenders</h1>
@@ -492,31 +535,6 @@ export default function UnifiedTendersPage() {
             <p className="text-xs text-slate-400 mt-2 leading-relaxed max-w-3xl">
               {displayStateName} tenders offer business opportunities across construction, manufacturing, infrastructure, and public services. Our platform simplifies access to the latest e-tender listings, helping businesses discover relevant government contracts, receive real-time alerts, and download documents.
             </p>
-          </div>
-
-          <div className="sticky top-[124px] z-10 pt-1 pb-3">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-lg shadow-sm rounded-xl">
-              <TabsList className="grid grid-cols-3 w-full bg-slate-100 p-1.5 rounded-xl h-auto border border-slate-200/50 shadow-inner">
-                <TabsTrigger value="active" className="group rounded-lg px-3 py-2.5 text-[13px] font-bold transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 flex items-center justify-center gap-2">
-                  Active 
-                  <span className="px-2 py-0.5 rounded-md bg-slate-200/70 group-data-[state=active]:bg-blue-50 group-data-[state=active]:text-blue-700 text-[11px] text-slate-600">
-                    {tabCounts.active}
-                  </span>
-                </TabsTrigger>
-                <TabsTrigger value="archived" className="group rounded-lg px-3 py-2.5 text-[13px] font-bold transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 flex items-center justify-center gap-2">
-                  Archived
-                  <span className="px-2 py-0.5 rounded-md bg-slate-200/70 group-data-[state=active]:bg-blue-50 group-data-[state=active]:text-blue-700 text-[11px] text-slate-600">
-                    {tabCounts.archived}
-                  </span>
-                </TabsTrigger>
-                <TabsTrigger value="followed" className="group rounded-lg px-3 py-2.5 text-[13px] font-bold transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 flex items-center justify-center gap-2">
-                  Followed
-                  <span className="px-2 py-0.5 rounded-md bg-slate-200/70 group-data-[state=active]:bg-blue-50 group-data-[state=active]:text-blue-700 text-[11px] text-slate-600">
-                    {tabCounts.followed}
-                  </span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
 
           <div className="flex flex-col gap-4 mt-2">
@@ -529,28 +547,177 @@ export default function UnifiedTendersPage() {
                 <h3 className="text-lg font-semibold text-slate-700">No tenders found</h3>
                 <p className="text-sm text-slate-500 mt-1">Try adjusting your filters to find more opportunities.</p>
               </div>
+            ) : viewMode === 'table' ? (
+              <div className="overflow-x-auto xl:overflow-visible rounded-xl border border-slate-200 shadow-sm bg-white mt-2">
+                <table className="w-full text-sm text-left relative">
+                  <thead className="sticky top-[114px] z-10 text-[11px] text-slate-600 uppercase tracking-wider bg-slate-100 shadow-sm ring-1 ring-slate-200">
+                    <tr>
+                      <th className="px-5 py-4 font-bold">Tender Details</th>
+                      <th className="px-5 py-4 font-bold w-48">Value</th>
+                      <th className="px-5 py-4 font-bold w-40">Dates</th>
+                      <th className="px-5 py-4 font-bold text-right w-36">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {tenders.map((tender) => (
+                      <tr key={tender.id} className="hover:bg-blue-50/30 even:bg-slate-50/60 transition-colors group">
+                        <td className="px-5 py-4">
+                          <Link href={`/tenders/${tender.id}`} className="text-[15px] font-semibold text-slate-900 hover:text-blue-600 line-clamp-2 leading-snug mb-1.5 transition-colors" title={tender.title}>
+                            {tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - ')}
+                          </Link>
+                          
+                          <div className="text-xs text-slate-500 line-clamp-1 mb-2.5 pr-4">
+                            {tender.aiSummary === '__PREMIUM_LOCKED__' || tender.tags?.some(t => t.includes('PREMIUM_LOCKED')) ? (
+                              <span className="blur-[3px] select-none opacity-60">This premium AI summary contains detailed analysis of the tender scope.</span>
+                            ) : tender.aiSummary ? (
+                              tender.aiSummary
+                            ) : tender.description ? (
+                              tender.description
+                            ) : (
+                              <span className="italic text-slate-400">No summary available.</span>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-sm font-medium px-2 py-0.5 text-[10px] flex items-center gap-1 capitalize rounded">
+                              <Briefcase className="w-3 h-3 text-white/90" />
+                              {tender.tenderCategory || 'Miscellaneous'}
+                            </Badge>
+                            {tender.tags && tender.tags
+                              .filter(t => !t.includes('PREMIUM_LOCKED') && t.toLowerCase() !== (tender.tenderCategory || '').toLowerCase())
+                              .slice(0, 1).map((tag, idx) => (
+                              <Badge key={idx} variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 font-medium px-2 py-0.5 text-[10px] capitalize rounded">
+                                {tag}
+                              </Badge>
+                            ))}
+                            
+                            <div className="flex items-center gap-1 text-slate-500 text-[11px] font-medium ml-1">
+                              <MapPin className="w-3 h-3 text-slate-400" />
+                              <span className="truncate max-w-[150px]" title={tender.location || tender.district || tender.state || tender.organisation}>
+                                {tender.location || tender.district || tender.state || tender.organisation}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td className="px-5 py-4 align-top pt-5">
+                          {tender.tenderValue === '__PREMIUM_LOCKED__' ? (
+                            <div className="flex items-center gap-1.5 group/premium cursor-pointer bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 w-fit" title="Unlock Premium to view amount">
+                              <span className="font-bold text-emerald-600/50 text-xs blur-[4px] select-none">₹ 25,00,000</span>
+                              <Lock className="w-3 h-3 text-blue-500 opacity-80 group-hover/premium:opacity-100 transition-opacity" />
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-100/80">
+                              <span className="font-bold text-xs">
+                                {tender.tenderValue 
+                                  ? (tender.tenderValue.toLowerCase().includes('rs') || tender.tenderValue.includes('₹') 
+                                      ? tender.tenderValue 
+                                      : `₹ ${tender.tenderValue}`)
+                                  : 'Refer Documents'}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        
+                        <td className="px-5 py-4 align-top pt-5">
+                          <div className="flex flex-col gap-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="bg-blue-50/80 border border-blue-100 p-1 rounded-md shadow-sm shrink-0">
+                                <Calendar className="w-3 h-3 text-blue-600" />
+                              </div>
+                              <div className="flex flex-col leading-none">
+                                <span className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">Start</span>
+                                <span className="font-semibold text-slate-800 text-[11px]">
+                                  {tender.startDate ? format(new Date(tender.startDate), 'dd MMM yyyy') : 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="bg-rose-50/80 border border-rose-100 p-1 rounded-md shadow-sm shrink-0">
+                                <Clock className="w-3 h-3 text-rose-600" />
+                              </div>
+                              <div className="flex flex-col leading-none">
+                                <span className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">Close</span>
+                                <span className="font-semibold text-slate-800 text-[11px]">
+                                  {tender.endDate ? format(new Date(tender.endDate), 'dd MMM yyyy') : 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td className="px-5 py-4 align-top text-right pt-5">
+                          <div className="flex flex-col items-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className={`h-7 text-xs rounded-full font-semibold px-3 w-24 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${tender.isBookmarked ? 'bg-red-50 border-red-200 text-red-600 hover:bg-blue-600 hover:text-white hover:border-blue-600' : 'text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white'}`}
+                              onClick={() => handleToggleBookmark(tender.id, tender.isBookmarked)}
+                            >
+                              <Heart className={`w-3 h-3 mr-1.5 ${tender.isBookmarked ? 'fill-current' : ''}`} />
+                              {tender.isBookmarked ? 'Following' : 'Follow'}
+                            </Button>
+                            
+                            {tender.hasDocuments === false ? (
+                              <Button 
+                                size="sm" 
+                                disabled
+                                className="h-7 text-xs rounded-full bg-slate-100 text-slate-400 font-semibold shadow-sm px-3 w-24 cursor-not-allowed border-slate-200"
+                                title="No documents available"
+                              >
+                                <Download className="w-3 h-3 mr-1.5 opacity-50" />
+                                No Docs
+                              </Button>
+                            ) : tender.noticePdfUrl === '__CREDIT_LOCKED__' || tender.tenderPdfUrl === '__CREDIT_LOCKED__' ? (
+                              <Button size="sm" variant="outline" className="h-7 text-xs rounded-full border-slate-200 text-slate-500 bg-slate-50 shadow-sm px-3 w-24 relative overflow-hidden group cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95" title="Upgrade to plan to download">
+                                <div className="flex items-center opacity-40 select-none">
+                                  <Download className="w-3 h-3 mr-1" />
+                                  <span className="font-semibold">Download</span>
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center bg-slate-100/30 backdrop-blur-[0.5px]">
+                                  <Lock className="w-3.5 h-3.5 text-blue-500 drop-shadow-sm group-hover:scale-110 transition-transform" />
+                                </div>
+                              </Button>
+                            ) : (
+                              <Button 
+                                size="sm" 
+                                className="h-7 text-xs rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm px-3 w-24 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 hover:shadow-md"
+                                onClick={(e) => initiateDownload(tender, e)}
+                              >
+                                <Download className="w-3 h-3 mr-1.5" />
+                                Download
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               tenders.map((tender) => (
-                <Card key={tender.id} className="border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-300 bg-white overflow-hidden rounded-xl">
+                <Card key={tender.id} className="group relative border-slate-200/60 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1.5 hover:border-blue-300/60 transition-all duration-500 bg-white overflow-hidden rounded-xl">
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <CardContent className="p-0">
-                    <div className="p-5 flex flex-col gap-3">
+                    <div className="p-5 flex flex-col gap-3 relative z-10">
                       
                       {/* Tender Title */}
-                      <Link href={`/tenders/${tender.id}`} className="text-[15px] font-medium text-blue-800 hover:text-blue-600 leading-relaxed line-clamp-2 transition-colors" title={tender.title}>
+                      <Link href={`/tenders/${tender.id}`} className="text-[16px] font-semibold text-slate-900 hover:text-blue-600 leading-snug tracking-tight line-clamp-2 transition-colors" title={tender.title}>
                         {tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - ')}
                       </Link>
 
                       {/* Tags & Location */}
                       <div className="flex flex-col gap-2 mt-0.5">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium px-2 py-0.5 text-xs flex items-center gap-1 capitalize">
-                            <Briefcase className="w-3.5 h-3.5" />
+                          <Badge variant="secondary" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-sm font-medium px-2.5 py-0.5 text-xs flex items-center gap-1.5 capitalize rounded-md">
+                            <Briefcase className="w-3.5 h-3.5 text-white/90" />
                             {tender.tenderCategory || 'Miscellaneous'}
                           </Badge>
                           {tender.tags && tender.tags
                             .filter(t => !t.includes('PREMIUM_LOCKED') && t.toLowerCase() !== (tender.tenderCategory || '').toLowerCase())
                             .slice(0, 2).map((tag, idx) => (
-                            <Badge key={idx} variant="outline" className="text-slate-600 border-slate-200 font-medium px-2 py-0.5 text-xs capitalize">
+                            <Badge key={idx} variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 font-medium px-2.5 py-0.5 text-xs capitalize rounded-md">
                               {tag}
                             </Badge>
                           ))}
@@ -612,32 +779,48 @@ export default function UnifiedTendersPage() {
                     </div>
 
                     {/* Footer - Details & Actions */}
-                    <div className="bg-white border-t border-slate-100 px-5 py-3 flex flex-wrap items-center justify-between gap-4">
+                    <div className="bg-slate-50/70 border-t border-slate-100 px-5 py-3.5 flex flex-wrap items-center justify-between gap-4">
                       
                       <div className="flex items-center gap-8">
-                        <div>
-                          <p className="text-xs font-medium text-slate-500 mb-0.5 capitalize">Start Date</p>
-                          <p className="font-semibold text-slate-800 text-sm">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <div className="bg-blue-50/80 border border-blue-100 p-1 rounded-md shadow-sm">
+                              <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                            </div>
+                            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Start Date</p>
+                          </div>
+                          <p className="font-semibold text-slate-800 text-[13px] pl-7">
                             {tender.startDate ? format(new Date(tender.startDate), 'dd MMM yyyy') : 'N/A'}
                           </p>
                         </div>
-                        <div>
-                          <p className="text-xs font-medium text-slate-500 mb-0.5 capitalize">Closing Date</p>
-                          <p className="font-semibold text-slate-800 text-sm">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <div className="bg-rose-50/80 border border-rose-100 p-1 rounded-md shadow-sm">
+                              <Clock className="w-3.5 h-3.5 text-rose-600" />
+                            </div>
+                            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Closing Date</p>
+                          </div>
+                          <p className="font-semibold text-slate-800 text-[13px] pl-7">
                             {tender.endDate ? format(new Date(tender.endDate), 'dd MMM yyyy') : 'N/A'}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-slate-500 mb-0.5 capitalize">Tender Amount</p>
+                          <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">Tender Amount</p>
                           {tender.tenderValue === '__PREMIUM_LOCKED__' ? (
-                            <div className="flex items-center gap-1.5 group cursor-pointer" title="Unlock Premium to view amount">
+                            <div className="flex items-center gap-1.5 group/premium cursor-pointer bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200 w-fit" title="Unlock Premium to view amount">
                               <span className="font-bold text-emerald-600/50 text-sm blur-[4px] select-none">₹ 25,00,000</span>
-                              <Lock className="w-3.5 h-3.5 text-blue-500 opacity-80 group-hover:opacity-100 transition-opacity" />
+                              <Lock className="w-3.5 h-3.5 text-blue-500 opacity-80 group-hover/premium:opacity-100 transition-opacity" />
                             </div>
                           ) : (
-                            <p className="font-bold text-emerald-600 text-sm">
-                              {tender.tenderValue || 'Refer Documents'}
-                            </p>
+                            <div className="inline-flex items-center bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-100/80">
+                              <span className="font-bold text-sm">
+                                {tender.tenderValue 
+                                  ? (tender.tenderValue.toLowerCase().includes('rs') || tender.tenderValue.includes('₹') 
+                                      ? tender.tenderValue 
+                                      : `₹ ${tender.tenderValue}`)
+                                  : 'Refer Documents'}
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -646,7 +829,7 @@ export default function UnifiedTendersPage() {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className={`h-8 font-semibold px-4 transition-colors ${tender.isBookmarked ? 'bg-red-50 border-red-200 text-red-600 hover:bg-blue-600 hover:text-white hover:border-blue-600' : 'text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white'}`}
+                          className={`h-8 rounded-full font-semibold px-4 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${tender.isBookmarked ? 'bg-red-50 border-red-200 text-red-600 hover:bg-blue-600 hover:text-white hover:border-blue-600' : 'text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white'}`}
                           onClick={() => handleToggleBookmark(tender.id, tender.isBookmarked)}
                         >
                           <Heart className={`w-3.5 h-3.5 mr-1.5 ${tender.isBookmarked ? 'fill-current' : ''}`} />
@@ -656,14 +839,14 @@ export default function UnifiedTendersPage() {
                           <Button 
                             size="sm" 
                             disabled
-                            className="h-8 bg-slate-100 text-slate-400 font-semibold shadow-sm px-4 cursor-not-allowed border-slate-200"
+                            className="h-8 rounded-full bg-slate-100 text-slate-400 font-semibold shadow-sm px-4 cursor-not-allowed border-slate-200"
                             title="No documents available"
                           >
                             <Download className="w-3.5 h-3.5 mr-1.5 opacity-50" />
                             No Docs
                           </Button>
                         ) : tender.noticePdfUrl === '__CREDIT_LOCKED__' || tender.tenderPdfUrl === '__CREDIT_LOCKED__' ? (
-                          <Button size="sm" variant="outline" className="h-8 border-slate-200 text-slate-500 bg-slate-50 shadow-sm px-4 relative overflow-hidden group cursor-pointer" title="Upgrade to plan to download">
+                          <Button size="sm" variant="outline" className="h-8 rounded-full border-slate-200 text-slate-500 bg-slate-50 shadow-sm px-4 relative overflow-hidden group cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95" title="Upgrade to plan to download">
                             <div className="flex items-center opacity-40 select-none">
                               <Download className="w-3.5 h-3.5 mr-1.5" />
                               <span className="font-semibold">Download</span>
@@ -675,7 +858,7 @@ export default function UnifiedTendersPage() {
                         ) : (
                           <Button 
                             size="sm" 
-                            className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm px-4"
+                            className="h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm px-4 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 hover:shadow-md"
                             onClick={(e) => initiateDownload(tender, e)}
                           >
                             <Download className="w-3.5 h-3.5 mr-1.5" />
@@ -767,7 +950,8 @@ export default function UnifiedTendersPage() {
         </div>
 
         {/* Right Column - Sidebars */}
-        <div className="xl:col-span-1 flex flex-col gap-3 sticky top-36 h-fit max-h-[calc(100vh-160px)] overflow-y-auto pb-4 no-scrollbar">
+        {isSidebarVisible && (
+          <div className="xl:col-span-1 flex flex-col gap-3 sticky top-36 h-fit max-h-[calc(100vh-160px)] overflow-y-auto pb-4 no-scrollbar animate-in slide-in-from-right-8 duration-300 fade-in">
 
           {/* Ad Banner */}
           {showAdBanner && (
@@ -897,7 +1081,8 @@ export default function UnifiedTendersPage() {
             );
           })()}
 
-        </div>
+          </div>
+        )}
       </div>
       <DownloadModal />
     </div>
