@@ -17,6 +17,7 @@ import Link from "next/link";
 import React from "react";
 import Image from "next/image";
 import LogoIcon from "@/public/assets/images/logo-icon.png";
+import Header from "@/components/Header";
 
 const features = [
   { icon: BellRing, title: "Daily Tender Alert Services" },
@@ -33,36 +34,10 @@ const Register = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-900 font-sans">
       {/* Top Navbar */}
-      <header className="w-full bg-[#244376] text-white py-3 px-6 flex justify-between items-center shadow-md z-10 h-16">
-        <div className="flex items-center space-x-2 text-white">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <Image
-              src={LogoIcon}
-              alt="TenderLinked Logo"
-              width={36}
-              height={36}
-              style={{ objectFit: "contain" }}
-              priority
-              className="brightness-0 invert"
-            />
-            <span className="text-xl font-bold tracking-tight text-white uppercase mt-1">
-              TenderLinked
-            </span>
-          </Link>
-        </div>
-        <div className="flex items-center space-x-6 text-sm font-medium">
-          <div className="hidden md:flex items-center text-slate-200">
-            <Phone className="w-4 h-4 mr-2" />
-            <span>Sales : +91-777 804 8217</span>
-          </div>
-          <Link href="/auth/login" className="bg-white text-[#244376] px-5 py-2 rounded font-bold hover:bg-slate-100 transition-colors shadow-sm">
-            Login
-          </Link>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content Area */}
-      <main className="flex-grow flex items-center justify-center p-4 md:p-8">
+      <main className="flex-grow flex items-center justify-center p-4 md:p-8 pt-[72px]">
         <div className="max-w-[1000px] w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
           
           {/* Left Panel (Dark Blue) */}
