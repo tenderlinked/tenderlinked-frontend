@@ -39,14 +39,11 @@ const RegisterForm = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { loading, setLoading } = useLoading();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null);
-  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [isEmailAvailable, setIsEmailAvailable] = useState<boolean | null>(null);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isPhoneAvailable, setIsPhoneAvailable] = useState<boolean | null>(null);
   const [isCheckingPhone, setIsCheckingPhone] = useState(false);
   const [successData, setSuccessData] = useState<{
-    username: string;
     email: string;
     firstName: string;
     lastName: string;
@@ -107,7 +104,6 @@ const RegisterForm = () => {
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: "",
       firstName: "",
       lastName: "",
       phone: "",
@@ -120,7 +116,6 @@ const RegisterForm = () => {
 
   const email = form.watch("email");
   const phone = form.watch("phone");
-  const username = form.watch("username");
 
   useEffect(() => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -149,31 +144,6 @@ const RegisterForm = () => {
     return () => clearTimeout(timeoutId);
   }, [email]);
 
-  useEffect(() => {
-    if (!username || username.length < 2) {
-      setIsUsernameAvailable(null);
-      return;
-    }
-
-    setIsCheckingUsername(true);
-    const timeoutId = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
-        const data = await res.json();
-        if (res.ok) {
-          setIsUsernameAvailable(data.available);
-        } else {
-          setIsUsernameAvailable(null);
-        }
-      } catch (error) {
-        setIsUsernameAvailable(null);
-      } finally {
-        setIsCheckingUsername(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [username]);
 
   useEffect(() => {
     if (!phone || phone.replace(/\D/g, '').length < 10) {
@@ -306,7 +276,6 @@ const RegisterForm = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: values.username,
           firstName: values.firstName,
           lastName: values.lastName,
           phone: values.phone,
@@ -324,7 +293,6 @@ const RegisterForm = () => {
 
       toast.success("Account created successfully!");
       setSuccessData({
-        username: values.username || "",
         email: values.email || "",
         firstName: values.firstName || "",
         lastName: values.lastName || "",
@@ -392,10 +360,6 @@ const RegisterForm = () => {
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">Email</p>
             <p className="font-semibold">{successData.email}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">Username</p>
-            <p className="font-semibold">{successData.username}</p>
           </div>
           <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">Login Address</p>
@@ -607,51 +571,6 @@ const RegisterForm = () => {
           onSubmit={form.handleSubmit(handleRegisterFormSubmit)}
           className="space-y-5"
         >
-          {/* Username Field */}
-          <FormField
-            control={form.control}
-            name="username"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <div className="relative">
-                    <UserRound className="absolute start-5 top-1/2 transform -translate-y-1/2 text-xl text-neutral-700 dark:text-neutral-200 w-5 h-5" />
-                    <Input
-                      {...field}
-                      type="text"
-                      placeholder="Username (e.g. johndoe123)"
-                      className={`ps-13 pe-12 h-14 rounded-xl bg-neutral-100 dark:bg-slate-800 border ${
-                        isUsernameAvailable === true
-                          ? "border-green-500 focus-visible:border-green-500"
-                          : isUsernameAvailable === false
-                          ? "border-red-500 focus-visible:border-red-500"
-                          : "border-neutral-300 dark:border-slate-700 focus-visible:border-primary"
-                      } focus:border-primary dark:focus:border-primary !shadow-none !ring-0`}
-                      disabled={loading}
-                    />
-                    <div className="absolute end-4 top-1/2 transform -translate-y-1/2 flex items-center">
-                      {isCheckingUsername && (
-                        <Loader2 className="w-5 h-5 text-neutral-500 animate-spin" />
-                      )}
-                      {!isCheckingUsername && isUsernameAvailable === true && (
-                        <Check className="w-5 h-5 text-green-500" />
-                      )}
-                      {!isCheckingUsername && isUsernameAvailable === false && (
-                        <X className="w-5 h-5 text-red-500" />
-                      )}
-                    </div>
-                  </div>
-                </FormControl>
-                {!isCheckingUsername && isUsernameAvailable === true && (
-                  <p className="text-sm text-green-600 mt-1 font-medium">Username is available</p>
-                )}
-                {!isCheckingUsername && isUsernameAvailable === false && (
-                  <p className="text-sm text-red-600 mt-1 font-medium">Username is unavailable</p>
-                )}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
           <div className="flex gap-4">
             {/* First Name Field */}

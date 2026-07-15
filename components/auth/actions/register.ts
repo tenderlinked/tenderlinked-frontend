@@ -7,15 +7,23 @@ export async function registerUser(formData: FormData): Promise<
   | { error: string }
 > {
   try {
-    const username = formData.get("username")?.toString() ?? "";
     const email = formData.get("email")?.toString() ?? "";
+    const firstName = formData.get("firstName")?.toString() ?? "";
+    const lastName = formData.get("lastName")?.toString() ?? "";
+    const phone = formData.get("phone")?.toString() ?? "";
+    const companyName = formData.get("companyName")?.toString() ?? "";
     const password = formData.get("password")?.toString() ?? "";
+    const confirmPassword = formData.get("confirmPassword")?.toString() ?? "";
     const acceptTerms = formData.get("acceptTerms") === "on";
 
     const result = registerSchema.safeParse({
-      username,
       email,
+      firstName,
+      lastName,
+      phone,
+      companyName: companyName || undefined,
       password,
+      confirmPassword,
       acceptTerms,
     });
 

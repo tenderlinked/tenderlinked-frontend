@@ -2,14 +2,16 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { name, firstName, lastName, phone, companyName, email, password } = await req.json();
+    const { firstName, lastName, phone, companyName, email, password } = await req.json();
 
-    if (!name || !firstName || !lastName || !phone || !email || !password) {
+    if (!firstName || !lastName || !phone || !email || !password) {
       return NextResponse.json(
         { error: "All required fields must be provided" },
         { status: 400 }
       );
     }
+
+    const name = email;
 
     const issuer = process.env.KEYCLOAK_ISSUER;
     const clientId = process.env.KEYCLOAK_CLIENT_ID;

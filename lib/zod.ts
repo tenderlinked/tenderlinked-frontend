@@ -18,20 +18,18 @@ const emailField = z
 
 // Login Schema
 export const loginSchema = z.object({
-  email: z.string().min(1, "Email or Username is required"),
+  email: z.string().min(1, "Email or Mobile is required"),
   password: passwordField,
 });
 
 // Register Schema
-export const registerSchema = loginSchema.extend({
+export const registerSchema = z.object({
   email: emailField,
-  username: z.string().min(2, {
-    message: "Username must be at least 2 characters.",
-  }),
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
   phone: z.string().min(10, { message: "Phone number is required" }),
   companyName: z.string().optional(),
+  password: passwordField,
   confirmPassword: z.string({
     required_error: "Confirm Password is required",
   }),
