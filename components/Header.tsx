@@ -25,6 +25,7 @@ const Header = () => {
   const router = useRouter();
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
+  const isBlueHeader = pathname === "/auth/register";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -43,10 +44,12 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 h-[72px] transition-all duration-300 border-b border-[#E5E7EB] dark:border-gray-800 ${
-        isScrolled
-          ? "bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl shadow-sm"
-          : "bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl"
+      className={`fixed top-0 left-0 right-0 z-50 h-[72px] transition-all duration-300 ${
+        isBlueHeader
+          ? "bg-[#244376] text-white border-b border-blue-800"
+          : isScrolled
+            ? "bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl shadow-sm border-b border-[#E5E7EB] dark:border-gray-800"
+            : "bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl border-b border-[#E5E7EB] dark:border-gray-800"
       }`}
     >
       <div className="max-w-[1536px] mx-auto px-4 md:px-8 h-full flex items-center justify-between">
@@ -55,10 +58,10 @@ const Header = () => {
           whileHover={{ scale: 1.02 }}
           className="flex items-center gap-2 cursor-pointer text-[#2563EB]"
         >
-          <div className="bg-[#2563EB] text-white p-1.5 rounded-lg shadow-sm">
+          <div className={isBlueHeader ? "bg-white text-[#244376] p-1.5 rounded-lg shadow-sm" : "bg-[#2563EB] text-white p-1.5 rounded-lg shadow-sm"}>
             <Network size={22} strokeWidth={2.5} />
           </div>
-          <span className="font-[800] text-[24px] tracking-tight">
+          <span className={`font-[800] text-[24px] tracking-tight ${isBlueHeader ? "text-white" : "text-[#111827] dark:text-white"}`}>
             TenderLinked
           </span>
         </motion.div>
@@ -79,9 +82,13 @@ const Header = () => {
               <a
                 href={item.path}
                 className={`text-[16px] font-medium flex items-center gap-1 transition-colors duration-250 ${
-                  item.active
-                    ? "text-[#2563EB]"
-                    : "text-[#111827] dark:text-gray-200 group-hover:text-[#2563EB]"
+                  isBlueHeader
+                    ? item.active
+                      ? "text-white"
+                      : "text-blue-100 hover:text-white"
+                    : item.active
+                      ? "text-[#2563EB]"
+                      : "text-[#111827] dark:text-gray-200 group-hover:text-[#2563EB]"
                 }`}
               >
                 {item.name}
@@ -99,7 +106,7 @@ const Header = () => {
               {item.active && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2563EB]"
+                  className={`absolute bottom-0 left-0 right-0 h-0.5 ${isBlueHeader ? "bg-white" : "bg-[#2563EB]"}`}
                   initial={false}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
@@ -213,18 +220,34 @@ const Header = () => {
             </DropdownMenu>
           ) : (
             <>
-              <Link href="/auth/login" className="text-[15px] font-medium text-[#111827] dark:text-gray-200 hover:text-[#2563EB] transition-colors">
+              <Link
+                href="/auth/login"
+                className={`text-[15px] font-medium transition-colors ${
+                  isBlueHeader
+                    ? "text-white/90 hover:text-white"
+                    : "text-[#111827] dark:text-gray-200 hover:text-[#2563EB]"
+                }`}
+              >
                 Login
               </Link>
 
               <div className="flex items-center gap-3 relative">
                 <motion.button
-                  whileHover={{ y: -1, boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.3), 0 4px 6px -2px rgba(37, 99, 235, 0.15)" }}
+                  whileHover={{
+                    y: -1,
+                    boxShadow: isBlueHeader
+                      ? "0 10px 15px -3px rgba(255, 255, 255, 0.1)"
+                      : "0 10px 15px -3px rgba(37, 99, 235, 0.3), 0 4px 6px -2px rgba(37, 99, 235, 0.15)",
+                  }}
                   whileTap={{ y: 0 }}
-                  className="text-[15px] font-medium text-white bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] px-6 py-2.5 rounded-[12px] shadow-sm transition-all"
+                  className={`text-[15px] font-semibold px-6 py-2.5 rounded-[12px] shadow-sm transition-all ${
+                    isBlueHeader
+                      ? "bg-white text-[#244376] hover:bg-slate-100"
+                      : "text-white bg-gradient-to-r from-[#2563EB] to-[#1D4ED8]"
+                  }`}
                   onClick={() => router.push('/auth/register')}
                 >
-                  Start Free
+                  Sign Up
                 </motion.button>
               </div>
             </>
@@ -233,7 +256,7 @@ const Header = () => {
 
         {/* Mobile Menu Toggle */}
         <button
-          className="lg:hidden text-[#111827] dark:text-gray-200 p-2"
+          className={`lg:hidden p-2 ${isBlueHeader ? "text-white" : "text-[#111827] dark:text-gray-200"}`}
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -309,7 +332,7 @@ const Header = () => {
                     </Link>
                     
                     <button onClick={() => router.push('/auth/register')} className="w-full text-[16px] font-medium text-white bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] py-3 rounded-xl shadow-md">
-                      Start Free
+                      Sign Up
                     </button>
                   </>
                 )}

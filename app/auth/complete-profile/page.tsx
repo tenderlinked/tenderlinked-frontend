@@ -40,7 +40,7 @@ const CompleteProfile = () => {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex justify-center items-center p-4">
+      <main className="flex-grow flex items-start justify-center p-4 md:p-8 pt-24 md:pt-28 pb-12">
         <div className="w-full max-w-4xl bg-white dark:bg-slate-950 rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
           
           {/* Left Side - Information */}
@@ -103,7 +103,7 @@ const CompleteProfile = () => {
           </div>
 
         </div>
-      </div>
+      </main>
     </div>
   );
 };

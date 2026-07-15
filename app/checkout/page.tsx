@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import Header from "@/components/Header";
 
 export default function CheckoutPage() {
   const { data: session, status, update } = useSession();
@@ -83,8 +84,36 @@ export default function CheckoutPage() {
     setIsProcessing(true);
     
     try {
-      // 1. Create order on backend (using Razorpay order instead of subscription)
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/payments/create-order`, {
+      // 1. If it's a Free plan (price === 0), activate directly on the backend
+      if (selectedPlan.price === 0) {
+        toast.loading("Activating Free plan...", { id: "activate-toast" });
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/payments/free-activate`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.accessToken}`
+          },
+          body: JSON.stringify({
+            userId: session.user.id,
+            planType: selectedPlanId
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to activate Free plan');
+        }
+
+        toast.success("Free plan activated successfully!", { id: "activate-toast" });
+        update({ hasActivePlan: true }).catch(console.error);
+        
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 1000);
+        return;
+      }
+
+      // 2. Otherwise, create a subscription mandate on Razorpay
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/payments/create-subscription`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -92,13 +121,12 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify({
           userId: session.user.id,
-          planType: selectedPlanId,
-          amount: trialSetupFee // Auth charge based on env
+          planType: selectedPlanId
         })
       });
       
       if (!res.ok) {
-        throw new Error('Failed to create order');
+        throw new Error('Failed to create subscription mandate');
       }
 
       const orderData = await res.json();
@@ -107,24 +135,24 @@ export default function CheckoutPage() {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         name: "TenderLinked",
         description: selectedPlan.name,
-        order_id: orderData.orderId || undefined,
+        subscription_id: orderData.subscriptionId, // Set subscription_id for recurring mandate (auto-pay)
         handler: async function (response: any) {
           try {
-            toast.loading("Verifying payment...", { id: "verify-toast" });
+            toast.loading("Verifying subscription mandate...", { id: "verify-toast" });
 
-            const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/payments/verify`, {
+            const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/payments/verify-subscription`, {
               method: "POST",
               headers: { 
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${session?.accessToken}`
               },
               body: JSON.stringify({
-                razorpayOrderId: response.razorpay_order_id,
                 razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySubscriptionId: response.razorpay_subscription_id,
                 razorpaySignature: response.razorpay_signature,
                 userId: session?.user?.id || "",
                 planType: selectedPlanId,
-                amount: trialSetupFee // Auth charge
+                amount: trialSetupFee
               })
             });
             
@@ -133,7 +161,7 @@ export default function CheckoutPage() {
               throw new Error(`Verification failed: ${text}`);
             }
             
-            toast.success("Payment successful! Welcome aboard.", { id: "verify-toast" });
+            toast.success("Subscription set up successfully!", { id: "verify-toast" });
             update({ hasActivePlan: true }).catch(console.error);
             
             setTimeout(() => {
@@ -141,7 +169,7 @@ export default function CheckoutPage() {
             }, 1000);
             
           } catch (e: any) {
-            toast.error(e.message || "Payment verification failed.", { id: "verify-toast" });
+            toast.error(e.message || "Subscription verification failed.", { id: "verify-toast" });
             setIsProcessing(false);
           }
         },
@@ -150,7 +178,7 @@ export default function CheckoutPage() {
           email: session.user?.email || "",
         },
         theme: {
-          color: "#047857", // emerald-700
+          color: "#244376", // brand dark blue
         },
         modal: {
           ondismiss: function() {
@@ -162,7 +190,7 @@ export default function CheckoutPage() {
       // @ts-ignore
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', function (response: any){
-        toast.error(`Payment Failed: ${response.error.description}`);
+        toast.error(`Subscription Setup Failed: ${response.error.description}`);
         setIsProcessing(false);
       });
       rzp.open();
@@ -180,25 +208,26 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 flex flex-col">
-
+      {/* Top Navbar */}
+      <Header />
 
       {/* Stepper */}
-      <div className="w-full max-w-2xl mx-auto py-10 px-4">
+      <div className="w-full max-w-2xl mx-auto py-10 px-4 pt-24">
         <div className="flex items-center justify-center">
           <div className="flex flex-col items-center">
-            <div className="w-8 h-8 bg-emerald-700 text-white rounded-full flex items-center justify-center mb-2 z-10 relative">
+            <div className="w-8 h-8 bg-[#244376] text-white rounded-full flex items-center justify-center mb-2 z-10 relative">
               <Check className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold text-emerald-700 tracking-wider uppercase">Account</span>
+            <span className="text-xs font-bold text-[#244376] tracking-wider uppercase">Account</span>
           </div>
           
-          <div className="w-32 h-[2px] bg-emerald-700 -mt-6 mx-2"></div>
+          <div className="w-32 h-[2px] bg-[#244376] -mt-6 mx-2"></div>
           
           <div className="flex flex-col items-center">
-            <div className="w-8 h-8 bg-emerald-700 text-white rounded-full flex items-center justify-center mb-2 z-10 relative">
+            <div className="w-8 h-8 bg-[#244376] text-white rounded-full flex items-center justify-center mb-2 z-10 relative">
               <span className="text-sm font-bold">2</span>
             </div>
-            <span className="text-xs font-bold text-emerald-700 tracking-wider uppercase">Plan</span>
+            <span className="text-xs font-bold text-[#244376] tracking-wider uppercase">Plan</span>
           </div>
 
           <div className="w-32 h-[2px] bg-slate-300 -mt-6 mx-2"></div>
@@ -240,18 +269,18 @@ export default function CheckoutPage() {
                 <div 
                   key={plan.id}
                   className={`relative bg-white border-2 rounded-lg p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all cursor-pointer ${
-                    isSelected ? 'border-emerald-700 shadow-sm' : 'border-slate-200 hover:border-emerald-300'
+                    isSelected ? 'border-[#244376] shadow-sm' : 'border-slate-200 hover:border-blue-300'
                   }`}
                   onClick={() => setSelectedPlanId(plan.id)}
                 >
                   {plan.isDefault && (
-                    <div className="absolute -top-3 left-6 bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded">
+                    <div className="absolute -top-3 left-6 bg-[#244376] text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded">
                       Recommended
                     </div>
                   )}
                   
                   <div className="flex items-start gap-4 flex-1">
-                    <div className={`mt-1 ${isSelected ? 'text-emerald-700' : 'text-emerald-600'}`}>
+                    <div className={`mt-1 ${isSelected ? 'text-[#244376]' : 'text-[#244376]/85'}`}>
                       <CheckCircle2 className="w-6 h-6" />
                     </div>
                     <div>
@@ -259,7 +288,7 @@ export default function CheckoutPage() {
                       <ul className="space-y-2">
                         {features.map((feature, idx) => (
                           <li key={idx} className="flex items-center text-sm text-slate-600">
-                            <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600 shrink-0" />
+                            <CheckCircle2 className="w-4 h-4 mr-2 text-[#244376] shrink-0" />
                             {feature}
                           </li>
                         ))}
@@ -279,8 +308,8 @@ export default function CheckoutPage() {
                     <button 
                       className={`px-6 py-2 rounded font-bold text-sm transition-colors border w-auto min-w-[120px] text-center ${
                         isSelected 
-                          ? 'bg-emerald-700 text-white border-emerald-700' 
-                          : 'bg-white text-emerald-700 border-emerald-700 hover:bg-emerald-50'
+                          ? 'bg-[#244376] text-white border-[#244376]' 
+                          : 'bg-white text-[#244376] border-[#244376] hover:bg-blue-50'
                       }`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -297,7 +326,7 @@ export default function CheckoutPage() {
 
           {/* Security Banner */}
           <div className="mt-8 bg-slate-100/50 rounded-lg p-6 flex items-start gap-4">
-            <ShieldCheck className="w-6 h-6 text-emerald-700 shrink-0 mt-0.5" />
+            <ShieldCheck className="w-6 h-6 text-[#244376] shrink-0 mt-0.5" />
             <div>
               <h4 className="font-bold text-slate-900 mb-1">Bank-Grade Security</h4>
               <p className="text-sm text-slate-600">Your transaction is encrypted using 256-bit SSL technology. We do not store your credit card details on our servers.</p>
@@ -315,29 +344,38 @@ export default function CheckoutPage() {
                 <span className="text-slate-600">Selected Plan</span>
                 <span className="font-bold">{selectedPlan.name}</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-600">14-Day Trial Period</span>
-                <span className="text-emerald-700 font-bold">Free</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-600">Refundable Auth Charge</span>
-                <span>₹{trialSetupFee.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm mt-4 pt-4 border-t border-slate-100">
-                <span className="text-slate-500">Billed after 14 days:</span>
-                <span className="text-slate-500">₹{totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} /mo</span>
-              </div>
+              {selectedPlan.price > 0 ? (
+                <>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">14-Day Trial Period</span>
+                    <span className="text-[#244376] font-bold">Free</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">Refundable Auth Charge</span>
+                    <span>₹{trialSetupFee.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm mt-4 pt-4 border-t border-slate-100">
+                    <span className="text-slate-500">Billed after 14 days:</span>
+                    <span className="text-slate-500">₹{totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} /mo</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between items-center text-sm mt-4 pt-4 border-t border-slate-100">
+                  <span className="text-slate-500">Billed monthly:</span>
+                  <span className="text-slate-500">₹0.00 /mo</span>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-slate-200 pt-4 mb-8">
               <div className="flex justify-between items-end">
                 <span className="font-bold text-lg">Total Today</span>
                 <div className="text-right">
-                  <span className="font-bold text-2xl text-emerald-700 block">
-                    ₹{trialSetupFee.toFixed(2)}
+                  <span className="font-bold text-2xl text-[#244376] block">
+                    ₹{selectedPlan.price > 0 ? trialSetupFee.toFixed(2) : "0.00"}
                   </span>
                   <span className="text-[10px] text-slate-500 uppercase tracking-wider">
-                    Refundable Setup
+                    {selectedPlan.price > 0 ? "Refundable Setup" : "Free Activation"}
                   </span>
                 </div>
               </div>
@@ -346,13 +384,28 @@ export default function CheckoutPage() {
             <Button 
               onClick={handlePayment}
               disabled={isProcessing}
-              className="w-full bg-emerald-700 hover:bg-emerald-800 text-white h-12 rounded flex items-center justify-center font-bold"
+              className="w-full bg-[#244376] hover:bg-[#1b345c] text-white h-12 rounded-xl flex items-center justify-center font-bold"
             >
               {isProcessing ? "Processing..." : (
-                <>
-                  Start 14-Day Free Trial <ArrowRight className="w-4 h-4 ml-2" />
-                </>
+                selectedPlan.price > 0 ? (
+                  <>
+                    Start 14-Day Free Trial <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                ) : (
+                  <>
+                    Activate Free Plan <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                )
               )}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => router.push("/")}
+              disabled={isProcessing}
+              className="w-full rounded-xl mt-3 h-12 font-bold border-slate-300 hover:bg-slate-50 text-slate-700 dark:text-neutral-300 dark:border-slate-700"
+            >
+              Cancel & Go Back
             </Button>
             
             <p className="text-[10px] text-center text-slate-500 mt-4 uppercase">

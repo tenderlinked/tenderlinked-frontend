@@ -14,7 +14,7 @@ import { MultiSelect, OptionType } from "@/components/ui/multi-select";
 import { useLoading } from "@/contexts/LoadingContext";
 import { registerSchema } from "@/lib/zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2, Lock, Mail, UserRound, Check, X } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Mail, UserRound, Check, X, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -51,6 +51,7 @@ const RegisterForm = () => {
   } | null>(null);
 
   const [otp, setOtp] = useState("");
+  const [isOtpFocused, setIsOtpFocused] = useState(false);
   const [phoneOnly, setPhoneOnly] = useState("");
   const [phoneExists, setPhoneExists] = useState(false);
   const [pendingValues, setPendingValues] = useState<z.infer<typeof registerSchema> | null>(null);
@@ -371,7 +372,7 @@ const RegisterForm = () => {
 
         <Button
           onClick={() => window.location.href = loginUrl}
-          className="w-full rounded-lg mt-4 h-[52px] text-sm"
+          className="w-full rounded-lg mt-4 h-[52px] font-semibold bg-[#244376] hover:bg-[#1b345c] text-white"
         >
           Go to Login Page
         </Button>
@@ -429,7 +430,7 @@ const RegisterForm = () => {
               className="h-12 bg-neutral-100 dark:bg-slate-800"
             />
           </div>
-          <Button type="submit" className="w-full h-[52px] bg-amber-500 hover:bg-amber-600 text-white font-semibold" disabled={loading}>
+          <Button type="submit" className="w-full rounded-lg h-[52px] bg-[#244376] hover:bg-[#1b345c] text-white font-semibold" disabled={loading}>
             {loading ? <Loader2 className="animate-spin w-5 h-5 mr-2" /> : null}
             Send & Continue
           </Button>
@@ -463,13 +464,23 @@ const RegisterForm = () => {
         <form onSubmit={handleSendOtpFirst} className="space-y-4">
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Mobile Number *</label>
-            <Input
-              type="tel"
-              placeholder="Enter 10-digit mobile number"
-              value={phoneOnly}
-              onChange={(e) => setPhoneOnly(e.target.value)}
-              className="h-12 border-slate-300"
-            />
+            <div className="relative">
+              <div className="absolute start-4 top-1/2 transform -translate-y-1/2 flex items-center gap-1.5 select-none pointer-events-none">
+                <span className="text-base leading-none">🇮🇳</span>
+                <span className="text-slate-500 dark:text-neutral-400 text-sm font-semibold">
+                  +91
+                </span>
+                <ChevronDown className="w-3 h-3 text-slate-400 dark:text-neutral-500" />
+              </div>
+              <div className="absolute left-[84px] top-1/2 transform -translate-y-1/2 h-5 w-[1px] bg-neutral-300 dark:bg-slate-700 pointer-events-none" />
+              <Input
+                type="tel"
+                placeholder="Enter 10-digit mobile number"
+                value={phoneOnly}
+                onChange={(e) => setPhoneOnly(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                className="ps-[96px] h-14 rounded-xl bg-neutral-100 dark:bg-slate-800 border border-neutral-300 dark:border-slate-700 focus:border-primary dark:focus:border-primary focus-visible:border-primary !shadow-none !ring-0"
+              />
+            </div>
           </div>
           <Button
             type="submit"
@@ -498,6 +509,19 @@ const RegisterForm = () => {
         <div className="mt-2">
           <SocialLogin />
         </div>
+
+        {/* Signup Prompt */}
+        <div className="mt-6 text-center text-sm">
+          <p>
+            Already have an account? {" "}
+            <Link
+              href="/auth/login"
+              className="text-primary font-semibold hover:underline"
+            >
+              Sign In
+            </Link>
+          </p>
+        </div>
       </div>
     );
   }
@@ -512,15 +536,42 @@ const RegisterForm = () => {
           </p>
         </div>
         <form onSubmit={handleVerifyOtpFirst} className="space-y-4">
-          <div>
-            <Input
+          <div className="relative flex justify-center items-center py-2">
+            {/* Hidden Input for OTP handling */}
+            <input
               type="text"
-              placeholder="Enter 6-digit OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
               maxLength={6}
-              className="text-center tracking-widest text-lg font-semibold h-12"
+              pattern="\d*"
+              inputMode="numeric"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onFocus={() => setIsOtpFocused(true)}
+              onBlur={() => setIsOtpFocused(false)}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              disabled={loading}
+              autoFocus
             />
+            {/* Visual Digit Boxes */}
+            <div className="flex gap-3 justify-center items-center w-full">
+              {Array.from({ length: 6 }).map((_, index) => {
+                const char = otp[index] || "";
+                const isActive = isOtpFocused && (otp.length === index || (otp.length === 6 && index === 5));
+                return (
+                  <div
+                    key={index}
+                    className={`w-12 h-14 rounded-xl border flex items-center justify-center text-xl font-bold transition-all duration-200 bg-neutral-100 dark:bg-slate-800 ${
+                      isActive 
+                        ? "border-primary ring-2 ring-primary/20 bg-white dark:bg-slate-900 scale-105" 
+                        : char 
+                          ? "border-primary text-slate-900 dark:text-white" 
+                          : "border-neutral-300 dark:border-slate-700 text-slate-400"
+                    }`}
+                  >
+                    {char}
+                  </div>
+                );
+              })}
+            </div>
           </div>
           <Button
             type="submit"
@@ -562,7 +613,7 @@ const RegisterForm = () => {
   }
 
   return (
-    <>
+    <div className="pt-6">
       <div className="mb-4 bg-green-50 text-green-700 p-3 rounded-md text-sm border border-green-200 flex items-center">
         <Check className="w-4 h-4 mr-2" /> Phone number verified. Complete your profile.
       </div>
@@ -667,7 +718,6 @@ const RegisterForm = () => {
 
           <div className="flex gap-4">
             {/* Phone Field */}
-            {/* Phone Field */}
             <FormField
               control={form.control}
               name="phone"
@@ -675,12 +725,20 @@ const RegisterForm = () => {
                 <FormItem className="flex-1">
                   <FormControl>
                     <div className="relative">
+                      <div className="absolute start-4 top-1/2 transform -translate-y-1/2 flex items-center gap-1.5 select-none pointer-events-none">
+                        <span className="text-base leading-none">🇮🇳</span>
+                        <span className="text-slate-400 dark:text-neutral-500 text-sm font-semibold">
+                          +91
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-slate-400 dark:text-neutral-500" />
+                      </div>
+                      <div className="absolute left-[84px] top-1/2 transform -translate-y-1/2 h-5 w-[1px] bg-neutral-300 dark:bg-slate-700 pointer-events-none" />
                       <Input
                         {...field}
                         type="text"
                         placeholder="Phone Number"
                         disabled
-                        className="px-4 h-14 rounded-xl bg-slate-100 text-slate-500 border border-neutral-300 dark:border-slate-700 !shadow-none !ring-0 cursor-not-allowed"
+                        className="ps-[96px] h-14 rounded-xl bg-slate-100 text-slate-500 border border-neutral-300 dark:border-slate-700 !shadow-none !ring-0 cursor-not-allowed"
                       />
                     </div>
                   </FormControl>
@@ -821,7 +879,7 @@ const RegisterForm = () => {
           {/* Submit Button */}
           <Button
             type="submit"
-            className="w-full rounded-lg mt-1 h-[52px] text-sm mt-2"
+            className="w-full rounded-lg mt-4 h-[52px] font-semibold bg-[#244376] hover:bg-[#1b345c]"
             disabled={loading}
           >
             {isSubmitting ? (
@@ -836,29 +894,7 @@ const RegisterForm = () => {
         </form>
       </Form>
 
-      {/* Divider */}
-      <div className="mt-8 relative text-center before:absolute before:w-full before:h-px before:bg-neutral-300 dark:before:bg-slate-600 before:top-1/2 before:left-0">
-        <span className="relative z-10 px-4 bg-white dark:bg-slate-900 text-base">
-          Or sign in with
-        </span>
-      </div>
-
-      {/* Social Login */}
-      <SocialLogin />
-
-      {/* Signup Prompt */}
-      <div className="mt-8 text-center text-sm">
-        <p>
-          Already have an account? {" "}
-          <Link
-            href="/auth/login"
-            className="text-primary font-semibold hover:underline"
-          >
-            Sign In
-          </Link>
-        </p>
-      </div>
-    </>
+    </div>
   );
 };
 

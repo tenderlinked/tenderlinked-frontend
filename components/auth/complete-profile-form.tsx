@@ -3,7 +3,7 @@
 import { useLoading } from "@/contexts/LoadingContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
@@ -150,13 +150,23 @@ const CompleteProfileForm = () => {
       <form onSubmit={handleSendOtp} className="space-y-4">
         <div>
           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Mobile Number *</label>
-          <Input
-            type="tel"
-            placeholder="Enter 10-digit mobile number"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="h-12 border-slate-300"
-          />
+          <div className="relative">
+            <div className="absolute start-4 top-1/2 transform -translate-y-1/2 flex items-center gap-1.5 select-none pointer-events-none">
+              <span className="text-base leading-none">🇮🇳</span>
+              <span className="text-slate-500 dark:text-neutral-400 text-sm font-semibold">
+                +91
+              </span>
+              <ChevronDown className="w-3 h-3 text-slate-400 dark:text-neutral-500" />
+            </div>
+            <div className="absolute left-[84px] top-1/2 transform -translate-y-1/2 h-5 w-[1px] bg-neutral-300 dark:bg-slate-700 pointer-events-none" />
+            <Input
+              type="tel"
+              placeholder="Enter 10-digit mobile number"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              className="ps-[96px] h-14 rounded-xl bg-neutral-100 dark:bg-slate-800 border border-neutral-300 dark:border-slate-700 focus:border-primary dark:focus:border-primary focus-visible:border-primary !shadow-none !ring-0"
+            />
+          </div>
         </div>
         <Button
           type="submit"

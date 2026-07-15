@@ -37,7 +37,7 @@ const Register = () => {
       <Header />
 
       {/* Main Content Area */}
-      <main className="flex-grow flex items-center justify-center p-4 md:p-8 pt-[72px]">
+      <main className="flex-grow flex items-start justify-center p-4 md:p-8 pt-24 md:pt-28 pb-12">
         <div className="max-w-[1000px] w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
           
           {/* Left Panel (Dark Blue) */}
@@ -85,10 +85,8 @@ const Register = () => {
           {/* Right Panel (White - Form) */}
           <div className="lg:w-[55%] p-8 md:p-10 flex flex-col relative bg-white dark:bg-slate-900">
             <div className="flex-grow flex flex-col max-w-md w-full mx-auto">
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">Sign Up</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                Choose your preferred sign-up method
-              </p>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Sign Up</h2>
+              <div className="w-12 h-1 bg-[#2563EB] rounded-full mb-6"></div>
               
               <RegisterForm />
             </div>
