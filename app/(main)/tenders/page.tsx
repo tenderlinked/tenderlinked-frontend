@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -65,6 +65,8 @@ export default function UnifiedTendersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [tabCounts, setTabCounts] = useState({ active: 0, archived: 0, followed: 0 });
+  
+  const tendersCache = useRef<Record<string, { tenders: any[], total: number }>>({});
 
   const searchParams = useSearchParams();
   const globalQuery = searchParams.get('q') || "";
@@ -91,11 +93,9 @@ export default function UnifiedTendersPage() {
   const [sortOption, setSortOption] = useState("newest");
   const [sidebarStats, setSidebarStats] = useState<{ states: {name:string,count:number}[], cities: {name:string,count:number}[], keywords: {keyword:string,count:number}[] }>({ states: [], cities: [], keywords: [] });
 
-  // Sidebar collapse & show-more state
+  // Sidebar collapse state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<Record<string, boolean>>({});
-  const [sidebarShowMore, setSidebarShowMore] = useState<Record<string, boolean>>({});
   const toggleCollapse = (key: string) => setSidebarCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
-  const toggleShowMore = (key: string) => setSidebarShowMore(prev => ({ ...prev, [key]: !prev[key] }));
 
   // Removed single queryState sync, handled by parseArrayParam initially
 
@@ -144,9 +144,14 @@ export default function UnifiedTendersPage() {
   useEffect(() => {
     if (status === "authenticated") {
       fetchTenders();
-      fetchTabCounts();
     }
   }, [status, selectedStates, selectedCities, selectedCategories, selectedAuthorities, selectedKeywords, minAmount, maxAmount, searchQuery, activeTab, sortOption, page, pageSize]);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchTabCounts();
+    }
+  }, [status, selectedStates, selectedCities, selectedCategories, selectedAuthorities, selectedKeywords, minAmount, maxAmount, searchQuery]);
 
   useEffect(() => {
     const fetchAuthorities = async () => {
@@ -204,20 +209,26 @@ export default function UnifiedTendersPage() {
   };
 
   const fetchTenders = async () => {
+    let url = `${buildBaseUrl()}&page=${page}&pageSize=${pageSize}`;
+    if (activeTab === "active") {
+      url += `&active=true`;
+    } else if (activeTab === "archived") {
+      url += `&active=false`;
+    } else if (activeTab === "followed") {
+      url += `&bookmarked=true`;
+    }
+    if (sortOption) {
+      url += `&sort=${sortOption}`;
+    }
+
+    if (tendersCache.current[url]) {
+      setTenders(tendersCache.current[url].tenders);
+      setTotal(tendersCache.current[url].total);
+      return;
+    }
+
     setLoading(true);
     try {
-      let url = `${buildBaseUrl()}&page=${page}&pageSize=${pageSize}`;
-      if (activeTab === "active") {
-        url += `&active=true`;
-      } else if (activeTab === "archived") {
-        url += `&active=false`;
-      } else if (activeTab === "followed") {
-        url += `&bookmarked=true`;
-      }
-      if (sortOption) {
-        url += `&sort=${sortOption}`;
-      }
-
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${(session as any)?.accessToken}`,
@@ -227,6 +238,7 @@ export default function UnifiedTendersPage() {
       if (data.success) {
         setTenders(data.data);
         setTotal(data.meta?.total || 0);
+        tendersCache.current[url] = { tenders: data.data, total: data.meta?.total || 0 };
       }
     } catch (error) {
       console.error("Failed to fetch tenders:", error);
@@ -277,6 +289,7 @@ export default function UnifiedTendersPage() {
       if (res.ok) {
         setTenders(prev => prev.map(t => t.id === id ? { ...t, isBookmarked: !currentStatus } : t));
         fetchTabCounts();
+        tendersCache.current = {}; // Invalidate cache so followed tab refreshes
       }
     } catch (err) {
       console.error('Failed to toggle bookmark', err);
@@ -295,11 +308,11 @@ export default function UnifiedTendersPage() {
     <div className="flex flex-col gap-6 w-full pb-24">
       
       {/* Top Navigation & Filter Bar */}
-      <div className="bg-white border-b border-slate-200 sticky top-16 z-20 shadow-sm px-4 md:px-8 py-3">
+      <div className="bg-white border-b border-slate-200 sticky top-16 z-20 shadow-sm px-4 md:px-8 pt-3 pb-0">
         <div className="w-full mx-auto flex flex-col gap-3">
           
           {/* Filters Row */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 pb-2">
             <Button variant="outline" size="sm" className="bg-slate-50 text-slate-600 border-slate-200 h-9">
               <Filter className="w-4 h-4 mr-2" />
               Saved Filters
@@ -377,7 +390,7 @@ export default function UnifiedTendersPage() {
               </Button>
             </div>
           </div>
-
+          
         </div>
       </div>
 
@@ -481,19 +494,30 @@ export default function UnifiedTendersPage() {
             </p>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="bg-transparent border-b border-slate-200 rounded-none w-full justify-start h-10 p-0 gap-6">
-              <TabsTrigger value="active" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 py-2 data-[state=active]:text-blue-600 font-bold text-sm text-slate-600">
-                Active ({tabCounts.active})
-              </TabsTrigger>
-              <TabsTrigger value="archived" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 py-2 data-[state=active]:text-blue-600 font-bold text-sm text-slate-600">
-                Archived ({tabCounts.archived})
-              </TabsTrigger>
-              <TabsTrigger value="followed" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 py-2 data-[state=active]:text-blue-600 font-bold text-sm text-slate-600">
-                Followed ({tabCounts.followed})
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="sticky top-[124px] z-10 pt-1 pb-3">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-lg shadow-sm rounded-xl">
+              <TabsList className="grid grid-cols-3 w-full bg-slate-100 p-1.5 rounded-xl h-auto border border-slate-200/50 shadow-inner">
+                <TabsTrigger value="active" className="group rounded-lg px-3 py-2.5 text-[13px] font-bold transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 flex items-center justify-center gap-2">
+                  Active 
+                  <span className="px-2 py-0.5 rounded-md bg-slate-200/70 group-data-[state=active]:bg-blue-50 group-data-[state=active]:text-blue-700 text-[11px] text-slate-600">
+                    {tabCounts.active}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="archived" className="group rounded-lg px-3 py-2.5 text-[13px] font-bold transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 flex items-center justify-center gap-2">
+                  Archived
+                  <span className="px-2 py-0.5 rounded-md bg-slate-200/70 group-data-[state=active]:bg-blue-50 group-data-[state=active]:text-blue-700 text-[11px] text-slate-600">
+                    {tabCounts.archived}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="followed" className="group rounded-lg px-3 py-2.5 text-[13px] font-bold transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 flex items-center justify-center gap-2">
+                  Followed
+                  <span className="px-2 py-0.5 rounded-md bg-slate-200/70 group-data-[state=active]:bg-blue-50 group-data-[state=active]:text-blue-700 text-[11px] text-slate-600">
+                    {tabCounts.followed}
+                  </span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           <div className="flex flex-col gap-4 mt-2">
             {loading ? (
@@ -521,16 +545,18 @@ export default function UnifiedTendersPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="secondary" className="bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium px-2 py-0.5 text-xs flex items-center gap-1 capitalize">
                             <Briefcase className="w-3.5 h-3.5" />
-                            Works
+                            {tender.tenderCategory || 'Miscellaneous'}
                           </Badge>
-                          {tender.tags && tender.tags.filter(t => !t.includes('PREMIUM_LOCKED')).slice(0, 2).map((tag, idx) => (
+                          {tender.tags && tender.tags
+                            .filter(t => !t.includes('PREMIUM_LOCKED') && t.toLowerCase() !== (tender.tenderCategory || '').toLowerCase())
+                            .slice(0, 2).map((tag, idx) => (
                             <Badge key={idx} variant="outline" className="text-slate-600 border-slate-200 font-medium px-2 py-0.5 text-xs capitalize">
                               {tag}
                             </Badge>
                           ))}
                         </div>
                         
-                        <div className="flex flex-wrap items-center gap-1 text-slate-500 text-xs font-medium">
+                        <div className="flex flex-wrap items-center gap-1 text-slate-500 text-xs font-medium ml-2">
                           <MapPin className="w-3.5 h-3.5 mr-0.5" />
                           {(() => {
                             const parts = [tender.location, tender.district, tender.state].filter(Boolean) as string[];
@@ -626,7 +652,17 @@ export default function UnifiedTendersPage() {
                           <Heart className={`w-3.5 h-3.5 mr-1.5 ${tender.isBookmarked ? 'fill-current' : ''}`} />
                           {tender.isBookmarked ? 'Following' : 'Follow'}
                         </Button>
-                        {tender.noticePdfUrl === '__CREDIT_LOCKED__' || tender.tenderPdfUrl === '__CREDIT_LOCKED__' ? (
+                        {tender.hasDocuments === false ? (
+                          <Button 
+                            size="sm" 
+                            disabled
+                            className="h-8 bg-slate-100 text-slate-400 font-semibold shadow-sm px-4 cursor-not-allowed border-slate-200"
+                            title="No documents available"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1.5 opacity-50" />
+                            No Docs
+                          </Button>
+                        ) : tender.noticePdfUrl === '__CREDIT_LOCKED__' || tender.tenderPdfUrl === '__CREDIT_LOCKED__' ? (
                           <Button size="sm" variant="outline" className="h-8 border-slate-200 text-slate-500 bg-slate-50 shadow-sm px-4 relative overflow-hidden group cursor-pointer" title="Upgrade to plan to download">
                             <div className="flex items-center opacity-40 select-none">
                               <Download className="w-3.5 h-3.5 mr-1.5" />
@@ -731,7 +767,7 @@ export default function UnifiedTendersPage() {
         </div>
 
         {/* Right Column - Sidebars */}
-        <div className="xl:col-span-1 flex flex-col gap-3 sticky top-36 h-fit max-h-[calc(100vh-160px)] overflow-y-auto pb-4 scrollbar-invisible">
+        <div className="xl:col-span-1 flex flex-col gap-3 sticky top-36 h-fit max-h-[calc(100vh-160px)] overflow-y-auto pb-4 no-scrollbar">
 
           {/* Ad Banner */}
           {showAdBanner && (
@@ -751,8 +787,7 @@ export default function UnifiedTendersPage() {
           {/* Tenders By Keywords */}
           {(() => {
             const isOpen = !sidebarCollapsed['keywords'];
-            const showAll = sidebarShowMore['keywords'];
-            const visible = showAll ? sidebarStats.keywords : sidebarStats.keywords.slice(0, 6);
+            const visible = sidebarStats.keywords;
             return (
             <div className="bg-white border border-slate-100 rounded-lg shadow-sm">
               <button onClick={() => toggleCollapse('keywords')} className="w-full flex items-center justify-between px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors">
@@ -760,7 +795,7 @@ export default function UnifiedTendersPage() {
                 <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : '-rotate-90'}`} />
               </button>
               {isOpen && (
-                <div className="px-4 py-1">
+                <div className="px-4 py-1 max-h-56 overflow-y-auto no-scrollbar">
                   <ul>
                     {visible.map(({ keyword, count }) => (
                       <li key={keyword}>
@@ -771,11 +806,6 @@ export default function UnifiedTendersPage() {
                       </li>
                     ))}
                   </ul>
-                  {sidebarStats.keywords.length > 6 && (
-                    <button onClick={() => toggleShowMore('keywords')} className="text-xs text-blue-600 hover:underline font-medium py-1.5">
-                      {showAll ? 'Show Less' : 'Show More'}
-                    </button>
-                  )}
                 </div>
               )}
             </div>
@@ -785,8 +815,7 @@ export default function UnifiedTendersPage() {
           {/* Tenders By States */}
           {(() => {
             const isOpen = !sidebarCollapsed['states'];
-            const showAll = sidebarShowMore['states'];
-            const visible = showAll ? sidebarStats.states : sidebarStats.states.slice(0, 8);
+            const visible = sidebarStats.states;
             return (
             <div className="bg-white border border-slate-100 rounded-lg shadow-sm">
               <button onClick={() => toggleCollapse('states')} className="w-full flex items-center justify-between px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors">
@@ -794,7 +823,7 @@ export default function UnifiedTendersPage() {
                 <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : '-rotate-90'}`} />
               </button>
               {isOpen && (
-                <div className="px-4 py-1">
+                <div className="px-4 py-1 max-h-56 overflow-y-auto no-scrollbar">
                   <ul>
                     {visible.map(({ name, count }) => (
                       <li key={name}>
@@ -805,11 +834,6 @@ export default function UnifiedTendersPage() {
                       </li>
                     ))}
                   </ul>
-                  {sidebarStats.states.length > 8 && (
-                    <button onClick={() => toggleShowMore('states')} className="text-xs text-blue-600 hover:underline font-medium py-1.5">
-                      {showAll ? 'Show Less' : 'Show More'}
-                    </button>
-                  )}
                 </div>
               )}
             </div>
@@ -819,10 +843,9 @@ export default function UnifiedTendersPage() {
           {/* Tenders By Cities */}
           {sidebarStats.cities.length > 0 && (() => {
             const isOpen = !sidebarCollapsed['cities'];
-            const showAll = sidebarShowMore['cities'];
             const citiesToShow = selectedStates.length > 0 ? currentCities : sidebarStats.cities.map(c => c.name);
             const cityCountMap = Object.fromEntries(sidebarStats.cities.map(c => [c.name, c.count]));
-            const visible = showAll ? citiesToShow : citiesToShow.slice(0, 8);
+            const visible = citiesToShow;
             return (
             <div className="bg-white border border-slate-100 rounded-lg shadow-sm">
               <button onClick={() => toggleCollapse('cities')} className="w-full flex items-center justify-between px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors">
@@ -830,7 +853,7 @@ export default function UnifiedTendersPage() {
                 <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : '-rotate-90'}`} />
               </button>
               {isOpen && (
-                <div className="px-4 py-1">
+                <div className="px-4 py-1 max-h-56 overflow-y-auto no-scrollbar">
                   <ul>
                     {visible.map(city => (
                       <li key={city}>
@@ -841,11 +864,6 @@ export default function UnifiedTendersPage() {
                       </li>
                     ))}
                   </ul>
-                  {citiesToShow.length > 8 && (
-                    <button onClick={() => toggleShowMore('cities')} className="text-xs text-blue-600 hover:underline font-medium py-1.5">
-                      {showAll ? 'Show Less' : 'Show More'}
-                    </button>
-                  )}
                 </div>
               )}
             </div>
@@ -863,7 +881,7 @@ export default function UnifiedTendersPage() {
                 <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : '-rotate-90'}`} />
               </button>
               {isOpen && (
-                <div className="px-4 py-1">
+                <div className="px-4 py-1 max-h-56 overflow-y-auto no-scrollbar">
                   <ul>
                     {cats.map(cat => (
                       <li key={cat}>

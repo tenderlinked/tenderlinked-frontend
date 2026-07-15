@@ -627,12 +627,22 @@ export default function TenderDetailsPage() {
                            <FileText className="w-5 h-5 text-blue-400" />
                            <h3 className="text-lg font-bold text-slate-800">Tender Documents</h3>
                         </div>
-                        <button 
-                          className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center transition-colors"
-                          onClick={(e) => initiateDownload(tender, e)}
-                        >
-                          Download All (ZIP) <ArrowDown className="w-3 h-3 ml-1" />
-                        </button>
+                        {tender?.hasDocuments === false ? (
+                          <button 
+                            disabled
+                            className="text-sm font-semibold text-slate-400 cursor-not-allowed flex items-center transition-colors"
+                            title="No documents available"
+                          >
+                            No Documents
+                          </button>
+                        ) : (
+                          <button 
+                            className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center transition-colors"
+                            onClick={(e) => initiateDownload(tender, e)}
+                          >
+                            Download All (ZIP) <ArrowDown className="w-3 h-3 ml-1" />
+                          </button>
+                        )}
                      </div>
                      
                      {isLocked && (
@@ -706,9 +716,15 @@ export default function TenderDetailsPage() {
                   <Button className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white">
                     <PhoneCall className="w-4 h-4 mr-2" /> Talk to a Bid Expert
                   </Button>
-                  <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" onClick={(e) => initiateDownload(tender, e)}>
-                    <Download className="w-4 h-4 mr-2" /> Download All Docs (ZIP)
-                  </Button>
+                  {tender?.hasDocuments === false ? (
+                    <Button disabled className="w-full bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed">
+                      <Download className="w-4 h-4 mr-2 opacity-50" /> No Documents Available
+                    </Button>
+                  ) : (
+                    <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" onClick={(e) => initiateDownload(tender, e)}>
+                      <Download className="w-4 h-4 mr-2" /> Download All Docs (ZIP)
+                    </Button>
+                  )}
                 </div>
              </div>
 

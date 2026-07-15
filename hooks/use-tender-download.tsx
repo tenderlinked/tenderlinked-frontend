@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { handleTenderDownload } from "@/lib/download";
+import { handleTenderDownload, showNoDocumentsTooltip } from "@/lib/download";
 import { DownloadConfirmModal } from "@/components/tenders/download-confirm-modal";
 import toast from "react-hot-toast";
 
@@ -16,14 +16,21 @@ export function useTenderDownload() {
   const [isExhausted, setIsExhausted] = useState(false);
   const [freeLimit, setFreeLimit] = useState(3);
   const [isLoading, setIsLoading] = useState(false);
-  const [pendingDownload, setPendingDownload] = useState<{ tender: any, event?: React.MouseEvent } | null>(null);
+  const [pendingDownload, setPendingDownload] = useState<{ tender: any, target?: HTMLElement } | null>(null);
 
   const initiateDownload = async (tender: any, event?: React.MouseEvent) => {
+    let targetElement: HTMLElement | undefined;
     if (event) {
+      targetElement = event.currentTarget as HTMLElement;
       event.preventDefault();
       event.stopPropagation();
     }
     
+    if (tender.hasDocuments === false) {
+      showNoDocumentsTooltip(targetElement);
+      return;
+    }
+
     if (!token) {
       toast.error("You must be logged in to download");
       return;
@@ -48,7 +55,7 @@ export function useTenderDownload() {
         // Needs to pay 1 credit
         setIsWarning(false);
         setIsExhausted(data.isUnlocked && data.downloadCount >= maxDownloadsBeforeCharge);
-        setPendingDownload({ tender, event });
+        setPendingDownload({ tender, target: targetElement });
         setIsOpen(true);
       } else {
         // Unlocked and free
@@ -56,11 +63,11 @@ export function useTenderDownload() {
         if (data.downloadCount === data.freeRedownloads) {
           // Warning for final free redownload
           setIsWarning(true);
-          setPendingDownload({ tender, event });
+          setPendingDownload({ tender, target: targetElement });
           setIsOpen(true);
         } else {
           // Silent free redownload
-          await executeDownload(tender, event);
+          await executeDownload(tender, targetElement);
         }
       }
     } catch (err) {
@@ -71,14 +78,14 @@ export function useTenderDownload() {
     }
   };
 
-  const executeDownload = async (tender: any, event?: React.MouseEvent) => {
-    await handleTenderDownload(tender, event, token);
+  const executeDownload = async (tender: any, targetElement?: HTMLElement) => {
+    await handleTenderDownload(tender, targetElement, token);
   };
 
   const handleConfirm = async () => {
     setIsOpen(false);
     if (pendingDownload) {
-      await executeDownload(pendingDownload.tender, pendingDownload.event);
+      await executeDownload(pendingDownload.tender, pendingDownload.target);
       setPendingDownload(null);
     }
   };

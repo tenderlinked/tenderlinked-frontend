@@ -2,8 +2,57 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 
-export const handleTenderDownload = async (tender: { id: string, title: string, noticePdfUrl?: string | null, tenderPdfUrl?: string | null, sourceUrl?: string | null }, event?: React.MouseEvent, token?: string) => {
-  const targetElement = event?.currentTarget as HTMLElement | undefined;
+export const showNoDocumentsTooltip = (targetElement?: HTMLElement) => {
+  if (targetElement) {
+    const element = targetElement;
+    const rect = element.getBoundingClientRect();
+    const tooltip = document.createElement('div');
+    tooltip.textContent = 'No documents available';
+    tooltip.style.position = 'absolute';
+    tooltip.style.top = `${rect.top + window.scrollY - 40}px`;
+    tooltip.style.left = `${rect.left + window.scrollX + (rect.width / 2)}px`;
+    tooltip.style.transform = 'translateX(-50%)';
+    tooltip.style.backgroundColor = '#ef4444';
+    tooltip.style.color = 'white';
+    tooltip.style.padding = '6px 12px';
+    tooltip.style.borderRadius = '6px';
+    tooltip.style.fontSize = '12px';
+    tooltip.style.fontWeight = '500';
+    tooltip.style.zIndex = '9999';
+    tooltip.style.boxShadow = '0 4px 6px -1px rgb(0 0 0 / 0.1)';
+    tooltip.style.pointerEvents = 'none';
+    tooltip.style.opacity = '0';
+    tooltip.style.transition = 'opacity 0.2s, top 0.2s';
+    
+    const arrow = document.createElement('div');
+    arrow.style.position = 'absolute';
+    arrow.style.bottom = '-4px';
+    arrow.style.left = '50%';
+    arrow.style.transform = 'translateX(-50%) rotate(45deg)';
+    arrow.style.width = '8px';
+    arrow.style.height = '8px';
+    arrow.style.backgroundColor = '#ef4444';
+    arrow.style.zIndex = '-1';
+    tooltip.appendChild(arrow);
+  
+    document.body.appendChild(tooltip);
+  
+    requestAnimationFrame(() => {
+      tooltip.style.opacity = '1';
+      tooltip.style.top = `${rect.top + window.scrollY - 45}px`;
+    });
+  
+    setTimeout(() => {
+      tooltip.style.opacity = '0';
+      tooltip.style.top = `${rect.top + window.scrollY - 50}px`;
+      setTimeout(() => tooltip.remove(), 200);
+    }, 2500);
+  } else {
+    toast.error('No documents available to download.');
+  }
+};
+
+export const handleTenderDownload = async (tender: { id: string, title: string, noticePdfUrl?: string | null, tenderPdfUrl?: string | null, sourceUrl?: string | null }, targetElement?: HTMLElement, token?: string) => {
   
   let docs: string[] = [];
   let useBackendDownload = false;
@@ -43,53 +92,7 @@ export const handleTenderDownload = async (tender: { id: string, title: string, 
   }
 
   if (docs.length === 0) {
-    if (targetElement) {
-      const element = targetElement;
-      const rect = element.getBoundingClientRect();
-      const tooltip = document.createElement('div');
-      tooltip.textContent = 'No documents available';
-      tooltip.style.position = 'absolute';
-      tooltip.style.top = `${rect.top + window.scrollY - 40}px`;
-      tooltip.style.left = `${rect.left + window.scrollX + (rect.width / 2)}px`;
-      tooltip.style.transform = 'translateX(-50%)';
-      tooltip.style.backgroundColor = '#ef4444';
-      tooltip.style.color = 'white';
-      tooltip.style.padding = '6px 12px';
-      tooltip.style.borderRadius = '6px';
-      tooltip.style.fontSize = '12px';
-      tooltip.style.fontWeight = '500';
-      tooltip.style.zIndex = '9999';
-      tooltip.style.boxShadow = '0 4px 6px -1px rgb(0 0 0 / 0.1)';
-      tooltip.style.pointerEvents = 'none';
-      tooltip.style.opacity = '0';
-      tooltip.style.transition = 'opacity 0.2s, top 0.2s';
-      
-      const arrow = document.createElement('div');
-      arrow.style.position = 'absolute';
-      arrow.style.bottom = '-4px';
-      arrow.style.left = '50%';
-      arrow.style.transform = 'translateX(-50%) rotate(45deg)';
-      arrow.style.width = '8px';
-      arrow.style.height = '8px';
-      arrow.style.backgroundColor = '#ef4444';
-      arrow.style.zIndex = '-1';
-      tooltip.appendChild(arrow);
-    
-      document.body.appendChild(tooltip);
-    
-      requestAnimationFrame(() => {
-        tooltip.style.opacity = '1';
-        tooltip.style.top = `${rect.top + window.scrollY - 45}px`;
-      });
-    
-      setTimeout(() => {
-        tooltip.style.opacity = '0';
-        tooltip.style.top = `${rect.top + window.scrollY - 50}px`;
-        setTimeout(() => tooltip.remove(), 200);
-      }, 2500);
-    } else {
-      toast.error('No documents available to download.');
-    }
+    showNoDocumentsTooltip(targetElement);
     return;
   }
 

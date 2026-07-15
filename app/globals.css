@@ -248,21 +248,14 @@
   .scrollbar-invisible::-webkit-scrollbar-thumb {
     @apply bg-transparent;
   }
-
-  .hover\:scrollbar-visible:hover::-webkit-scrollbar-thumb {
-    @apply bg-slate-300;
+  
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
   }
-
-  .hover\:scrollbar-visible:hover::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-400;
-  }
-
-  .hover\:scrollbar-visible:hover::-webkit-scrollbar-thumb:active {
-    @apply bg-slate-500;
-  }
-  /* Invisible scrollbar css end */
-
-  /* Reset css Start */
+  .no-scrollbar {
+    -ms-overflow-style: none !important;  /* IE and Edge */
+    scrollbar-width: none !important;  /* Firefox */
+  }  /* Reset css Start */
   h1,
   h2,
   h3,
