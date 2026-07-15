@@ -78,7 +78,7 @@ const ProfileDropdown = () => {
           <div>
             {(session?.user as any)?.hasActivePlan ? (
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800">
-                Active Plan: {subDetails?.planType || 'Active'}
+                Active Plan: {subDetails?.planType || (session?.user as any)?.planType || 'Active'}
               </span>
             ) : (
               <Link href="/checkout" className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 hover:opacity-80 transition-opacity ring-1 ring-rose-200 dark:ring-rose-800">

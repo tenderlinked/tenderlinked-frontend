@@ -124,6 +124,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
              if (subRes.ok) {
                const subData = await subRes.json();
                hasActivePlan = subData.hasActivePlan;
+               if (subData.subscription) {
+                 user.planType = subData.subscription.planType;
+               }
              }
           } catch(e) {
              console.error("Failed to fetch subscription", e);
@@ -134,6 +137,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name || (user.given_name ? `${user.given_name} ${user.family_name || ''}`.trim() : user.preferred_username),
             email: user.email,
             hasActivePlan,
+            planType: (user as any).planType || null,
             tenantId,
             tenantName,
             globalRole: user.globalRole || 'USER',
@@ -166,6 +170,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (user.id) token.id = user.id;
         // @ts-ignore
         if (user.hasActivePlan !== undefined) token.hasActivePlan = user.hasActivePlan;
+        // @ts-ignore
+        if (user.planType !== undefined) token.planType = user.planType;
         // @ts-ignore
         if (user.tenantId !== undefined) token.tenantId = user.tenantId;
         // @ts-ignore
@@ -201,12 +207,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
              }
            }
 
-           const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${profile.sub}/active`);
+           const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${profile.sub}/active`, {
+             headers: {
+               'x-internal-secret': process.env.INTERNAL_API_SECRET || 'fallback-internal-secret-xyz'
+             }
+           });
            if (subRes.ok) {
              const subData = await subRes.json();
              token.hasActivePlan = subData.hasActivePlan;
+             if (subData.subscription) {
+               token.planType = subData.subscription.planType;
+             }
            } else {
              token.hasActivePlan = false;
+             token.planType = null;
            }
         } catch(e) {
            token.hasActivePlan = false;
@@ -218,6 +232,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (session?.hasActivePlan !== undefined) {
           token.hasActivePlan = session.hasActivePlan;
         } 
+        if (session?.planType !== undefined) {
+          token.planType = session.planType;
+        }
         if (session?.tenantId !== undefined) {
           token.tenantId = session.tenantId;
         }
@@ -230,10 +247,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         
         if (token.id && session?.hasActivePlan === undefined && session?.tenantId === undefined) {
           try {
-             const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${token.id}/active`);
+             const subRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`}/api/subscriptions/${token.id}/active`, {
+               headers: {
+                 'x-internal-secret': process.env.INTERNAL_API_SECRET || 'fallback-internal-secret-xyz'
+               }
+             });
              if (subRes.ok) {
                const subData = await subRes.json();
                token.hasActivePlan = subData.hasActivePlan;
+               if (subData.subscription) {
+                 token.planType = subData.subscription.planType;
+               }
              }
           } catch(e) {
              console.error("Failed to update session subscription", e);
@@ -253,6 +277,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         // @ts-ignore
         session.user.hasActivePlan = token.hasActivePlan as boolean;
+        // @ts-ignore
+        session.user.planType = token.planType as string | null;
         // @ts-ignore
         session.user.tenantId = token.tenantId as string | null;
         // @ts-ignore
