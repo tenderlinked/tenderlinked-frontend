@@ -14,7 +14,7 @@ export default function AuthLayout({
       disableTransitionOnChange
     >
       <main className="min-h-screen">{children}</main>
-      <Toaster position="top-center" reverseOrder={false} />
+      <Toaster position="bottom-right" reverseOrder={false} />
     </ThemeProvider>
   );
 }

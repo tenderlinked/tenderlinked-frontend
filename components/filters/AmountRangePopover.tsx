@@ -15,6 +15,7 @@ interface AmountRangePopoverProps {
 }
 
 const PREDEFINED_RANGES = [
+  { label: "Under ₹5 Lakhs", min: "", max: "500000" },
   { label: "Under ₹10 Lakhs", min: "", max: "1000000" },
   { label: "₹10L - ₹50L", min: "1000000", max: "5000000" },
   { label: "₹50L - ₹1Cr", min: "5000000", max: "10000000" },

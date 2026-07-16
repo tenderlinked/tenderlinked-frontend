@@ -47,6 +47,12 @@ export const data = {
       requiredPermission: "members:read"
     },
     {
+      title: "Preferences",
+      url: "/preferences",
+      icon: Settings,
+      requiredPermission: "tenders:read"
+    },
+    {
       title: "Role Management",
       url: "/settings/roles",
       icon: ShieldCheck,

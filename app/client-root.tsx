@@ -45,7 +45,7 @@ export function ClientRoot({
           </main>
         </SidebarProvider>
         <ThemeCustomizer />
-        <Toaster position="top-center" reverseOrder={false} />
+        <Toaster position="bottom-right" reverseOrder={false} />
       </ThemeProvider>
     </SessionProvider>
   );

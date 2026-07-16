@@ -31,12 +31,21 @@ import {
   Clock,
   LayoutGrid,
   List,
-  PanelRight
+  PanelRight,
+  Copy,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays, isToday } from "date-fns";
 import { MultiSelectPopover } from "@/components/filters/MultiSelectPopover";
 import { AmountRangePopover } from "@/components/filters/AmountRangePopover";
 import { useTenderDownload } from "@/hooks/use-tender-download";
+import { SaveFilterModal } from "@/components/filters/SaveFilterModal";
+import { SavedFiltersDropdown } from "@/components/filters/SavedFiltersDropdown";
+import { ConfirmUnlockModal } from "@/components/filters/ConfirmUnlockModal";
+import { PreferencesSetupModal } from "@/components/filters/PreferencesSetupModal";
+import { PlanChangeModal } from "@/components/filters/PlanChangeModal";
 
 interface Tender {
   id: string;
@@ -56,7 +65,18 @@ interface Tender {
   noticePdfUrl?: string | null;
   tenderPdfUrl?: string | null;
   sourceUrl?: string | null;
+  tenderCode?: string | null;
+  tenderId?: string | null;
+  tenderCategory?: string | null;
+  hasDocuments?: boolean;
+  authority?: string;
+  city?: string;
 }
+
+const getPlatformName = (tender: Partial<Tender>) => {
+  if (tender.tenderCode?.toUpperCase().startsWith('GEM') || tender.tenderId?.toUpperCase().startsWith('GEM') || tender.sourceUrl?.includes('gem.gov.in')) return 'GeM';
+  return 'NICGEP';
+};
 
 // States and cities will be loaded dynamically from the API
 
@@ -98,7 +118,36 @@ export default function UnifiedTendersPage() {
   const [sortOption, setSortOption] = useState("newest");
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem('tender_viewMode') as 'card' | 'table';
+    if (savedViewMode) setViewMode(savedViewMode);
+    const savedSidebar = localStorage.getItem('tender_isSidebarVisible');
+    if (savedSidebar !== null) setIsSidebarVisible(savedSidebar === 'true');
+  }, []);
+
+  const handleSetViewMode = (mode: 'card' | 'table') => {
+    setViewMode(mode);
+    localStorage.setItem('tender_viewMode', mode);
+  };
+
+  const handleSetSidebarVisible = (visible: boolean) => {
+    setIsSidebarVisible(visible);
+    localStorage.setItem('tender_isSidebarVisible', visible.toString());
+  };
   const [sidebarStats, setSidebarStats] = useState<{ states: {name:string,count:number}[], cities: {name:string,count:number}[], keywords: {keyword:string,count:number}[] }>({ states: [], cities: [], keywords: [] });
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [limits, setLimits] = useState({ maxKeywords: 3, maxStates: 1, unlockedStates: [] as string[], unlockedKeywords: [] as string[], planType: '' });
+  const [isLoadingLimits, setIsLoadingLimits] = useState(true);
+  const [unlockModal, setUnlockModal] = useState<{isOpen: boolean, type: 'state'|'keyword', value: string, title: string, description: string, loading: boolean, isLimitReached?: boolean}>({ isOpen: false, type: 'state', value: '', title: '', description: '', loading: false });
+  const [isSaveFilterOpen, setIsSaveFilterOpen] = useState(false);
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+  const [isPlanChangeOpen, setIsPlanChangeOpen] = useState(false);
+  const [refreshFiltersTrigger, setRefreshFiltersTrigger] = useState(0);
+
+  const hasActiveFilters = selectedStates.length > 0 || selectedCities.length > 0 || selectedCategories.length > 0 || selectedAuthorities.length > 0 || selectedKeywords.length > 0 || minAmount || maxAmount || searchQuery;
+  const isLocked = !isLoadingLimits && limits.unlockedStates.length === 0 && limits.unlockedKeywords.length === 0;
 
   // Sidebar collapse state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<Record<string, boolean>>({});
@@ -137,6 +186,35 @@ export default function UnifiedTendersPage() {
   }, []);
 
   useEffect(() => {
+    const fetchUsage = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/billing/usage`, {
+          headers: { Authorization: `Bearer ${(session as any)?.accessToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const fetchedLimits = { 
+            maxKeywords: data.maxKeywords || 3, 
+            maxStates: data.maxStates || 1,
+            unlockedStates: data.unlockedStates || [],
+            unlockedKeywords: data.unlockedKeywords || [],
+            planType: data.planType || ''
+          };
+          setLimits(fetchedLimits);
+          
+          if (!searchParams.get('states') && fetchedLimits.unlockedStates.length > 0) {
+            setSelectedStates(fetchedLimits.unlockedStates);
+          }
+          if (!searchParams.get('keywords') && fetchedLimits.unlockedKeywords.length > 0) {
+            setSelectedKeywords(fetchedLimits.unlockedKeywords);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch limits", err);
+      } finally {
+        setIsLoadingLimits(false);
+      }
+    };
     const fetchSidebarStats = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders/sidebar-stats`, {
@@ -145,7 +223,10 @@ export default function UnifiedTendersPage() {
         if (res.ok) setSidebarStats(await res.json());
       } catch {}
     };
-    if (status === 'authenticated') fetchSidebarStats();
+    if (status === 'authenticated') {
+      fetchSidebarStats();
+      fetchUsage();
+    }
   }, [status]);
 
   useEffect(() => {
@@ -183,13 +264,41 @@ export default function UnifiedTendersPage() {
     }
   }, [selectedStates, status]);
 
+  const isKeywordLimitReached = limits.maxKeywords < 100 && limits.unlockedKeywords.length >= limits.maxKeywords;
+  const lockedKeywords = isKeywordLimitReached 
+    ? sidebarStats.keywords.map(k => k.keyword).filter(k => !limits.unlockedKeywords.includes(k)) 
+    : [];
+
+  const isStateLimitReached = limits.maxStates < 100 && limits.unlockedStates.length >= limits.maxStates;
+  const lockedStates = isStateLimitReached 
+    ? statesList.map(s => s.name).filter(s => !limits.unlockedStates.includes(s)) 
+    : [];
+
   const buildBaseUrl = () => {
     let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders?`;
-    if (selectedStates.length > 0) url += `&states=${encodeURIComponent(selectedStates.join(','))}`;
+    
+    // Enforce limits: if specific filters are selected, only allow those that are unlocked. 
+    // Otherwise, default to all unlocked ones.
+    // Only enforce if the user has a restricted plan (maxKeywords < 100).
+    let activeStates = selectedStates;
+    let activeKeywords = selectedKeywords;
+
+    if (limits.maxKeywords < 100) {
+      activeStates = selectedStates.length > 0 
+        ? selectedStates.filter(s => limits.unlockedStates.includes(s)) 
+        : limits.unlockedStates;
+      
+      activeKeywords = selectedKeywords.length > 0 
+        ? selectedKeywords.filter(k => limits.unlockedKeywords.includes(k)) 
+        : limits.unlockedKeywords;
+    }
+
+    if (activeStates.length > 0) url += `&states=${encodeURIComponent(activeStates.join(','))}`;
+    if (activeKeywords.length > 0) url += `&keywords=${encodeURIComponent(activeKeywords.join(','))}`;
+    
     if (selectedCities.length > 0) url += `&districts=${encodeURIComponent(selectedCities.join(','))}`;
     if (selectedCategories.length > 0) url += `&categories=${encodeURIComponent(selectedCategories.join(','))}`;
     if (selectedAuthorities.length > 0) url += `&authorities=${encodeURIComponent(selectedAuthorities.join(','))}`;
-    if (selectedKeywords.length > 0) url += `&keywords=${encodeURIComponent(selectedKeywords.join(','))}`;
     if (minAmount) url += `&minAmount=${encodeURIComponent(minAmount)}`;
     if (maxAmount) url += `&maxAmount=${encodeURIComponent(maxAmount)}`;
     if (searchQuery) url += `&search=${searchQuery}`;
@@ -231,6 +340,7 @@ export default function UnifiedTendersPage() {
     if (tendersCache.current[url]) {
       setTenders(tendersCache.current[url].tenders);
       setTotal(tendersCache.current[url].total);
+      setLoading(false);
       return;
     }
 
@@ -311,8 +421,29 @@ export default function UnifiedTendersPage() {
   // Hide if they have an active plan (Starter and above)
   const showAdBanner = !hasActivePlan && userPlan !== 'starter' && userPlan !== 'standard' && userPlan !== 'premium';
 
+  const handleSort = (field: string) => {
+    let newDir = 'desc'; // Default to descending first
+    if (sortOption && sortOption.startsWith(field)) {
+      const currentDir = sortOption.split('_').pop();
+      if (currentDir === 'desc') newDir = 'asc';
+      else if (currentDir === 'asc') {
+        setSortOption('newest'); // reset to default
+        return;
+      }
+    }
+    setSortOption(`${field}_${newDir}`);
+  };
+
+  const renderSortIcon = (field: string) => {
+    if (!sortOption || !sortOption.startsWith(field)) {
+      return <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 opacity-40 group-hover:opacity-100 group-hover:text-slate-500 transition-colors transition-opacity" />;
+    }
+    const dir = sortOption.split('_').pop();
+    return dir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />;
+  };
+
   return (
-    <div className="flex flex-col gap-6 w-full pb-24">
+    <div className="flex flex-col w-full pb-24">
       
       {/* Top Navigation & Filter Bar */}
       <div className="bg-white border-b border-slate-200 sticky top-16 z-20 shadow-sm px-4 md:px-8 pt-3 pb-0">
@@ -340,7 +471,37 @@ export default function UnifiedTendersPage() {
               label="Keyword"
               options={sidebarStats.keywords.map(k => k.keyword)}
               selectedValues={selectedKeywords}
-              onChange={setSelectedKeywords}
+              lockedOptions={lockedKeywords}
+              onLockedClick={(kw) => {
+                setUnlockModal({
+                  isOpen: true,
+                  type: 'keyword',
+                  value: kw,
+                  title: `Keyword Limit Reached`,
+                  description: `You have reached your limit of ${limits.maxKeywords} keywords. Upgrade to a premium plan to add more keywords to your feed.`,
+                  isLimitReached: true
+                });
+              }}
+              onChange={(vals) => {
+                const addedKeywords = vals.filter(v => !selectedKeywords.includes(v));
+                const newKeywordsToUnlock = addedKeywords.filter(k => !limits.unlockedKeywords.includes(k));
+                if (newKeywordsToUnlock.length > 0) {
+                  const addedKeyword = newKeywordsToUnlock[0];
+                  const isFree = limits.unlockedKeywords.length < limits.maxKeywords;
+                  setUnlockModal({
+                    isOpen: true,
+                    type: 'keyword',
+                    value: addedKeyword,
+                    title: `Unlock Keyword: ${addedKeyword}`,
+                    description: isFree 
+                      ? `You have ${limits.maxKeywords - limits.unlockedKeywords.length} free keyword slots remaining. Do you want to use one to unlock "${addedKeyword}"? Once unlocked, it cannot be changed.`
+                      : `You have reached your limit of ${limits.maxKeywords} keywords. Upgrade to a premium plan to add more keywords to your feed.`,
+                    isLimitReached: !isFree
+                  });
+                  return;
+                }
+                setSelectedKeywords(vals);
+              }}
               placeholder="Search Keywords"
               allowCustom={true}
             />
@@ -349,7 +510,35 @@ export default function UnifiedTendersPage() {
               label="State"
               options={statesList.map(s => s.name)}
               selectedValues={selectedStates}
+              lockedOptions={lockedStates}
+              onLockedClick={(st) => {
+                setUnlockModal({
+                  isOpen: true,
+                  type: 'state',
+                  value: st,
+                  title: `State Limit Reached`,
+                  description: `You have reached your limit of ${limits.maxStates} states. Upgrade to a premium plan to add more states to your feed.`,
+                  isLimitReached: true
+                });
+              }}
               onChange={(vals) => {
+                const addedStates = vals.filter(v => !selectedStates.includes(v));
+                const newStatesToUnlock = addedStates.filter(s => !limits.unlockedStates.includes(s));
+                if (newStatesToUnlock.length > 0) {
+                  const addedState = newStatesToUnlock[0];
+                  const isFree = limits.unlockedStates.length < limits.maxStates;
+                  setUnlockModal({
+                    isOpen: true,
+                    type: 'state',
+                    value: addedState,
+                    title: `Unlock State: ${addedState}`,
+                    description: isFree
+                      ? `You have ${limits.maxStates - limits.unlockedStates.length} free state slots remaining. Do you want to use one to unlock "${addedState}"? Once unlocked, it cannot be changed.`
+                      : `You have reached your limit of ${limits.maxStates} states. Upgrade to a premium plan to add more states to your feed.`,
+                    isLimitReached: !isFree
+                  });
+                  return;
+                }
                 setSelectedStates(vals);
                 setSelectedCities([]); // Reset cities when states change
               }}
@@ -394,14 +583,14 @@ export default function UnifiedTendersPage() {
             <div className="ml-auto flex items-center gap-3">
               <div className="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-md border border-slate-200">
                 <button 
-                  onClick={() => { setViewMode('card'); setIsSidebarVisible(true); }}
+                  onClick={() => { handleSetViewMode('card'); handleSetSidebarVisible(true); }}
                   className={`p-1.5 rounded ${viewMode === 'card' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                   title="Card View"
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
                 <button 
-                  onClick={() => { setViewMode('table'); setIsSidebarVisible(false); }}
+                  onClick={() => { handleSetViewMode('table'); handleSetSidebarVisible(false); }}
                   className={`p-1.5 rounded ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                   title="Table View"
                 >
@@ -409,7 +598,7 @@ export default function UnifiedTendersPage() {
                 </button>
                 <div className="w-px h-4 bg-slate-300/50 mx-1"></div>
                 <button 
-                  onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+                  onClick={() => handleSetSidebarVisible(!isSidebarVisible)}
                   className={`p-1.5 rounded ${isSidebarVisible ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                   title="Toggle Sidebar"
                 >
@@ -417,17 +606,7 @@ export default function UnifiedTendersPage() {
                 </button>
               </div>
 
-              <Select value={sortOption} onValueChange={setSortOption}>
-                <SelectTrigger className="w-[140px] h-9 text-xs">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest" className="text-xs">Newest</SelectItem>
-                  <SelectItem value="closing_soon" className="text-xs">Closing Soon</SelectItem>
-                  <SelectItem value="high_value" className="text-xs">High Value</SelectItem>
-                </SelectContent>
-              </Select>
-              
+
               <Button size="sm" onClick={handleSaveFilter} className="h-9 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm rounded-full px-5">
                 Save Filter
               </Button>
@@ -437,273 +616,241 @@ export default function UnifiedTendersPage() {
         </div>
       </div>
 
-      {/* Breadcrumbs & Active Filters (Not sticky) */}
-      <div className="w-full mx-auto px-4 md:px-8 mt-2 flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <Link href="/dashboard" className="hover:text-blue-600">Home</Link>
-          <ChevronRight className="w-3 h-3" />
-          <Link href="/tenders" className="hover:text-blue-600">Indian Tenders</Link>
-          <ChevronRight className="w-3 h-3" />
-          <span className="font-semibold text-slate-700">{displayStateName} Tenders</span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {(selectedStates.length > 0 || selectedCities.length > 0 || selectedCategories.length > 0 || selectedAuthorities.length > 0 || selectedKeywords.length > 0 || minAmount || maxAmount || searchQuery) && (
-            <Button variant="ghost" size="sm" className="h-6 text-[11px] text-blue-600 hover:bg-blue-50 px-2 font-semibold" onClick={() => { setSelectedStates([]); setSelectedCities([]); setSelectedCategories([]); setSelectedAuthorities([]); setSelectedKeywords([]); setMinAmount(""); setMaxAmount(""); setSearchQuery(""); }}>
-              Reset All
-            </Button>
-          )}
-
-          {searchQuery && (
-            <Badge onClick={() => setSearchQuery("")} variant="secondary" className="bg-white text-slate-700 border border-blue-200 hover:bg-blue-50 px-2 py-0.5 rounded flex items-center gap-2 cursor-pointer font-medium shadow-sm transition-colors">
-              <div className="flex flex-col items-start leading-none gap-1 py-0.5">
-                <span className="text-[11px] font-semibold leading-none">{searchQuery}</span>
-                <span className="text-[9px] text-blue-500 font-bold leading-none">Keyword</span>
-              </div>
-              <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500 ml-1" />
-            </Badge>
-          )}
-          
-          {selectedStates.map(state => (
-            <Badge key={`state-${state}`} onClick={() => setSelectedStates(prev => prev.filter(s => s !== state))} variant="secondary" className="bg-white text-slate-700 border border-blue-200 hover:bg-blue-50 px-2 py-0.5 rounded flex items-center gap-2 cursor-pointer font-medium shadow-sm transition-colors">
-              <div className="flex flex-col items-start leading-none gap-1 py-0.5">
-                <span className="text-[11px] font-semibold leading-none">{state}</span>
-                <span className="text-[9px] text-blue-500 font-bold leading-none">State</span>
-              </div>
-              <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500 ml-1" />
-            </Badge>
-          ))}
-          
-          {selectedCities.map(city => (
-            <Badge key={`city-${city}`} onClick={() => setSelectedCities(prev => prev.filter(c => c !== city))} variant="secondary" className="bg-white text-slate-700 border border-blue-200 hover:bg-blue-50 px-2 py-0.5 rounded flex items-center gap-2 cursor-pointer font-medium shadow-sm transition-colors">
-              <div className="flex flex-col items-start leading-none gap-1 py-0.5">
-                <span className="text-[11px] font-semibold leading-none">{city}</span>
-                <span className="text-[9px] text-blue-500 font-bold leading-none">City</span>
-              </div>
-              <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500 ml-1" />
-            </Badge>
-          ))}
-          
-          {selectedCategories.map(cat => (
-            <Badge key={`cat-${cat}`} onClick={() => setSelectedCategories(prev => prev.filter(c => c !== cat))} variant="secondary" className="bg-white text-slate-700 border border-blue-200 hover:bg-blue-50 px-2 py-0.5 rounded flex items-center gap-2 cursor-pointer font-medium shadow-sm transition-colors">
-              <div className="flex flex-col items-start leading-none gap-1 py-0.5">
-                <span className="text-[11px] font-semibold leading-none">{cat}</span>
-                <span className="text-[9px] text-blue-500 font-bold leading-none">Category</span>
-              </div>
-              <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500 ml-1" />
-            </Badge>
-          ))}
-          
-          {selectedKeywords.map(kw => (
-            <Badge key={`kw-${kw}`} onClick={() => setSelectedKeywords(prev => prev.filter(k => k !== kw))} variant="secondary" className="bg-white text-slate-700 border border-blue-200 hover:bg-blue-50 px-2 py-0.5 rounded flex items-center gap-2 cursor-pointer font-medium shadow-sm transition-colors">
-              <div className="flex flex-col items-start leading-none gap-1 py-0.5">
-                <span className="text-[11px] font-semibold leading-none">{kw}</span>
-                <span className="text-[9px] text-blue-500 font-bold leading-none">Keyword</span>
-              </div>
-              <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500 ml-1" />
-            </Badge>
-          ))}
-          
-          {selectedAuthorities.map(auth => (
-            <Badge key={`auth-${auth}`} onClick={() => setSelectedAuthorities(prev => prev.filter(a => a !== auth))} variant="secondary" className="bg-white text-slate-700 border border-blue-200 hover:bg-blue-50 px-2 py-0.5 rounded flex items-center gap-2 cursor-pointer font-medium shadow-sm transition-colors max-w-[250px]">
-              <div className="flex flex-col items-start leading-none gap-1 py-0.5 w-full overflow-hidden">
-                <span className="text-[11px] font-semibold leading-none truncate w-full">{auth}</span>
-                <span className="text-[9px] text-blue-500 font-bold leading-none">Authority</span>
-              </div>
-              <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500 ml-1 shrink-0" />
-            </Badge>
-          ))}
-          
-          {(minAmount || maxAmount) && (
-            <Badge variant="secondary" className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 px-2 py-0.5 rounded text-[11px] flex items-center gap-1 cursor-pointer">
-              ₹ {minAmount || "0"} - ₹ {maxAmount || "Max"}
-              <X className="w-3 h-3 hover:text-red-500 shrink-0" onClick={() => { setMinAmount(""); setMaxAmount(""); }} />
-            </Badge>
-          )}
-        </div>
-      </div>
 
       {/* Main Content Area */}
-      <div className={`w-full mx-auto grid grid-cols-1 ${isSidebarVisible ? 'xl:grid-cols-5' : 'xl:grid-cols-1'} gap-6 px-4 md:px-8 pt-6 transition-all duration-300`}>
+      <div className={`w-full mx-auto grid grid-cols-1 ${isSidebarVisible ? 'xl:grid-cols-7' : 'xl:grid-cols-1'} gap-6 transition-all duration-300`}>
         
         {/* Left Column - Tenders List */}
-        <div className={`${isSidebarVisible ? 'xl:col-span-4' : 'xl:col-span-1'} flex flex-col gap-4 transition-all duration-300`}>
-          
-          <div className="mb-2">
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight">{displayStateName} Tenders</h1>
-            <p className="text-sm text-slate-500 mt-1">{total}+ {displayStateName} {selectedStates.length > 0 && "State"} Tenders</p>
-            <p className="text-xs text-slate-400 mt-2 leading-relaxed max-w-3xl">
-              {displayStateName} tenders offer business opportunities across construction, manufacturing, infrastructure, and public services. Our platform simplifies access to the latest e-tender listings, helping businesses discover relevant government contracts, receive real-time alerts, and download documents.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-4 mt-2">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className={`${isSidebarVisible ? 'xl:col-span-6' : 'xl:col-span-1'} flex flex-col gap-4 transition-all duration-300`}>
+          {isLocked ? (
+            <div className="text-center py-24 bg-white rounded-xl border border-slate-200 shadow-sm mt-4 mx-4 md:mx-6 flex flex-col items-center">
+              <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                <Lock className="w-8 h-8 text-blue-600" />
               </div>
-            ) : tenders.length === 0 ? (
-              <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                <h3 className="text-lg font-semibold text-slate-700">No tenders found</h3>
-                <p className="text-sm text-slate-500 mt-1">Try adjusting your filters to find more opportunities.</p>
-              </div>
-            ) : viewMode === 'table' ? (
-              <div className="overflow-x-auto xl:overflow-visible rounded-xl border border-slate-200 shadow-sm bg-white mt-2">
+              <h3 className="text-xl font-bold text-slate-800">Unlock Your Tender Feed</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-md leading-relaxed mb-6">
+                To view active tenders, you must first set up your preferences. Please use the filters above to select and lock in your preferred states or keywords.
+              </p>
+              <Button 
+                onClick={() => setIsPreferencesOpen(true)} 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-5 text-base rounded-full shadow-md transition-transform hover:scale-105"
+              >
+                Setup Preferences
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-4 mt-2 relative">
+                {loading && (
+                  <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-20 flex items-center justify-center rounded-xl min-h-[300px]">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                )}
+                {tenders.length === 0 && !loading ? (
+                  <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-700">No tenders found</h3>
+                    <p className="text-sm text-slate-500 mt-1">Try adjusting your filters to find more opportunities.</p>
+                  </div>
+                ) : viewMode === 'table' ? (
+              <div className="border-y border-slate-200 bg-white">
                 <table className="w-full text-sm text-left relative">
-                  <thead className="sticky top-[114px] z-10 text-[11px] text-slate-600 uppercase tracking-wider bg-slate-100 shadow-sm ring-1 ring-slate-200">
-                    <tr>
-                      <th className="px-5 py-4 font-bold">Tender Details</th>
-                      <th className="px-5 py-4 font-bold w-48">Value</th>
-                      <th className="px-5 py-4 font-bold w-40">Dates</th>
-                      <th className="px-5 py-4 font-bold text-right w-36">Actions</th>
+                  <thead className="sticky top-[121px] z-10 text-[11px] text-slate-700 uppercase tracking-wider bg-blue-50 shadow-sm border-b border-slate-300">
+                    <tr className="divide-x divide-slate-200">
+                      <th className="px-3 py-3 font-bold text-center w-32 cursor-pointer group hover:bg-blue-100/50 transition-colors select-none" onClick={() => handleSort('organisation')}>
+                        <div className="flex items-center justify-center gap-1.5">Department Name {renderSortIcon('organisation')}</div>
+                      </th>
+                      <th className="px-3 py-3 font-bold text-center w-28 cursor-pointer group hover:bg-blue-100/50 transition-colors select-none" onClick={() => handleSort('tenderId')}>
+                        <div className="flex items-center justify-center gap-1.5">Tender ID {renderSortIcon('tenderId')}</div>
+                      </th>
+                      <th className="px-3 py-3 font-bold text-center w-24 cursor-pointer group hover:bg-blue-100/50 transition-colors select-none" onClick={() => handleSort('tenderCategory')}>
+                        <div className="flex items-center justify-center gap-1.5">Tender Category {renderSortIcon('tenderCategory')}</div>
+                      </th>
+                      <th className="px-4 py-3 font-bold text-center cursor-pointer group hover:bg-blue-100/50 transition-colors select-none" onClick={() => handleSort('title')}>
+                        <div className="flex items-center justify-center gap-1.5">Name of Work {renderSortIcon('title')}</div>
+                      </th>
+                      <th className="px-3 py-3 font-bold text-center w-36 cursor-pointer group hover:bg-blue-100/50 transition-colors select-none" onClick={() => handleSort('tenderAmount')}>
+                        <div className="flex items-center justify-center gap-1.5"><span>Estimated<br/>Contract Value</span> {renderSortIcon('tenderAmount')}</div>
+                      </th>
+                      <th className="px-3 py-3 font-bold text-center w-32 cursor-pointer group hover:bg-blue-100/50 transition-colors select-none" onClick={() => handleSort('startDate')}>
+                        <div className="flex items-center justify-center gap-1.5">Start Date & Time {renderSortIcon('startDate')}</div>
+                      </th>
+                      <th className="px-3 py-3 font-bold text-center w-32 cursor-pointer group hover:bg-blue-100/50 transition-colors select-none" onClick={() => handleSort('endDate')}>
+                        <div className="flex items-center justify-center gap-1.5">Closing Date & Time {renderSortIcon('endDate')}</div>
+                      </th>
+                      <th className="px-2 py-3 font-bold text-center w-16">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {tenders.map((tender) => (
-                      <tr key={tender.id} className="hover:bg-blue-50/30 even:bg-slate-50/60 transition-colors group">
-                        <td className="px-5 py-4">
-                          <Link href={`/tenders/${tender.id}`} className="text-[15px] font-semibold text-slate-900 hover:text-blue-600 line-clamp-2 leading-snug mb-1.5 transition-colors" title={tender.title}>
-                            {tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - ')}
-                          </Link>
-                          
-                          <div className="text-xs text-slate-500 line-clamp-1 mb-2.5 pr-4">
-                            {tender.aiSummary === '__PREMIUM_LOCKED__' || tender.tags?.some(t => t.includes('PREMIUM_LOCKED')) ? (
-                              <span className="blur-[3px] select-none opacity-60">This premium AI summary contains detailed analysis of the tender scope.</span>
-                            ) : tender.aiSummary ? (
-                              tender.aiSummary
-                            ) : tender.description ? (
-                              tender.description
-                            ) : (
-                              <span className="italic text-slate-400">No summary available.</span>
-                            )}
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="secondary" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-sm font-medium px-2 py-0.5 text-[10px] flex items-center gap-1 capitalize rounded">
-                              <Briefcase className="w-3 h-3 text-white/90" />
-                              {tender.tenderCategory || 'Miscellaneous'}
-                            </Badge>
-                            {tender.tags && tender.tags
-                              .filter(t => !t.includes('PREMIUM_LOCKED') && t.toLowerCase() !== (tender.tenderCategory || '').toLowerCase())
-                              .slice(0, 1).map((tag, idx) => (
-                              <Badge key={idx} variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 font-medium px-2 py-0.5 text-[10px] capitalize rounded">
-                                {tag}
-                              </Badge>
-                            ))}
-                            
-                            <div className="flex items-center gap-1 text-slate-500 text-[11px] font-medium ml-1">
-                              <MapPin className="w-3 h-3 text-slate-400" />
-                              <span className="truncate max-w-[150px]" title={tender.location || tender.district || tender.state || tender.organisation}>
-                                {tender.location || tender.district || tender.state || tender.organisation}
-                              </span>
-                            </div>
+                  <tbody className="divide-y divide-slate-200 border-b border-slate-200">
+                    {tenders.map((tender) => {
+                      const isClosed = tender.endDate && differenceInCalendarDays(new Date(tender.endDate), new Date()) < 0;
+                      return (
+                      <tr key={tender.id} className={`${isClosed ? 'bg-slate-100/80 hover:bg-slate-200/50 grayscale-[0.2] opacity-80' : 'hover:bg-blue-50/20 even:bg-slate-50/50 bg-white'} transition-colors group divide-x divide-slate-200 text-center`}>
+                        <td className="px-3 py-4 text-xs font-medium text-slate-700 uppercase">
+                          {tender.authority || tender.organisation || 'N/A'}
+                        </td>
+                        
+                        <td className="px-3 py-4 text-[11px] font-semibold text-slate-800">
+                          <div 
+                            className="flex items-center justify-center gap-1.5 cursor-pointer group/copy"
+                            onClick={async () => {
+                              const idToCopy = tender.tenderId || tender.tenderCode || '';
+                              if (!idToCopy) return;
+                              try {
+                                if (navigator?.clipboard?.writeText) {
+                                  await navigator.clipboard.writeText(idToCopy);
+                                } else {
+                                  const textArea = document.createElement("textarea");
+                                  textArea.value = idToCopy;
+                                  document.body.appendChild(textArea);
+                                  textArea.select();
+                                  document.execCommand('copy');
+                                  document.body.removeChild(textArea);
+                                }
+                              } catch (err) {
+                                console.error('Failed to copy', err);
+                              }
+                            }}
+                            title="Click to copy"
+                          >
+                            <span className="group-hover/copy:text-blue-600 transition-colors">
+                              {tender.tenderId || tender.tenderCode || 'N/A'}
+                            </span>
+                            <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover/copy:opacity-100 transition-opacity" />
                           </div>
                         </td>
                         
-                        <td className="px-5 py-4 align-top pt-5">
-                          {tender.tenderValue === '__PREMIUM_LOCKED__' ? (
-                            <div className="flex items-center gap-1.5 group/premium cursor-pointer bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 w-fit" title="Unlock Premium to view amount">
-                              <span className="font-bold text-emerald-600/50 text-xs blur-[4px] select-none">₹ 25,00,000</span>
-                              <Lock className="w-3 h-3 text-blue-500 opacity-80 group-hover/premium:opacity-100 transition-opacity" />
-                            </div>
-                          ) : (
-                            <div className="inline-flex items-center bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-100/80">
-                              <span className="font-bold text-xs">
-                                {tender.tenderValue 
-                                  ? (tender.tenderValue.toLowerCase().includes('rs') || tender.tenderValue.includes('₹') 
-                                      ? tender.tenderValue 
-                                      : `₹ ${tender.tenderValue}`)
-                                  : 'Refer Documents'}
+                        <td className="px-3 py-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                          {tender.tenderCategory || 'WORKS'}
+                        </td>
+                        
+                        <td className="px-4 py-4 text-left">
+                          <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}-${tender.id}`} className="text-xs font-semibold text-slate-900 hover:text-blue-600 line-clamp-3 leading-relaxed transition-colors" title={tender.title}>
+                            {tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - ')}
+                          </Link>
+                          {(() => {
+                            const filteredTags = (tender.tags || []).filter((t: string) => !t.includes('PREMIUM_LOCKED') && t.toLowerCase() !== (tender.tenderCategory || '').toLowerCase());
+                            return filteredTags.length > 0 ? (
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-1">
+                                {filteredTags.slice(0, 4).map((tag: string, idx: number) => (
+                                  <Badge key={idx} variant="outline" className="text-[9px] px-1.5 py-0 bg-slate-50 text-slate-500 font-medium border-slate-200 uppercase tracking-wider">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                {filteredTags.length > 4 && (
+                                  <span className="text-[9px] text-slate-400 font-medium">+{filteredTags.length - 4} more</span>
+                                )}
+                              </div>
+                            ) : null;
+                          })()}
+                          {(tender.location || tender.district || tender.city || tender.state) && (
+                            <div className="flex items-center gap-1 text-slate-500 text-[10px] mt-1.5 font-medium">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate" title={[tender.location, tender.district, tender.city, tender.state].filter(Boolean).join(', ')}>
+                                {(() => {
+                                  const parts = [tender.location, tender.district, tender.city, tender.state].filter(Boolean) as string[];
+                                  return Array.from(new Set(parts)).join(', ');
+                                })()}
+                                <span className="font-semibold text-slate-600 ml-1">({getPlatformName(tender)})</span>
                               </span>
                             </div>
                           )}
+
                         </td>
                         
-                        <td className="px-5 py-4 align-top pt-5">
-                          <div className="flex flex-col gap-2.5">
-                            <div className="flex items-center gap-2">
-                              <div className="bg-blue-50/80 border border-blue-100 p-1 rounded-md shadow-sm shrink-0">
-                                <Calendar className="w-3 h-3 text-blue-600" />
-                              </div>
-                              <div className="flex flex-col leading-none">
-                                <span className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">Start</span>
-                                <span className="font-semibold text-slate-800 text-[11px]">
-                                  {tender.startDate ? format(new Date(tender.startDate), 'dd MMM yyyy') : 'N/A'}
-                                </span>
-                              </div>
+                        <td className="px-3 py-4">
+                          {tender.tenderValue === '__PREMIUM_LOCKED__' ? (
+                            <div className="flex justify-center items-center gap-1 group/premium cursor-pointer" title="Unlock Premium to view amount">
+                              <span className="font-bold text-emerald-600/50 text-xs blur-[4px] select-none">₹ 25,00,000</span>
+                              <Lock className="w-3 h-3 text-blue-500 opacity-80" />
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="bg-rose-50/80 border border-rose-100 p-1 rounded-md shadow-sm shrink-0">
-                                <Clock className="w-3 h-3 text-rose-600" />
-                              </div>
-                              <div className="flex flex-col leading-none">
-                                <span className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">Close</span>
-                                <span className="font-semibold text-slate-800 text-[11px]">
-                                  {tender.endDate ? format(new Date(tender.endDate), 'dd MMM yyyy') : 'N/A'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+                          ) : (
+                            <span className="font-semibold text-xs text-slate-800">
+                              {tender.tenderValue 
+                                ? (tender.tenderValue.toLowerCase().includes('rs') || tender.tenderValue.includes('₹') 
+                                    ? tender.tenderValue 
+                                    : `₹ ${tender.tenderValue}`)
+                                : '-'}
+                            </span>
+                          )}
                         </td>
                         
-                        <td className="px-5 py-4 align-top text-right pt-5">
-                          <div className="flex flex-col items-end gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className={`h-7 text-xs rounded-full font-semibold px-3 w-24 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${tender.isBookmarked ? 'bg-red-50 border-red-200 text-red-600 hover:bg-blue-600 hover:text-white hover:border-blue-600' : 'text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white'}`}
+                        <td className="px-3 py-4 text-xs font-medium text-slate-600">
+                          {tender.startDate ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <span>{format(new Date(tender.startDate), 'dd/MM/yyyy hh:mm a')}</span>
+                              {(() => {
+                                const d = new Date(tender.startDate);
+                                if (isToday(d)) return <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-full">Today</span>;
+                                const diff = differenceInCalendarDays(d, new Date());
+                                if (diff < 0) return <span className="text-[10px] text-slate-400 font-medium">{Math.abs(diff)} days ago</span>;
+                                return <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full font-medium">in {diff} days</span>;
+                              })()}
+                            </div>
+                          ) : 'N/A'}
+                        </td>
+                        
+                        <td className="px-3 py-4 text-xs font-medium text-slate-600">
+                          {tender.endDate ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <span>{format(new Date(tender.endDate), 'dd/MM/yyyy hh:mm a')}</span>
+                              {(() => {
+                                const d = new Date(tender.endDate);
+                                if (isToday(d)) return <span className="text-[10px] text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded-full animate-pulse">Ends today</span>;
+                                const diff = differenceInCalendarDays(d, new Date());
+                                if (diff < 0) return <span className="text-[10px] text-red-600 font-semibold bg-red-50 px-1.5 py-0.5 rounded-full">Closed</span>;
+                                if (diff <= 3) return <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded-full">{diff} days left</span>;
+                                return <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded-full">{diff} days left</span>;
+                              })()}
+                            </div>
+                          ) : 'N/A'}
+                        </td>
+                        
+                        <td className="px-2 py-4">
+                          <div className="flex flex-col items-center gap-2.5">
+                            <button 
                               onClick={() => handleToggleBookmark(tender.id, tender.isBookmarked)}
+                              className={`p-1.5 rounded-md transition-colors ${tender.isBookmarked ? 'text-red-500 hover:bg-red-50' : 'text-blue-600 hover:bg-blue-50 border border-blue-200'}`}
+                              title={tender.isBookmarked ? 'Following' : 'Follow'}
                             >
-                              <Heart className={`w-3 h-3 mr-1.5 ${tender.isBookmarked ? 'fill-current' : ''}`} />
-                              {tender.isBookmarked ? 'Following' : 'Follow'}
-                            </Button>
+                              <Heart className={`w-4 h-4 ${tender.isBookmarked ? 'fill-current' : ''}`} />
+                            </button>
                             
                             {tender.hasDocuments === false ? (
-                              <Button 
-                                size="sm" 
-                                disabled
-                                className="h-7 text-xs rounded-full bg-slate-100 text-slate-400 font-semibold shadow-sm px-3 w-24 cursor-not-allowed border-slate-200"
-                                title="No documents available"
-                              >
-                                <Download className="w-3 h-3 mr-1.5 opacity-50" />
-                                No Docs
-                              </Button>
+                              <button disabled className="p-1.5 border border-slate-200 rounded-md text-slate-300 cursor-not-allowed" title="No documents available">
+                                <Download className="w-4 h-4" />
+                              </button>
                             ) : tender.noticePdfUrl === '__CREDIT_LOCKED__' || tender.tenderPdfUrl === '__CREDIT_LOCKED__' ? (
-                              <Button size="sm" variant="outline" className="h-7 text-xs rounded-full border-slate-200 text-slate-500 bg-slate-50 shadow-sm px-3 w-24 relative overflow-hidden group cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:scale-95" title="Upgrade to plan to download">
-                                <div className="flex items-center opacity-40 select-none">
-                                  <Download className="w-3 h-3 mr-1" />
-                                  <span className="font-semibold">Download</span>
-                                </div>
-                                <div className="absolute inset-0 flex items-center justify-center bg-slate-100/30 backdrop-blur-[0.5px]">
-                                  <Lock className="w-3.5 h-3.5 text-blue-500 drop-shadow-sm group-hover:scale-110 transition-transform" />
-                                </div>
-                              </Button>
+                              <button className="p-1.5 border border-blue-200 text-blue-400 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors relative group" title="Upgrade to plan to download">
+                                <Download className="w-4 h-4 opacity-40" />
+                                <Lock className="w-3 h-3 absolute -bottom-1 -right-1 text-blue-600" />
+                              </button>
                             ) : (
-                              <Button 
-                                size="sm" 
-                                className="h-7 text-xs rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm px-3 w-24 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 hover:shadow-md"
+                              <button 
                                 onClick={(e) => initiateDownload(tender, e)}
+                                className="p-1.5 border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                title="Download Documents"
                               >
-                                <Download className="w-3 h-3 mr-1.5" />
-                                Download
-                              </Button>
+                                <Download className="w-4 h-4" />
+                              </button>
                             )}
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
             ) : (
-              tenders.map((tender) => (
-                <Card key={tender.id} className="group relative border-slate-200/60 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1.5 hover:border-blue-300/60 transition-all duration-500 bg-white overflow-hidden rounded-xl">
+              tenders.map((tender) => {
+                const isClosed = tender.endDate && differenceInCalendarDays(new Date(tender.endDate), new Date()) < 0;
+                return (
+                <Card key={tender.id} className={`group relative shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-500 overflow-hidden rounded-xl ${isClosed ? 'bg-slate-50 border-slate-200 grayscale-[0.2] opacity-80 hover:shadow-slate-900/5 hover:border-slate-300' : 'bg-white border-slate-200/60 hover:shadow-blue-900/5 hover:border-blue-300/60'}`}>
                   <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <CardContent className="p-0">
                     <div className="p-5 flex flex-col gap-3 relative z-10">
                       
                       {/* Tender Title */}
-                      <Link href={`/tenders/${tender.id}`} className="text-[16px] font-semibold text-slate-900 hover:text-blue-600 leading-snug tracking-tight line-clamp-2 transition-colors" title={tender.title}>
+                      <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}-${tender.id}`} className="text-[16px] font-semibold text-slate-900 hover:text-blue-600 leading-snug tracking-tight line-clamp-2 transition-colors" title={tender.title}>
                         {tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - ')}
                       </Link>
 
@@ -742,40 +889,9 @@ export default function UnifiedTendersPage() {
                               </span>
                             ));
                           })()}
+                          <span className="font-semibold text-slate-600 ml-1">({getPlatformName(tender)})</span>
                         </div>
                       </div>
-
-                      {/* Description / Summary */}
-                      <div className="mt-2 text-sm text-slate-600 leading-relaxed">
-                        {tender.aiSummary === '__PREMIUM_LOCKED__' || tender.tags?.some(t => t.includes('PREMIUM_LOCKED')) ? (
-                           <div className="relative w-full rounded-md overflow-hidden bg-slate-50">
-                             {/* Blurred Dummy Text */}
-                             <div className="text-sm text-slate-600 leading-relaxed blur-[5px] select-none opacity-60 p-2 line-clamp-2">
-                               This premium AI summary contains detailed analysis of the tender scope, eligibility criteria, required documents, and key technical specifications extracted directly from the official notices.
-                             </div>
-                             
-                             {/* Premium Overlay Button */}
-                             <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px]">
-                               <div className="flex items-center gap-2 text-blue-700 bg-blue-50/95 shadow-sm px-4 py-1.5 rounded-full border border-blue-200 font-medium text-xs cursor-pointer hover:bg-blue-100 transition-colors">
-                                 <Lock className="w-3.5 h-3.5" />
-                                 <span>Unlock Premium Feature</span>
-                                 <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                               </div>
-                             </div>
-                           </div>
-                        ) : tender.aiSummary ? (
-                          <div className="line-clamp-2">
-                            {tender.aiSummary}
-                          </div>
-                        ) : tender.description ? (
-                          <div className="line-clamp-2">
-                            {tender.description}
-                          </div>
-                        ) : (
-                          <span className="italic text-slate-400">No summary available.</span>
-                        )}
-                      </div>
-
                     </div>
 
                     {/* Footer - Details & Actions */}
@@ -870,7 +986,7 @@ export default function UnifiedTendersPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))
+              );})
             )}
           </div>
           
@@ -947,11 +1063,13 @@ export default function UnifiedTendersPage() {
               </div>
             </div>
           )}
+                    </>
+          )}
         </div>
 
         {/* Right Column - Sidebars */}
         {isSidebarVisible && (
-          <div className="xl:col-span-1 flex flex-col gap-3 sticky top-36 h-fit max-h-[calc(100vh-160px)] overflow-y-auto pb-4 no-scrollbar animate-in slide-in-from-right-8 duration-300 fade-in">
+          <div className="xl:col-span-1 flex flex-col gap-3 sticky top-[121px] mt-2 h-fit max-h-[calc(100vh-160px)] overflow-y-auto pb-4 no-scrollbar animate-in slide-in-from-right-8 duration-300 fade-in">
 
           {/* Ad Banner */}
           {showAdBanner && (
@@ -974,21 +1092,69 @@ export default function UnifiedTendersPage() {
             const visible = sidebarStats.keywords;
             return (
             <div className="bg-white border border-slate-100 rounded-lg shadow-sm">
-              <button onClick={() => toggleCollapse('keywords')} className="w-full flex items-center justify-between px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+              <button onClick={() => toggleCollapse('keywords')} className="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors">
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Tenders By Keywords</span>
                 <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : '-rotate-90'}`} />
               </button>
               {isOpen && (
                 <div className="px-4 py-1 max-h-56 overflow-y-auto no-scrollbar">
                   <ul>
-                    {visible.map(({ keyword, count }) => (
+                    {visible.map(({ keyword, count }) => {
+                      const isLocked = lockedKeywords.includes(keyword);
+                      return (
                       <li key={keyword}>
-                        <button onClick={() => setSelectedKeywords(prev => prev.includes(keyword) ? prev.filter(k => k !== keyword) : [...prev, keyword])} className={`text-xs py-1.5 w-full text-left hover:text-blue-600 transition-colors flex items-center justify-between ${selectedKeywords.includes(keyword) ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
-                          <span>{keyword} Tenders</span>
-                          <span className="text-slate-400 text-[10px]">({count})</span>
-                        </button>
+                        <div className="flex items-center justify-between w-full group py-1.5 hover:bg-slate-50 px-2 -mx-2 rounded-md transition-colors">
+                          <button 
+                            onClick={() => {
+                              if (isLocked) {
+                                setUnlockModal({
+                                  isOpen: true,
+                                  type: 'keyword',
+                                  value: keyword,
+                                  title: `Keyword Limit Reached`,
+                                  description: `You have reached your limit of ${limits.maxKeywords} keywords. Upgrade to a premium plan to add more keywords to your feed.`,
+                                  isLimitReached: true
+                                });
+                                return;
+                              }
+                              if (selectedKeywords.includes(keyword)) {
+                                setSelectedKeywords(prev => prev.filter(k => k !== keyword));
+                              } else {
+                                if (!limits.unlockedKeywords.includes(keyword)) {
+                                  const isFree = limits.unlockedKeywords.length < limits.maxKeywords;
+                                  setUnlockModal({
+                                    isOpen: true,
+                                    type: 'keyword',
+                                    value: keyword,
+                                    title: `Unlock Keyword: ${keyword}`,
+                                    description: isFree 
+                                      ? `You have ${limits.maxKeywords - limits.unlockedKeywords.length} free keyword slots remaining. Do you want to use one to unlock "${keyword}"? Once unlocked, it cannot be changed.`
+                                      : `You have reached your limit of ${limits.maxKeywords} keywords. Upgrade to a premium plan to add more keywords to your feed.`,
+                                    isLimitReached: !isFree
+                                  });
+                                  return;
+                                }
+                                setSelectedKeywords(prev => [...prev, keyword]);
+                              }
+                            }} 
+                            className={`text-xs w-full text-left transition-colors flex items-center justify-start gap-1.5 ${isLocked ? 'opacity-50 grayscale cursor-pointer' : ''} ${selectedKeywords.includes(keyword) ? 'text-blue-600 font-semibold' : 'text-slate-500 hover:text-blue-600'}`}
+                          >
+                            <span>{keyword} Tenders</span>
+                            <span className="text-slate-400 text-[10px]">({count})</span>
+                            {isLocked && <Lock className="w-3 h-3 text-slate-400 ml-1" />}
+                          </button>
+                          
+                          {selectedKeywords.includes(keyword) && (
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedKeywords(prev => prev.filter(k => k !== keyword));
+                            }} className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                              <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
+                            </button>
+                          )}
+                        </div>
                       </li>
-                    ))}
+                    )})}
                   </ul>
                 </div>
               )}
@@ -1002,21 +1168,69 @@ export default function UnifiedTendersPage() {
             const visible = sidebarStats.states;
             return (
             <div className="bg-white border border-slate-100 rounded-lg shadow-sm">
-              <button onClick={() => toggleCollapse('states')} className="w-full flex items-center justify-between px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+              <button onClick={() => toggleCollapse('states')} className="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors">
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Tenders By States</span>
                 <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : '-rotate-90'}`} />
               </button>
               {isOpen && (
                 <div className="px-4 py-1 max-h-56 overflow-y-auto no-scrollbar">
                   <ul>
-                    {visible.map(({ name, count }) => (
+                    {visible.map(({ name, count }) => {
+                      const isLocked = lockedStates.includes(name);
+                      return (
                       <li key={name}>
-                        <button onClick={() => setSelectedStates(prev => prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name])} className={`text-xs py-1.5 w-full text-left hover:text-blue-600 transition-colors flex items-center justify-between ${selectedStates.includes(name) ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
-                          <span>{name} Tenders</span>
-                          <span className="text-slate-400 text-[10px]">({count})</span>
-                        </button>
+                        <div className="flex items-center justify-between w-full group py-1.5 hover:bg-slate-50 px-2 -mx-2 rounded-md transition-colors">
+                          <button 
+                            onClick={() => {
+                              if (isLocked) {
+                                setUnlockModal({
+                                  isOpen: true,
+                                  type: 'state',
+                                  value: name,
+                                  title: `State Limit Reached`,
+                                  description: `You have reached your limit of ${limits.maxStates} states. Upgrade to a premium plan to add more states to your feed.`,
+                                  isLimitReached: true
+                                });
+                                return;
+                              }
+                              if (selectedStates.includes(name)) {
+                                setSelectedStates(prev => prev.filter(x => x !== name));
+                              } else {
+                                if (!limits.unlockedStates.includes(name)) {
+                                  const isFree = limits.unlockedStates.length < limits.maxStates;
+                                  setUnlockModal({
+                                    isOpen: true,
+                                    type: 'state',
+                                    value: name,
+                                    title: `Unlock State: ${name}`,
+                                    description: isFree 
+                                      ? `You have ${limits.maxStates - limits.unlockedStates.length} free state slots remaining. Do you want to use one to unlock "${name}"? Once unlocked, it cannot be changed.`
+                                      : `You have reached your limit of ${limits.maxStates} states. Upgrade to a premium plan to add more states to your feed.`,
+                                    isLimitReached: !isFree
+                                  });
+                                  return;
+                                }
+                                setSelectedStates(prev => [...prev, name]);
+                              }
+                            }} 
+                            className={`text-xs w-full text-left transition-colors flex items-center justify-start gap-1.5 ${isLocked ? 'opacity-50 grayscale cursor-pointer' : ''} ${selectedStates.includes(name) ? 'text-blue-600 font-semibold' : 'text-slate-500 hover:text-blue-600'}`}
+                          >
+                            <span>{name} Tenders</span>
+                            <span className="text-slate-400 text-[10px]">({count})</span>
+                            {isLocked && <Lock className="w-3 h-3 text-slate-400 ml-1" />}
+                          </button>
+
+                          {selectedStates.includes(name) && (
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedStates(prev => prev.filter(x => x !== name));
+                            }} className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                              <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
+                            </button>
+                          )}
+                        </div>
                       </li>
-                    ))}
+                    )})}
                   </ul>
                 </div>
               )}
@@ -1032,7 +1246,7 @@ export default function UnifiedTendersPage() {
             const visible = citiesToShow;
             return (
             <div className="bg-white border border-slate-100 rounded-lg shadow-sm">
-              <button onClick={() => toggleCollapse('cities')} className="w-full flex items-center justify-between px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+              <button onClick={() => toggleCollapse('cities')} className="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors">
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Tenders By Cities</span>
                 <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : '-rotate-90'}`} />
               </button>
@@ -1041,7 +1255,7 @@ export default function UnifiedTendersPage() {
                   <ul>
                     {visible.map(city => (
                       <li key={city}>
-                        <button onClick={() => setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city])} className={`text-xs py-1.5 w-full text-left hover:text-blue-600 transition-colors flex items-center justify-between ${selectedCities.includes(city) ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        <button onClick={() => setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city])} className={`text-xs py-1.5 w-full text-left hover:text-blue-600 transition-colors flex items-center justify-start gap-1.5 ${selectedCities.includes(city) ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
                           <span>{city} Tenders</span>
                           {cityCountMap[city] && <span className="text-slate-400 text-[10px]">({cityCountMap[city]})</span>}
                         </button>
@@ -1060,7 +1274,7 @@ export default function UnifiedTendersPage() {
             const isOpen = !sidebarCollapsed['categories'];
             return (
             <div className="bg-white border border-slate-100 rounded-lg shadow-sm">
-              <button onClick={() => toggleCollapse('categories')} className="w-full flex items-center justify-between px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+              <button onClick={() => toggleCollapse('categories')} className="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors">
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Tenders By Category</span>
                 <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : '-rotate-90'}`} />
               </button>
@@ -1084,6 +1298,130 @@ export default function UnifiedTendersPage() {
           </div>
         )}
       </div>
+      <SaveFilterModal 
+        isOpen={isSaveFilterOpen}
+        onClose={() => setIsSaveFilterOpen(false)}
+        onSaved={() => setRefreshFiltersTrigger(prev => prev + 1)}
+        filters={{
+          states: selectedStates,
+          cities: selectedCities,
+          categories: selectedCategories,
+          authorities: selectedAuthorities,
+          keywords: selectedKeywords,
+          minAmount,
+          maxAmount,
+          searchQuery
+        }}
+      />
+      <ConfirmUnlockModal 
+        isOpen={unlockModal.isOpen}
+        onClose={() => setUnlockModal(prev => ({ ...prev, isOpen: false }))}
+        confirmText={unlockModal.isLimitReached ? "Change Plan" : "Confirm Unlock"}
+        onConfirm={async () => {
+          if (unlockModal.isLimitReached) {
+            setUnlockModal(prev => ({ ...prev, isOpen: false }));
+            setIsPlanChangeOpen(true);
+            return;
+          }
+          setUnlockModal(prev => ({ ...prev, loading: true }));
+          try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/billing/unlock/${unlockModal.type}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${(session as any)?.accessToken}`
+              },
+              body: JSON.stringify(unlockModal.type === 'state' ? { state: unlockModal.value } : { keyword: unlockModal.value })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              if (unlockModal.type === 'state') {
+                const newUnlocked = [...limits.unlockedStates, unlockModal.value];
+                setLimits(prev => ({ ...prev, unlockedStates: newUnlocked }));
+                setSelectedStates(prev => [...prev, unlockModal.value]);
+              } else {
+                const newUnlocked = [...limits.unlockedKeywords, unlockModal.value];
+                setLimits(prev => ({ ...prev, unlockedKeywords: newUnlocked }));
+                setSelectedKeywords(prev => [...prev, unlockModal.value]);
+              }
+            }
+          } catch (err) {} finally {
+            setUnlockModal(prev => ({ ...prev, isOpen: false, loading: false }));
+          }
+        }}
+        title={unlockModal.title}
+        description={unlockModal.description}
+        loading={unlockModal.loading}
+      />
+      <PreferencesSetupModal 
+        isOpen={isPreferencesOpen}
+        onClose={() => setIsPreferencesOpen(false)}
+        limits={limits}
+        statesList={statesList.map(s => {
+          const stat = sidebarStats.states.find(st => st.name === s.name);
+          return { name: s.name, count: stat ? stat.count : 0 };
+        })}
+        keywordsList={sidebarStats.keywords.map(k => ({ keyword: k.keyword, count: k.count }))}
+        onSaved={() => {
+          // Trigger a re-fetch of limits to update the page UI
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/billing/usage`, {
+            headers: { Authorization: `Bearer ${(session as any)?.accessToken}` }
+          })
+          .then(res => {
+            if (!res.ok) throw new Error("Failed");
+            return res.json();
+          })
+          .then(data => {
+            const fetchedLimits = { 
+              maxKeywords: data.maxKeywords || 3, 
+              maxStates: data.maxStates || 1,
+              unlockedStates: data.unlockedStates || [],
+              unlockedKeywords: data.unlockedKeywords || []
+            };
+            setLimits(fetchedLimits);
+          
+            if (!searchParams.get('states') && fetchedLimits.unlockedStates.length > 0) {
+              setSelectedStates(fetchedLimits.unlockedStates);
+            }
+            if (!searchParams.get('keywords') && fetchedLimits.unlockedKeywords.length > 0) {
+              setSelectedKeywords(fetchedLimits.unlockedKeywords);
+            }
+            
+            // Auto-open preferences modal if completely empty
+            if (fetchedLimits.unlockedStates.length === 0 && fetchedLimits.unlockedKeywords.length === 0) {
+              setIsPreferencesOpen(true);
+            }
+          })
+          .catch(e => console.error(e));
+        }}
+      />
+      <PlanChangeModal
+        isOpen={isPlanChangeOpen}
+        onClose={() => setIsPlanChangeOpen(false)}
+        currentPlanType={limits.planType}
+        currentKeywords={limits.unlockedKeywords}
+        onPlanChanged={() => {
+          setIsLoadingLimits(true);
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/billing/usage`, {
+            headers: { Authorization: `Bearer ${(session as any)?.accessToken}` }
+          })
+          .then(res => res.json())
+          .then(data => {
+            const fetchedLimits = {
+              maxKeywords: data.maxKeywords || 3,
+              maxStates: data.maxStates || 1,
+              unlockedStates: data.unlockedStates || [],
+              unlockedKeywords: data.unlockedKeywords || [],
+              planType: data.planType || ''
+            };
+            setLimits(fetchedLimits);
+            if (fetchedLimits.unlockedStates.length > 0) setSelectedStates(fetchedLimits.unlockedStates);
+            if (fetchedLimits.unlockedKeywords.length > 0) setSelectedKeywords(fetchedLimits.unlockedKeywords);
+          })
+          .catch(console.error)
+          .finally(() => setIsLoadingLimits(false));
+        }}
+      />
       <DownloadModal />
     </div>
   );

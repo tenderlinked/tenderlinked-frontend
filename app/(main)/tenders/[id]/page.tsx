@@ -57,6 +57,7 @@ export default function TenderDetailsPage() {
   const [aiGenerationStep, setAiGenerationStep] = useState('');
   const [aiSummaryHtml, setAiSummaryHtml] = useState<string | null>(null);
   const [isLoadingHtml, setIsLoadingHtml] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
 
   const handleGenerateAiSummary = async () => {
     try {
@@ -92,15 +93,15 @@ export default function TenderDetailsPage() {
 
       // Poll for completion
       const pollInterval = setInterval(async () => {
-        const res = await fetch(`${apiUrl}/api/tenders/${tender?.id}`, {
+        const res = await fetch(`${apiUrl}/api/tenders/${tender?.id}/ai-status`, {
           headers: { 'Authorization': `Bearer ${session?.accessToken}` }
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.data?.aiSummary) {
+          if (data.data?.aiProcessed || data.data?.aiSummary) {
             clearInterval(pollInterval);
             clearInterval(stepInterval);
-            setTender(data.data);
+            setTender(prev => prev ? { ...prev, aiSummary: data.data.aiSummary, aiProcessed: true } : null);
             setIsGeneratingAi(false);
           }
         }
@@ -151,7 +152,9 @@ export default function TenderDetailsPage() {
 
   useEffect(() => {
     if (status === "authenticated" && params.id) {
-      fetchTender(params.id as string);
+      const fullId = params.id as string;
+      const actualId = fullId.length > 36 ? fullId.slice(-36) : fullId;
+      fetchTender(actualId);
     }
   }, [status, params.id]);
 
@@ -188,6 +191,10 @@ export default function TenderDetailsPage() {
           Authorization: `Bearer ${(session as any)?.accessToken}`,
         },
       });
+      if (response.status === 403) {
+        setLimitReached(true);
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         setTender(data.data);
@@ -225,6 +232,30 @@ export default function TenderDetailsPage() {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px] w-full">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (limitReached) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 mt-8">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-red-100 flex flex-col items-center">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-6">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">View Limit Reached</h2>
+          <p className="text-slate-600 mb-8">
+            You have reached the maximum number of tender views allowed by your current subscription plan for this month. 
+          </p>
+          <div className="flex gap-4 w-full">
+            <Button variant="outline" className="flex-1" onClick={() => router.push('/tenders')}>
+              Back to Tenders
+            </Button>
+            <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => router.push('/settings/billing')}>
+              Upgrade Plan
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

@@ -15,6 +15,8 @@ interface MultiSelectPopoverProps {
   placeholder?: string;
   className?: string;
   allowCustom?: boolean;
+  lockedOptions?: string[];
+  onLockedClick?: (opt: string) => void;
 }
 
 export function MultiSelectPopover({
@@ -25,6 +27,8 @@ export function MultiSelectPopover({
   placeholder = "Search...",
   className,
   allowCustom = false,
+  lockedOptions = [],
+  onLockedClick,
 }: MultiSelectPopoverProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -125,19 +129,34 @@ export function MultiSelectPopover({
           {filteredOptions.length === 0 && (!allowCustom || !search.trim()) ? (
             <p className="p-4 text-sm text-muted-foreground col-span-2 text-center">No results found.</p>
           ) : (
-            filteredOptions.map((opt) => (
+            filteredOptions.map((opt) => {
+              const isLocked = lockedOptions.includes(opt);
+              return (
               <label
                 key={opt}
-                className="flex items-start gap-2 rounded-sm px-2 py-2 text-sm hover:bg-slate-100 cursor-pointer"
+                className={cn("flex items-start gap-2 rounded-sm px-2 py-2 text-sm transition-all", isLocked ? "opacity-50 grayscale cursor-pointer" : "hover:bg-slate-100 cursor-pointer")}
+                onClick={(e) => {
+                  if (isLocked) {
+                    e.preventDefault();
+                    if (onLockedClick) onLockedClick(opt);
+                  }
+                }}
               >
                 <Checkbox
                   checked={localSelected.includes(opt)}
-                  onCheckedChange={() => toggleOption(opt)}
+                  onCheckedChange={() => {
+                    if (!isLocked) toggleOption(opt);
+                  }}
+                  disabled={isLocked}
                   className="mt-0.5"
                 />
-                <span className="leading-tight text-slate-700">{opt}</span>
+                <span className="leading-tight text-slate-700 flex flex-1 items-center gap-1.5 w-full">
+                  {opt}
+                  {isLocked && <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 ml-auto"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+                </span>
               </label>
-            ))
+              );
+            })
           )}
         </div>
 
