@@ -202,12 +202,13 @@ export default function UnifiedTendersPage() {
           };
           setLimits(fetchedLimits);
           
-          if (!searchParams.get('states') && fetchedLimits.unlockedStates.length > 0) {
-            setSelectedStates(fetchedLimits.unlockedStates);
-          }
-          if (!searchParams.get('keywords') && fetchedLimits.unlockedKeywords.length > 0) {
-            setSelectedKeywords(fetchedLimits.unlockedKeywords);
-          }
+          // Auto-selection of previously locked preferences has been disabled globally.
+          // if (!searchParams.get('states') && fetchedLimits.unlockedStates.length > 0) {
+          //   setSelectedStates(fetchedLimits.unlockedStates);
+          // }
+          // if (!searchParams.get('keywords') && fetchedLimits.unlockedKeywords.length > 0) {
+          //   setSelectedKeywords(fetchedLimits.unlockedKeywords);
+          // }
         }
       } catch (err) {
         console.error("Failed to fetch limits", err);
@@ -1380,12 +1381,13 @@ export default function UnifiedTendersPage() {
             };
             setLimits(fetchedLimits);
           
-            if (!searchParams.get('states') && fetchedLimits.unlockedStates.length > 0) {
-              setSelectedStates(fetchedLimits.unlockedStates);
-            }
-            if (!searchParams.get('keywords') && fetchedLimits.unlockedKeywords.length > 0) {
-              setSelectedKeywords(fetchedLimits.unlockedKeywords);
-            }
+            // Auto-selection of previously locked preferences has been disabled globally.
+            // if (!searchParams.get('states') && fetchedLimits.unlockedStates.length > 0) {
+            //   setSelectedStates(fetchedLimits.unlockedStates);
+            // }
+            // if (!searchParams.get('keywords') && fetchedLimits.unlockedKeywords.length > 0) {
+            //   setSelectedKeywords(fetchedLimits.unlockedKeywords);
+            // }
             
             // Auto-open preferences modal if completely empty
             if (fetchedLimits.unlockedStates.length === 0 && fetchedLimits.unlockedKeywords.length === 0) {
@@ -1415,8 +1417,9 @@ export default function UnifiedTendersPage() {
               planType: data.planType || ''
             };
             setLimits(fetchedLimits);
-            if (fetchedLimits.unlockedStates.length > 0) setSelectedStates(fetchedLimits.unlockedStates);
-            if (fetchedLimits.unlockedKeywords.length > 0) setSelectedKeywords(fetchedLimits.unlockedKeywords);
+            // Auto-selection disabled
+            // if (fetchedLimits.unlockedStates.length > 0) setSelectedStates(fetchedLimits.unlockedStates);
+            // if (fetchedLimits.unlockedKeywords.length > 0) setSelectedKeywords(fetchedLimits.unlockedKeywords);
           })
           .catch(console.error)
           .finally(() => setIsLoadingLimits(false));
