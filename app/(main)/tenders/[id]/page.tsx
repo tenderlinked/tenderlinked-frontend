@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3, Bookmark, Bell, PhoneCall, Copy, Link as LinkIcon, Check, AlertTriangle, ArrowDown, CheckCircle, Facebook, Linkedin, Twitter, MessageCircle } from "lucide-react";
+import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3, Bookmark, Bell, PhoneCall, Copy, Link as LinkIcon, Check, AlertTriangle, ArrowDown, CheckCircle, Facebook, Linkedin, Twitter, MessageCircle, Zap, ShieldCheck, Tag, Loader2, Clock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useTenderDownload } from "@/hooks/use-tender-download";
 import toast from "react-hot-toast";
@@ -62,6 +62,38 @@ export default function TenderDetailsPage() {
   const [isLoadingHtml, setIsLoadingHtml] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
   const [recommendations, setRecommendations] = useState<{relatedTenders: any[], viewAlsoTenders: any[]}>({ relatedTenders: [], viewAlsoTenders: [] });
+  const [isUnlockingAi, setIsUnlockingAi] = useState(false);
+  const [recentlyVisited, setRecentlyVisited] = useState<any[]>([]);
+
+  const handleUnlockAiSummary = async () => {
+    if (!tender) return;
+    try {
+      setIsUnlockingAi(true);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const res = await fetch(`${apiUrl}/api/tenders/${tender.id}/unlock-ai`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${(session as any)?.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to unlock AI Summary');
+      }
+      
+      toast.success("AI Summary unlocked successfully!");
+      // Refetch the tender to get the unlocked data
+      const actualId = tender.id;
+      fetchTender(actualId);
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred while unlocking.");
+      console.error(error);
+    } finally {
+      setIsUnlockingAi(false);
+    }
+  };
 
   const handleGenerateAiSummary = async () => {
     try {
@@ -273,6 +305,58 @@ export default function TenderDetailsPage() {
   }, [status, params.id]);
 
   const [activeTab, setActiveTab] = useState('Overview');
+  const sectionRefs = useRef<(HTMLElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!tender) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const id = entry.target.id;
+            const tabName = id === 'overview' ? 'Overview' 
+              : id === 'project-description' ? 'Project Description'
+              : id === 'ai-tender-summary' ? 'AI Tender Summary'
+              : id === 'timeline' ? 'Timeline'
+              : id === 'documents' ? 'Documents'
+              : null;
+            if (tabName) {
+              setActiveTab(tabName);
+            }
+          }
+        });
+      },
+      { rootMargin: '-150px 0px -60% 0px' }
+    );
+
+    // Wait a tick for React to paint the DOM before attaching observers
+    const timeout = setTimeout(() => {
+      sectionRefs.current.forEach((ref) => {
+        if (ref) observer.observe(ref);
+      });
+    }, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      observer.disconnect();
+    };
+  }, [tender]);
+
+  const scrollToSection = (tabName: string) => {
+    setActiveTab(tabName);
+    const id = tabName === 'Overview' ? 'overview' 
+      : tabName === 'Project Description' ? 'project-description'
+      : tabName === 'AI Tender Summary' ? 'ai-tender-summary'
+      : tabName === 'Timeline' ? 'timeline'
+      : tabName === 'Documents' ? 'documents'
+      : '';
+    const element = document.getElementById(id);
+    if (element) {
+      const y = element.getBoundingClientRect().top + window.scrollY - 140; // Offset for sticky header and tabs
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     if (tender?.id && tender?.aiSummary && activeTab === 'AI Tender Summary' && !aiSummaryHtml && !isLoadingHtml) {
@@ -297,14 +381,19 @@ export default function TenderDetailsPage() {
     }
   }, [tender?.id, tender?.aiSummary, activeTab, session, aiSummaryHtml]);
 
+
+
   const fetchTender = async (id: string) => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const [response, recResponse] = await Promise.all([
+      const [response, recResponse, recentResponse] = await Promise.all([
         fetch(`${apiUrl}/api/tenders/${id}`, {
           headers: { Authorization: `Bearer ${(session as any)?.accessToken}` },
         }),
         fetch(`${apiUrl}/api/tenders/${id}/recommendations`, {
+          headers: { Authorization: `Bearer ${(session as any)?.accessToken}` },
+        }).catch(() => null),
+        fetch(`${apiUrl}/api/tenders/recently-viewed`, {
           headers: { Authorization: `Bearer ${(session as any)?.accessToken}` },
         }).catch(() => null)
       ]);
@@ -325,6 +414,14 @@ export default function TenderDetailsPage() {
         const recData = await recResponse.json();
         if (recData.success) {
            setRecommendations(recData.data);
+        }
+      }
+
+      if (recentResponse?.ok) {
+        const recentData = await recentResponse.json();
+        if (recentData.success && recentData.data) {
+           const filteredForDisplay = recentData.data.filter((t: any) => t.id !== id);
+           setRecentlyVisited(filteredForDisplay);
         }
       }
     } catch (error) {
@@ -396,7 +493,8 @@ export default function TenderDetailsPage() {
     );
   }
 
-  const isLocked = tender.aiSummary === '__PREMIUM_LOCKED__';
+  const isAiSummaryLocked = tender.aiSummary === '__PREMIUM_LOCKED__';
+  const isDocsLocked = tender.noticePdfUrl === '__CREDIT_LOCKED__' || tender.tenderPdfUrl === '__CREDIT_LOCKED__' || tender.noticePdfUrl === '__PREMIUM_LOCKED__' || tender.tenderPdfUrl === '__PREMIUM_LOCKED__';
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -521,7 +619,7 @@ export default function TenderDetailsPage() {
           {/* Action Buttons Row */}
           <div className="flex flex-wrap gap-3">
             <Button 
-              onClick={() => setActiveTab('AI Tender Summary')}
+              onClick={() => scrollToSection('AI Tender Summary')}
               className="bg-[#0284c7] hover:bg-[#0369a1] text-white shadow-sm font-semibold rounded-md h-9"
             >
               <Sparkles className="w-4 h-4 mr-2" /> AI Tender Summary
@@ -587,13 +685,13 @@ export default function TenderDetailsPage() {
           {/* Left Column - Tabs & Content */}
           <div className="md:col-span-8 lg:col-span-9 flex flex-col gap-6">
             
-            {/* Tabs */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="flex flex-nowrap overflow-x-auto hide-scrollbar border-b border-slate-100">
+            {/* Sticky Tabs Navigation */}
+            <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-sm border border-slate-200 overflow-hidden sticky top-[72px] z-40 mb-6">
+              <div className="flex flex-nowrap overflow-x-auto hide-scrollbar">
                 {['Overview', 'Project Description', 'AI Tender Summary', 'Timeline', 'Documents'].map((tab) => (
                   <button 
                     key={tab}
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => scrollToSection(tab)}
                     className={`px-5 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${activeTab === tab ? 'border-blue-600 text-blue-600 bg-blue-50/30' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                   >
                     {tab}
@@ -605,12 +703,12 @@ export default function TenderDetailsPage() {
                   </button>
                 ))}
               </div>
+            </div>
 
-              <div className="p-6">
-                
-                {/* OVERVIEW TAB */}
-                {activeTab === 'Overview' && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex flex-col gap-6">
+                 
+                 {/* OVERVIEW SECTION */}
+                 <section id="overview" ref={el => { sectionRefs.current[0] = el; }} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 scroll-mt-[150px] animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="flex items-center gap-2 mb-4">
                       <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
                         <FileText className="w-4 h-4 text-blue-600" />
@@ -683,61 +781,66 @@ export default function TenderDetailsPage() {
                         <p className="text-sm font-semibold text-slate-800">{tender.invitingAuthorityAddress || "Not Available"}</p>
                       </div>
                     </div>
-                  </div>
-                )}
+                  </section>
 
-                {/* PROJECT DESCRIPTION TAB */}
-                {activeTab === 'Project Description' && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                 {/* PROJECT DESCRIPTION SECTION */}
+                 <section id="project-description" ref={el => { sectionRefs.current[1] = el; }} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 scroll-mt-[150px] animate-in fade-in slide-in-from-bottom-2 duration-300">
                      <h3 className="text-lg font-bold text-slate-800 mb-4">Project Description</h3>
-                     <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 p-5 rounded-lg border border-slate-100">
-                       {tender.title}
+                     <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 p-5 rounded-lg border border-slate-100 min-h-[150px]">
+                       {parsedAiSummary?.workDescription || tender.title}
                      </p>
-                  </div>
-                )}
+                 </section>
 
-                {/* AI TENDER SUMMARY TAB */}
-                {activeTab === 'AI Tender Summary' && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative">
-                     <div className="flex items-center gap-2 mb-4">
-                        <Sparkles className="w-5 h-5 text-purple-600" />
-                        <h3 className="text-lg font-bold text-slate-800">AI Tender Summary</h3>
+                 {/* AI TENDER SUMMARY SECTION */}
+                 <section id="ai-tender-summary" ref={el => { sectionRefs.current[2] = el; }} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 scroll-mt-[150px] animate-in fade-in slide-in-from-bottom-2 duration-300 relative">
+                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                           <Sparkles className="w-5 h-5 text-purple-600" />
+                           <h3 className="text-lg font-bold text-slate-800">AI Tender Summary</h3>
+                        </div>
+                        {tender.aiSummary && !isAiSummaryLocked && (
+                          <div className="flex gap-2">
+                             <Button onClick={handleGenerateAiSummary} variant="outline" size="sm" className="bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors group">
+                               <Sparkles className="w-4 h-4 mr-2 text-purple-500 group-hover:text-white" /> Regenerate
+                             </Button>
+                             <Button onClick={handleDownloadAiPdf} variant="outline" size="sm" className="bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors group">
+                               <Download className="w-4 h-4 mr-2 group-hover:text-white" /> Download PDF
+                             </Button>
+                          </div>
+                        )}
                      </div>
-                     {isLocked ? (
-                       <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 p-6 rounded-xl border border-purple-100 relative overflow-hidden">
+                     {isAiSummaryLocked ? (
+                       <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 p-6 rounded-xl border border-purple-100 relative overflow-hidden min-h-[300px] flex items-center justify-center">
                          <div className="blur-md select-none text-slate-400 text-sm space-y-4">
                            <p>This is a highly detailed AI generated summary of the tender document that is currently locked. It contains critical requirements, potential risks, and competitor analysis that can give you a significant edge in bidding.</p>
                            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
                          </div>
                          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/40 backdrop-blur-[2px]">
                            <Lock className="w-8 h-8 text-purple-600 mb-3" />
-                           <h4 className="font-bold text-slate-900 mb-1">Premium Feature</h4>
-                           <p className="text-sm text-slate-700 mb-4 text-center px-8">Upgrade your plan to unlock AI-powered insights, key requirements, and risk analysis for this tender.</p>
-                           <Button className="bg-purple-600 hover:bg-purple-700 rounded-full shadow-lg px-6">
-                             Upgrade to Unlock
+                           <h4 className="font-bold text-slate-900 mb-1 text-lg">Unlock Full AI Tender Summary</h4>
+                           <p className="text-sm text-slate-700 mb-4 text-center px-8 max-w-md">Get instant access to the complete AI-generated analysis — scope, eligibility, timeline & more.</p>
+                           <div className="flex items-center gap-4 text-xs font-semibold text-slate-600 mb-5">
+                              <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-blue-500" /> Instant Access</span>
+                              <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-blue-500" /> Secure</span>
+                              <span className="flex items-center gap-1 text-blue-600"><Tag className="w-3 h-3" /> 1 Credit</span>
+                           </div>
+                           <Button 
+                             onClick={handleUnlockAiSummary}
+                             disabled={isUnlockingAi}
+                             className="bg-[#2563eb] hover:bg-blue-700 rounded-lg shadow-md px-6 py-5 text-sm font-semibold flex items-center gap-2 transition-all"
+                           >
+                             {isUnlockingAi ? (
+                               <Loader2 className="w-4 h-4 animate-spin" />
+                             ) : (
+                               <Lock className="w-4 h-4" />
+                             )}
+                             {isUnlockingAi ? "Unlocking..." : "Unlock AI Summary — 1 Credit"}
                            </Button>
+                           <p className="text-[10px] text-slate-500 mt-4 flex items-center gap-1"><Lock className="w-3 h-3" /> Your details are secure and used only for document delivery.</p>
                          </div>
                        </div>
                       ) : tender.aiSummary ? (
                         <div className="relative">
-                          <div className="absolute right-4 top-4 flex gap-2 z-10">
-                            <Button 
-                              onClick={handleGenerateAiSummary} 
-                              variant="outline" 
-                              className="group bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors"
-                              size="sm"
-                            >
-                              <Sparkles className="w-4 h-4 mr-2 text-purple-500 group-hover:text-white" /> Regenerate
-                            </Button>
-                            <Button 
-                              onClick={handleDownloadAiPdf} 
-                              variant="outline" 
-                              className="group bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors"
-                              size="sm"
-                            >
-                              <Download className="w-4 h-4 mr-2 group-hover:text-white" /> Download PDF
-                            </Button>
-                          </div>
                           <div className="bg-white rounded-md shadow-sm border border-slate-200 min-h-[600px] mb-8 font-sans font-['Inter']">
                             {parsedAiSummary ? (
                               <div className="animate-in fade-in duration-500">
@@ -911,12 +1014,10 @@ export default function TenderDetailsPage() {
                           )}
                         </div>
                       )}
-                  </div>
-                )}
+                  </section>
 
-                {/* TIMELINE TAB */}
-                {activeTab === 'Timeline' && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                 {/* TIMELINE SECTION */}
+                 <section id="timeline" ref={el => { sectionRefs.current[3] = el; }} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 scroll-mt-[150px] animate-in fade-in slide-in-from-bottom-2 duration-300">
                      <div className="flex items-center gap-2 mb-8">
                         <Calendar className="w-5 h-5 text-blue-500" />
                         <h3 className="text-lg font-bold text-slate-800">Tender Timeline</h3>
@@ -994,12 +1095,10 @@ export default function TenderDetailsPage() {
                            });
                          })()}
                        </div>
-                  </div>
-                )}
+                  </section>
 
-                {/* DOCUMENTS TAB */}
-                {activeTab === 'Documents' && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative">
+                 {/* DOCUMENTS SECTION */}
+                 <section id="documents" ref={el => { sectionRefs.current[4] = el; }} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 scroll-mt-[150px] animate-in fade-in slide-in-from-bottom-2 duration-300 relative">
                      <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
                            <FileText className="w-5 h-5 text-blue-400" />
@@ -1023,7 +1122,7 @@ export default function TenderDetailsPage() {
                         )}
                      </div>
                      
-                     {isLocked && (
+                     {isDocsLocked && (
                       <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center z-10 rounded-lg">
                          <div className="bg-white px-6 py-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-4">
                             <Lock className="w-5 h-5 text-slate-600" />
@@ -1032,7 +1131,7 @@ export default function TenderDetailsPage() {
                       </div>
                      )}
                      
-                     <div className={`space-y-4 mb-8 ${isLocked ? 'blur-sm select-none opacity-50' : ''}`}>
+                     <div className={`space-y-4 mb-8 ${isDocsLocked ? 'blur-sm select-none opacity-50' : ''}`}>
                        {docList.length > 0 ? docList.map((doc, i) => {
                          const docExt = doc.type.toLowerCase().includes('pdf') ? 'pdf' : doc.type.toLowerCase().includes('zip') || doc.type.toLowerCase().includes('rar') ? 'rar' : 'doc';
                          return (
@@ -1061,21 +1160,19 @@ export default function TenderDetailsPage() {
                        )}
                      </div>
 
-                     {/* Disclaimer */}
-                     <div className="bg-[#fffbeb] border border-[#fef3c7] rounded-lg p-5">
-                       <div className="flex items-center gap-2 mb-2.5">
-                          <AlertTriangle className="w-4 h-4 text-amber-600" />
-                          <h4 className="font-bold text-amber-800 text-sm">Disclaimer</h4>
-                       </div>
-                       <p className="text-xs text-amber-700/80 leading-relaxed max-w-4xl">
-                         We takes all possible care for accurate & authentic tender information. However users are requested to refer Original source of Tender Notice / Tender Document published by Tender Issuing Agency before taking any call regarding this tender
-                       </p>
-                     </div>
-                  </div>
-                )}
+                   </section>
 
+                   {/* Disclaimer */}
+                   <div className="bg-[#fffbeb] border border-[#fef3c7] rounded-lg p-5">
+                     <div className="flex items-center gap-2 mb-2.5">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        <h4 className="font-bold text-amber-800 text-sm">Disclaimer</h4>
+                     </div>
+                     <p className="text-xs text-amber-700/80 leading-relaxed max-w-4xl">
+                       We takes all possible care for accurate & authentic tender information. However users are requested to refer Original source of Tender Notice / Tender Document published by Tender Issuing Agency before taking any call regarding this tender
+                     </p>
+                   </div>
               </div>
-            </div>
           </div>
 
           {/* Right Column - Sidebar */}
@@ -1130,11 +1227,17 @@ export default function TenderDetailsPage() {
                 <div className="flex flex-col">
                    {recommendations?.relatedTenders?.length > 0 ? (
                       recommendations.relatedTenders.map(rt => (
-                         <Link href={`/tenders/${rt.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${rt.tenderId || rt.tenderCode || rt.id}`} key={rt.id} className="block p-4 border-b border-slate-100 hover:bg-blue-50/30 transition-colors last:border-0 group">
-                            <h5 className="text-sm font-semibold text-slate-800 mb-2 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">{rt.title}</h5>
-                            <div className="flex items-center justify-between text-xs text-slate-500">
-                               <span className="font-bold text-slate-700">{rt.tenderValue && rt.tenderValue !== "0" && rt.tenderValue !== "0.00" && rt.tenderValue !== "0.0" ? `Rs. ${rt.tenderValue}` : "Ref. Doc"}</span>
-                               <span className="flex items-center"><MapPin className="w-3 h-3 mr-1" /> {rt.state || rt.city || 'India'}</span>
+                         <Link href={`/tenders/${rt.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${rt.tenderId || rt.tenderCode || rt.id}`} key={rt.id} className="block p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0 relative overflow-hidden group">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <h5 className="text-[13px] font-medium text-slate-700 mb-1.5 line-clamp-2 leading-relaxed group-hover:text-blue-700 transition-colors">{rt.title}</h5>
+                            <div className="flex flex-wrap items-center text-[11px] text-slate-400 gap-3">
+                               <span>ID: <span className="font-medium text-slate-500">{rt.tenderId || rt.tenderCode}</span></span>
+                               {rt.endDate && (
+                                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> <span className="font-medium text-slate-500">{new Date(rt.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></span>
+                               )}
+                               {(rt.location || rt.city || rt.state) && (
+                                  <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> <span className="font-medium text-slate-500 truncate max-w-[120px]">{[rt.location, rt.city, rt.state].filter(Boolean).filter((val, i, arr) => arr.indexOf(val) === i).join(', ')}</span></span>
+                               )}
                             </div>
                          </Link>
                       ))
@@ -1158,8 +1261,14 @@ export default function TenderDetailsPage() {
                          <Link href={`/tenders/${vt.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${vt.tenderId || vt.tenderCode || vt.id}`} key={vt.id} className="block p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0 relative overflow-hidden group">
                             <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             <h5 className="text-[13px] font-medium text-slate-700 mb-1.5 line-clamp-2 leading-relaxed group-hover:text-emerald-700 transition-colors">{vt.title}</h5>
-                            <div className="flex items-center text-[11px] text-slate-400 gap-3">
+                            <div className="flex flex-wrap items-center text-[11px] text-slate-400 gap-3">
                                <span>ID: <span className="font-medium text-slate-500">{vt.tenderId || vt.tenderCode}</span></span>
+                               {vt.endDate && (
+                                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> <span className="font-medium text-slate-500">{new Date(vt.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></span>
+                               )}
+                               {(vt.location || vt.city || vt.state) && (
+                                  <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> <span className="font-medium text-slate-500 truncate max-w-[120px]">{[vt.location, vt.city, vt.state].filter(Boolean).filter((val, i, arr) => arr.indexOf(val) === i).join(', ')}</span></span>
+                               )}
                             </div>
                          </Link>
                       ))
@@ -1170,6 +1279,33 @@ export default function TenderDetailsPage() {
                    )}
                 </div>
              </div>
+
+             {/* Recently Visited */}
+             {recentlyVisited.length > 0 && (
+               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+                  <div className="p-4 border-b border-slate-100 flex items-center gap-2">
+                     <Clock className="w-4 h-4 text-purple-600" />
+                     <h4 className="font-bold text-slate-800 text-sm">Recently Visited</h4>
+                  </div>
+                  <div className="flex flex-col">
+                     {recentlyVisited.map(vt => (
+                        <Link href={`/tenders/${vt.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${vt.tenderId || vt.id}`} key={vt.id} className="block p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0 relative overflow-hidden group">
+                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                           <h5 className="text-[13px] font-medium text-slate-700 mb-1.5 line-clamp-2 leading-relaxed group-hover:text-purple-700 transition-colors">{vt.title}</h5>
+                           <div className="flex flex-wrap items-center text-[11px] text-slate-400 gap-3">
+                              <span>ID: <span className="font-medium text-slate-500">{vt.tenderId}</span></span>
+                              {vt.endDate && (
+                                 <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> <span className="font-medium text-slate-500">{new Date(vt.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></span>
+                              )}
+                              {(vt.location || vt.city || vt.state) && (
+                                 <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> <span className="font-medium text-slate-500 truncate max-w-[120px]">{[vt.location, vt.city, vt.state].filter(Boolean).filter((val, i, arr) => arr.indexOf(val) === i).join(', ')}</span></span>
+                              )}
+                           </div>
+                        </Link>
+                     ))}
+                  </div>
+               </div>
+             )}
 
           </div>
 
