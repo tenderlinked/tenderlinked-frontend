@@ -40,7 +40,7 @@ export function MultiSelect({
   const exactMatch = options.some((opt) => opt.label.toLowerCase() === inputValue.toLowerCase());
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <div
           role="combobox"

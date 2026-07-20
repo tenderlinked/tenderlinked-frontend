@@ -15,7 +15,7 @@ import { Button } from '../ui/button';
 import { SidebarTrigger } from '../ui/sidebar';
 import NotificationDropdown from './../shared/notification-dropdown';
 import { Coins, LayoutDashboard, Search as SearchIcon, CalendarDays, Bookmark, ShieldCheck, MapPin, Building2, Map } from 'lucide-react';
-import LogoIcon from "@/public/assets/images/logo-icon.png";
+import Logo from "@/public/logo/tenderlinked_icon.png";
 import { cn } from "@/lib/utils";
 
 const Header = () => {
@@ -115,10 +115,19 @@ const Header = () => {
         { title: "Tenants", url: "/admin/tenants", icon: LayoutDashboard },
         { title: "Keywords", url: "/admin/keywords", icon: SearchIcon },
     ] : [
-        { title: "Indian Tenders", url: "/tenders", icon: SearchIcon },
-        { title: "Today", url: "/today", icon: CalendarDays },
-        { title: "Bookmarks", url: "/bookmarks", icon: Bookmark },
+        { title: "All Tenders", url: "/tenders", icon: SearchIcon },
+        { title: "Bookmarks", url: "/tenders?bookmarked=true", icon: Bookmark },
     ];
+
+    const isActive = (linkUrl: string) => {
+        if (linkUrl === '/tenders?bookmarked=true') {
+            return pathname === '/tenders' && searchParams.get('bookmarked') === 'true';
+        }
+        if (linkUrl === '/tenders') {
+            return pathname === '/tenders' && searchParams.get('bookmarked') !== 'true';
+        }
+        return pathname === linkUrl;
+    };
 
     return (
         <header className="dashboard-header flex items-center justify-between sm:h-16 h-16 shrink-0 gap-4 md:px-8 px-4 bg-blue-600 dark:bg-blue-700 text-white shadow-md sticky top-0 z-50">
@@ -129,19 +138,27 @@ const Header = () => {
                 
                 {/* Logo (Hidden in admin since it's in the sidebar) */}
                 {!isAdmin && (
-                    <Link href="/dashboard" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity shrink-0">
-                        <Image
-                            src={LogoIcon}
-                            alt="TenderLinked"
-                            width={32}
-                            height={32}
-                            className="brightness-0 invert"
-                            style={{ objectFit: "contain" }}
-                            priority
-                        />
-                        <span className="text-xl font-bold tracking-tight text-white hidden sm:block">
-                            TenderLinked
-                        </span>
+                    <Link href="/dashboard" className="flex items-center hover:opacity-90 transition-opacity shrink-0 ml-1">
+                        {/* Pixel-perfect inline SVG matching "Tender Management" layout */}
+                        <svg viewBox="0 0 170 55" className="h-[42px] w-auto hidden sm:block" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            {/* Left T shape (White) */}
+                            <polygon points="15,5 50,5 45,20 10,20" fill="#ffffff" />
+                            <polygon points="30,20 45,20 35,50 20,50" fill="#ffffff" />
+                            
+                            {/* Right Top Bar (Purple) */}
+                            <polygon points="54,5 170,5 165,20 49,20" fill="#d4c6f1" />
+                            
+                            {/* Typography */}
+                            <text x="51" y="40" fontFamily="Inter, system-ui, sans-serif" fontSize="23" fontWeight="900" fill="#ffffff" letterSpacing="1.5">TENDER</text>
+                            <text x="52" y="51" fontFamily="Inter, system-ui, sans-serif" fontSize="10" fontWeight="700" fill="#d4c6f1" letterSpacing="6">LINKED</text>
+                        </svg>
+
+                        {/* Mobile view (Icon only) */}
+                        <svg viewBox="0 0 55 55" className="h-[36px] w-auto sm:hidden" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <polygon points="15,5 50,5 45,20 10,20" fill="#ffffff" />
+                            <polygon points="30,20 45,20 35,50 20,50" fill="#ffffff" />
+                            <polygon points="54,5 65,5 60,20 49,20" fill="#d4c6f1" />
+                        </svg>
                     </Link>
                 )}
 
@@ -153,7 +170,7 @@ const Header = () => {
                             href={link.url}
                             className={cn(
                                 "flex items-center gap-2 px-3 h-full border-b-[3px] font-medium text-sm transition-colors",
-                                pathname === link.url 
+                                isActive(link.url)
                                     ? "border-white text-white bg-white/10" 
                                     : "border-transparent text-blue-100 hover:text-white hover:bg-white/5"
                             )}
@@ -176,7 +193,7 @@ const Header = () => {
                         onChange={handleSearch}
                         onKeyDown={handleKeyDown}
                         onFocus={() => setShowSuggestions(true)}
-                        placeholder="Add more keywords (Press Enter to search)" 
+                        placeholder="Search by Keyword, Tender ID, Title, District, City, State... (Press Enter)" 
                         className="block w-full pl-9 pr-3 py-2 border-0 rounded-md leading-5 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/20 sm:text-sm"
                     />
                     

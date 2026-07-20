@@ -7,6 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Pause, Play, Square, Activity, RotateCw, Cpu, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ScrapeStatus = 'PENDING' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED' | 'SUCCESS';
 type AiMode = 'local-nlp' | 'openai-mini' | 'openai-4o';
@@ -19,6 +33,7 @@ interface ScrapeInstance {
   sourceUrl: string;
   status: ScrapeStatus;
   source: string;
+  error?: string;
   progress: { page: number; tendersFound: number; totalTenders: number; newTendersAdded: number };
   startTime: string;
   endTime?: string;
@@ -55,6 +70,13 @@ export default function ScraperInstancesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedAiMode, setSelectedAiMode] = useState<AiMode>('openai-mini');
 
+  const [isRunModalOpen, setIsRunModalOpen] = useState(false);
+  const [scrapeScope, setScrapeScope] = useState<'all' | 'state' | 'district'>('all');
+  const [targets, setTargets] = useState<any[]>([]);
+  const [selectedStateIds, setSelectedStateIds] = useState<string[]>([]);
+  const [selectedDistrictIds, setSelectedDistrictIds] = useState<string[]>([]);
+  const [selectedDistrictFilterStateId, setSelectedDistrictFilterStateId] = useState<string>("all");
+
   const getHeaders = useCallback(() => ({
     "Content-Type": "application/json",
     "Authorization": `Bearer ${(session as any)?.accessToken || ''}`
@@ -72,13 +94,25 @@ export default function ScraperInstancesPage() {
     finally { setLoading(false); }
   }, [sessionStatus, getHeaders]);
 
+  const fetchTargets = useCallback(async () => {
+    try {
+      if (sessionStatus !== "authenticated") return;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scraper-targets`, { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setTargets(data);
+      }
+    } catch (e) { console.error("Failed to fetch targets:", e); }
+  }, [sessionStatus, getHeaders]);
+
   useEffect(() => {
     if (sessionStatus === "authenticated") {
       fetchInstances();
+      fetchTargets();
       const interval = setInterval(fetchInstances, 3000);
       return () => clearInterval(interval);
     }
-  }, [sessionStatus, fetchInstances]);
+  }, [sessionStatus, fetchInstances, fetchTargets]);
 
   const updateStatus = async (id: string, status: ScrapeStatus) => {
     try {
@@ -105,16 +139,46 @@ export default function ScraperInstancesPage() {
     } catch { toast.error("Network error"); }
   };
 
-  const getStatusBadge = (status: ScrapeStatus) => {
-    switch (status) {
-      case 'PENDING':  return <Badge variant="outline" className="text-slate-500">Pending</Badge>;
-      case 'RUNNING':  return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Running</Badge>;
-      case 'PAUSED':   return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">Paused</Badge>;
-      case 'STOPPED':  return <Badge variant="secondary">Stopped</Badge>;
-      case 'SUCCESS':  return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Success</Badge>;
-      case 'FAILED':   return <Badge variant="destructive">Failed</Badge>;
-      default:         return <Badge>{status}</Badge>;
+  const handleStartScrape = () => {
+    let targetIds: string[] | undefined = undefined;
+    if (scrapeScope === 'state') targetIds = selectedStateIds;
+    if (scrapeScope === 'district') targetIds = selectedDistrictIds;
+    
+    if (scrapeScope !== 'all' && (!targetIds || targetIds.length === 0)) {
+      toast.error("Please select at least one target.");
+      return;
     }
+    
+    triggerScrape(targetIds);
+    setIsRunModalOpen(false);
+  };
+
+  const getStatusBadge = (status: ScrapeStatus, error?: string) => {
+    let badge;
+    switch (status) {
+      case 'PENDING':  badge = <Badge variant="outline" className="text-slate-500">Pending</Badge>; break;
+      case 'RUNNING':  badge = <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Running</Badge>; break;
+      case 'PAUSED':   badge = <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">Paused</Badge>; break;
+      case 'STOPPED':  badge = <Badge variant="secondary">Stopped</Badge>; break;
+      case 'SUCCESS':  badge = <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Success</Badge>; break;
+      case 'FAILED':   badge = <Badge variant="destructive">Failed</Badge>; break;
+      default:         badge = <Badge>{status}</Badge>; break;
+    }
+
+    if (error && (status === 'FAILED' || status === 'STOPPED')) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger className="cursor-help">{badge}</TooltipTrigger>
+            <TooltipContent className="max-w-xs break-words bg-slate-900 text-white p-3 rounded-md shadow-lg border border-slate-700">
+              <p className="text-sm font-medium mb-1">Reason:</p>
+              <p className="text-xs text-slate-300">{error}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    return badge;
   };
 
   if (loading) return <div className="p-8 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-blue-600" /></div>;
@@ -129,38 +193,10 @@ export default function ScraperInstancesPage() {
           </h1>
           <p className="text-slate-500 mt-1">Monitor and manage running scraper instances in real-time.</p>
         </div>
-        <Button onClick={() => triggerScrape()} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-          <Play className="w-4 h-4" /> Run Full Scrape
+        <Button onClick={() => setIsRunModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+          <Play className="w-4 h-4" /> Run Scrape
         </Button>
       </div>
-
-      {/* AI Mode Selector */}
-      <Card className="p-5 border-neutral-200 dark:border-slate-800">
-        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-purple-500" />
-          AI Processing Mode
-          <span className="text-xs font-normal text-muted-foreground ml-1">(applied to the next scrape or re-run)</span>
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {AI_MODES.map((mode) => (
-            <button
-              key={mode.value}
-              onClick={() => setSelectedAiMode(mode.value)}
-              className={`text-left p-4 rounded-lg border-2 transition-all ${mode.color} ${
-                selectedAiMode === mode.value
-                  ? 'ring-2 ring-offset-1 ring-blue-500 dark:ring-offset-slate-950'
-                  : 'opacity-70 hover:opacity-100'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{mode.label}</span>
-                <Badge variant="outline" className="text-xs font-mono">{mode.cost}</Badge>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{mode.description}</p>
-            </button>
-          ))}
-        </div>
-      </Card>
 
       {/* Instances Table */}
       <Card className="shadow-sm border-neutral-200 dark:border-slate-800">
@@ -188,7 +224,7 @@ export default function ScraperInstancesPage() {
                       <div className="text-xs text-muted-foreground">{inst.targetType}</div>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">{inst.source}</td>
-                    <td className="px-6 py-4">{getStatusBadge(inst.status)}</td>
+                    <td className="px-6 py-4">{getStatusBadge(inst.status, inst.error)}</td>
                     <td className="px-6 py-4 text-muted-foreground">{inst.progress.page > 0 ? inst.progress.page : '-'}</td>
                     <td className="px-6 py-4">
                       <span className="font-medium">{inst.progress.tendersFound}</span>
@@ -232,6 +268,113 @@ export default function ScraperInstancesPage() {
           </table>
         </div>
       </Card>
+      
+      {/* Run Scrape Modal */}
+      <Dialog open={isRunModalOpen} onOpenChange={setIsRunModalOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Run New Scrape</DialogTitle>
+            <DialogDescription>Configure scope and AI processing mode.</DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+             {/* Scope Selection */}
+             <div className="space-y-3">
+                <Label>Scrape Scope</Label>
+                <RadioGroup value={scrapeScope} onValueChange={(val) => setScrapeScope(val as any)} className="flex gap-6">
+                   <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="all" id="scope-all" />
+                      <Label htmlFor="scope-all">Full Scrape</Label>
+                   </div>
+                   <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="state" id="scope-state" />
+                      <Label htmlFor="scope-state">By State</Label>
+                   </div>
+                   <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="district" id="scope-district" />
+                      <Label htmlFor="scope-district">By District</Label>
+                   </div>
+                </RadioGroup>
+             </div>
+             
+             {/* State Dropdown */}
+             {scrapeScope === 'state' && (
+                <div className="space-y-2">
+                   <Label>Select States</Label>
+                   <MultiSelect 
+                     options={targets.filter(t => t.type === 'STATE').map(t => ({ value: t.id, label: t.name }))}
+                     selected={selectedStateIds}
+                     onChange={setSelectedStateIds}
+                     placeholder="Search states..."
+                   />
+                </div>
+             )}
+
+             {/* District Dropdown */}
+             {scrapeScope === 'district' && (
+                <div className="space-y-4">
+                   <div className="space-y-2">
+                     <Label>Filter by State</Label>
+                     <Select value={selectedDistrictFilterStateId} onValueChange={setSelectedDistrictFilterStateId}>
+                       <SelectTrigger>
+                         <SelectValue placeholder="All States" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="all">All States</SelectItem>
+                         {Array.from(new Set(targets.filter(t => t.type === 'DISTRICT' && t.regionStateId).map(t => t.regionStateId))).map((stateId: any) => {
+                           const stateTarget = targets.find(t => t.regionStateId === stateId && t.type === 'DISTRICT');
+                           return (
+                             <SelectItem key={stateId} value={stateId}>
+                               {stateTarget?.regionState?.name || stateTarget?.state || 'Unknown State'}
+                             </SelectItem>
+                           );
+                         })}
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   <div className="space-y-2">
+                     <Label>Select Districts</Label>
+                     <MultiSelect 
+                       options={targets
+                         .filter(t => t.type === 'DISTRICT' && (selectedDistrictFilterStateId === 'all' || t.regionStateId === selectedDistrictFilterStateId))
+                         .map(t => ({ value: t.id, label: t.name }))}
+                       selected={selectedDistrictIds}
+                       onChange={setSelectedDistrictIds}
+                       placeholder="Search districts..."
+                     />
+                   </div>
+                </div>
+             )}
+             
+             {/* AI Processing Mode (moved from main view) */}
+             <div className="space-y-3 pt-4 border-t">
+                <Label>AI Processing Mode</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {AI_MODES.map((mode) => (
+                    <button
+                      key={mode.value}
+                      onClick={() => setSelectedAiMode(mode.value)}
+                      className={`text-left p-3 rounded-lg border transition-all ${mode.color} ${
+                        selectedAiMode === mode.value
+                          ? 'ring-2 ring-blue-500 border-blue-500 shadow-sm'
+                          : 'opacity-80 hover:opacity-100 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm mb-1">{mode.label}</div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2 leading-tight">{mode.description}</p>
+                      <Badge variant="outline" className="text-[10px] font-mono w-fit bg-background">{mode.cost}</Badge>
+                    </button>
+                  ))}
+                </div>
+             </div>
+          </div>
+          
+          <DialogFooter>
+             <Button variant="outline" onClick={() => setIsRunModalOpen(false)}>Cancel</Button>
+             <Button onClick={handleStartScrape} className="bg-blue-600 hover:bg-blue-700 text-white">Start Scrape</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

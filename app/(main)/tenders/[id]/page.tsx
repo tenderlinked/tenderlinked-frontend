@@ -800,9 +800,6 @@ export default function TenderDetailsPage() {
                         </div>
                         {tender.aiSummary && !isAiSummaryLocked && (
                           <div className="flex gap-2">
-                             <Button onClick={handleGenerateAiSummary} variant="outline" size="sm" className="bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors group">
-                               <Sparkles className="w-4 h-4 mr-2 text-purple-500 group-hover:text-white" /> Regenerate
-                             </Button>
                              <Button onClick={handleDownloadAiPdf} variant="outline" size="sm" className="bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors group">
                                <Download className="w-4 h-4 mr-2 group-hover:text-white" /> Download PDF
                              </Button>

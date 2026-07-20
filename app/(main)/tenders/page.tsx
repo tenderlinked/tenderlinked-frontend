@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import toast from "react-hot-toast";
 import {
   Select,
   SelectContent,
@@ -114,10 +115,18 @@ export default function UnifiedTendersPage() {
   const [statesList, setStatesList] = useState<any[]>([]);
   const [authoritiesList, setAuthoritiesList] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState(globalQuery);
-  const [activeTab, setActiveTab] = useState("active");
+  const [activeTab, setActiveTab] = useState(searchParams.get('bookmarked') === 'true' ? "followed" : "active");
   const [sortOption, setSortOption] = useState("newest");
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
+  useEffect(() => {
+    if (searchParams.get('bookmarked') === 'true') {
+      setActiveTab("followed");
+    } else {
+      setActiveTab("active");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const savedViewMode = localStorage.getItem('tender_viewMode') as 'card' | 'table';
@@ -385,13 +394,25 @@ export default function UnifiedTendersPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.message || 'Failed to save filter limits. Check your plan restrictions.');
+        toast.error(data.message || 'Failed to save filter limits. Check your plan restrictions.');
       } else {
-        alert('Filters saved successfully as Alert Preferences!');
+        setIsSaveFilterOpen(true);
       }
     } catch (err) {
-      alert('An error occurred while saving filters.');
+      toast.error('An error occurred while saving filters.');
     }
+  };
+
+  const handleApplySavedFilter = (filters: any) => {
+    if (filters.states) setSelectedStates(filters.states);
+    if (filters.cities) setSelectedCities(filters.cities);
+    if (filters.categories) setSelectedCategories(filters.categories);
+    if (filters.authorities) setSelectedAuthorities(filters.authorities);
+    if (filters.keywords) setSelectedKeywords(filters.keywords);
+    if (filters.minAmount !== undefined) setMinAmount(filters.minAmount);
+    if (filters.maxAmount !== undefined) setMaxAmount(filters.maxAmount);
+    if (filters.searchQuery !== undefined) setSearchQuery(filters.searchQuery);
+    setPage(1);
   };
 
   const handleToggleBookmark = async (id: string, currentStatus?: boolean) => {
@@ -452,10 +473,10 @@ export default function UnifiedTendersPage() {
           
           {/* Filters Row */}
           <div className="flex flex-wrap items-center gap-2 pb-2">
-            <Button variant="outline" size="sm" className="bg-slate-50 text-slate-600 border-slate-200 h-9">
-              <Filter className="w-4 h-4 mr-2" />
-              Saved Filters
-            </Button>
+            <SavedFiltersDropdown 
+              onApplyFilter={handleApplySavedFilter} 
+              refreshTrigger={refreshFiltersTrigger} 
+            />
 
             <Select value={activeTab} onValueChange={setActiveTab}>
               <SelectTrigger className="w-[150px] h-9 text-xs font-semibold bg-white border-slate-200">
@@ -707,8 +728,10 @@ export default function UnifiedTendersPage() {
                                   document.execCommand('copy');
                                   document.body.removeChild(textArea);
                                 }
+                                toast.success('Tender ID copied to clipboard!');
                               } catch (err) {
                                 console.error('Failed to copy', err);
+                                toast.error('Failed to copy Tender ID');
                               }
                             }}
                             title="Click to copy"
@@ -777,8 +800,9 @@ export default function UnifiedTendersPage() {
                         
                         <td className="px-3 py-4 text-xs font-medium text-slate-600">
                           {tender.startDate ? (
-                            <div className="flex flex-col items-center gap-1">
-                              <span>{format(new Date(tender.startDate), 'dd/MM/yyyy hh:mm a')}</span>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="font-bold text-slate-800 whitespace-nowrap">{format(new Date(tender.startDate), 'dd MMM yyyy')}</span>
+                              <span className="text-[10px] text-slate-500 mb-1">{format(new Date(tender.startDate), 'hh:mm a')}</span>
                               {(() => {
                                 const d = new Date(tender.startDate);
                                 if (isToday(d)) return <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-full">Today</span>;
@@ -792,8 +816,9 @@ export default function UnifiedTendersPage() {
                         
                         <td className="px-3 py-4 text-xs font-medium text-slate-600">
                           {tender.endDate ? (
-                            <div className="flex flex-col items-center gap-1">
-                              <span>{format(new Date(tender.endDate), 'dd/MM/yyyy hh:mm a')}</span>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="font-bold text-slate-800 whitespace-nowrap">{format(new Date(tender.endDate), 'dd MMM yyyy')}</span>
+                              <span className="text-[10px] text-slate-500 mb-1">{format(new Date(tender.endDate), 'hh:mm a')}</span>
                               {(() => {
                                 const d = new Date(tender.endDate);
                                 if (isToday(d)) return <span className="text-[10px] text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded-full animate-pulse">Ends today</span>;
@@ -894,6 +919,39 @@ export default function UnifiedTendersPage() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Description / AI Summary */}
+                    {(() => {
+                      let textToShow = tender.description;
+                      if (tender.aiSummary && tender.aiSummary !== '__PREMIUM_LOCKED__') {
+                        try {
+                          const parsed = JSON.parse(tender.aiSummary);
+                          if (parsed.workDescription && parsed.workDescription !== "Not Specified") {
+                            textToShow = parsed.workDescription;
+                          }
+                        } catch (e) {
+                          textToShow = tender.aiSummary;
+                        }
+                      }
+                      
+                      if (!textToShow || textToShow.trim() === '') return null;
+                      
+                      return (
+                        <div className="px-5 pb-4">
+                          {tender.aiSummary && tender.aiSummary !== '__PREMIUM_LOCKED__' && (
+                            <div className="mb-1.5">
+                              <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-purple-100">
+                                <Sparkles className="w-3 h-3" />
+                                AI Generated
+                              </span>
+                            </div>
+                          )}
+                          <div className="text-sm text-slate-600 line-clamp-2 leading-relaxed" title={textToShow}>
+                            {textToShow}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Footer - Details & Actions */}
                     <div className="bg-slate-50/70 border-t border-slate-100 px-5 py-3.5 flex flex-wrap items-center justify-between gap-4">

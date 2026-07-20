@@ -88,16 +88,19 @@ export function SavedFiltersDropdown({ onApplyFilter, refreshTrigger }: SavedFil
       </SelectTrigger>
       <SelectContent>
         {filters.map((f) => (
-          <div key={f.id} className="flex items-center justify-between w-full px-2 py-1.5 hover:bg-slate-100 rounded-sm cursor-pointer group" onClick={() => {
-            onApplyFilter(f.filters);
-            toast.success(`Applied filter: ${f.name}`);
-          }}>
-            <span className="text-xs font-medium truncate flex-1">{f.name}</span>
-            <Trash2 
-              className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity ml-2 shrink-0" 
-              onClick={(e) => handleDelete(e, f.id)}
-            />
-          </div>
+          <SelectItem key={f.id} value={f.id} className="group w-full cursor-pointer">
+            <div className="flex items-center justify-between w-full gap-2">
+              <span className="text-xs font-medium truncate flex-1 pr-4">{f.name}</span>
+              <Trash2 
+                className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity shrink-0" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleDelete(e, f.id);
+                }}
+              />
+            </div>
+          </SelectItem>
         ))}
       </SelectContent>
     </Select>
