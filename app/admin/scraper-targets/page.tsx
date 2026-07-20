@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Trash2, Loader2, Play, Edit, Server, ChevronDown, ChevronRight, X, Upload, Download, Eye, CheckCircle, Calendar } from "lucide-react";
+import { Search, Plus, Trash2, Loader2, Play, Edit, Server, ChevronDown, ChevronRight, X, Upload, Download, Eye, CheckCircle, Calendar, Cpu, Zap, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -72,6 +72,7 @@ export default function ScraperTargetsPage() {
   const [selectedStateView, setSelectedStateView] = useState<string | null>(null);
   const [runningScrape, setRunningScrape] = useState(false);
   const [scrapeLoadingId, setScrapeLoadingId] = useState<string | null>(null);
+  const [aiMode, setAiMode] = useState<'local-nlp' | 'openai-mini' | 'openai-4o'>('openai-mini');
 
   // New Target Form State
   const [isAdding, setIsAdding] = useState(false);
@@ -408,7 +409,7 @@ export default function ScraperTargetsPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ targetIds })
+        body: JSON.stringify({ targetIds, aiMode })
       });
       
       if (res.ok) {
@@ -434,7 +435,7 @@ export default function ScraperTargetsPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ targetIds: [targetId] })
+        body: JSON.stringify({ targetIds: [targetId], aiMode })
       });
 
       if (res.ok) {
@@ -722,6 +723,31 @@ export default function ScraperTargetsPage() {
             {isAdding ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
             {isAdding ? "Cancel" : "Add Target"}
           </Button>
+
+          {/* AI Mode Selector */}
+          <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/50">
+            <button
+              onClick={() => setAiMode('local-nlp')}
+              title="Local NLP — Free"
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${aiMode === 'local-nlp' ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-800 dark:text-slate-100' : 'text-muted-foreground hover:text-slate-700'}`}
+            >
+              <Cpu className="w-3.5 h-3.5" /> Local
+            </button>
+            <button
+              onClick={() => setAiMode('openai-mini')}
+              title="GPT-4o Mini — ~₹0.08/tender"
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${aiMode === 'openai-mini' ? 'bg-white dark:bg-slate-800 shadow-sm text-blue-600' : 'text-muted-foreground hover:text-slate-700'}`}
+            >
+              <Zap className="w-3.5 h-3.5" /> Mini
+            </button>
+            <button
+              onClick={() => setAiMode('openai-4o')}
+              title="GPT-4o — ~₹0.42/tender"
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${aiMode === 'openai-4o' ? 'bg-white dark:bg-slate-800 shadow-sm text-purple-600' : 'text-muted-foreground hover:text-slate-700'}`}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> GPT-4o
+            </button>
+          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -147,7 +147,7 @@ export default function UnifiedTendersPage() {
   const [refreshFiltersTrigger, setRefreshFiltersTrigger] = useState(0);
 
   const hasActiveFilters = selectedStates.length > 0 || selectedCities.length > 0 || selectedCategories.length > 0 || selectedAuthorities.length > 0 || selectedKeywords.length > 0 || minAmount || maxAmount || searchQuery;
-  const isLocked = !isLoadingLimits && limits.unlockedStates.length === 0 && limits.unlockedKeywords.length === 0;
+  const isLocked = false;
 
   // Sidebar collapse state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<Record<string, boolean>>({});
@@ -725,7 +725,7 @@ export default function UnifiedTendersPage() {
                         </td>
                         
                         <td className="px-4 py-4 text-left">
-                          <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}-${tender.id}`} className="text-xs font-semibold text-slate-900 hover:text-blue-600 line-clamp-3 leading-relaxed transition-colors" title={tender.title}>
+                          <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${tender.tenderId || tender.tenderCode || tender.id}`} className="text-xs font-semibold text-slate-900 hover:text-blue-600 line-clamp-3 leading-relaxed transition-colors" title={tender.title}>
                             {tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - ')}
                           </Link>
                           {(() => {
@@ -851,7 +851,7 @@ export default function UnifiedTendersPage() {
                     <div className="p-5 flex flex-col gap-3 relative z-10">
                       
                       {/* Tender Title */}
-                      <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}-${tender.id}`} className="text-[16px] font-semibold text-slate-900 hover:text-blue-600 leading-snug tracking-tight line-clamp-2 transition-colors" title={tender.title}>
+                      <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${tender.tenderId || tender.tenderCode || tender.id}`} className="text-[16px] font-semibold text-slate-900 hover:text-blue-600 leading-snug tracking-tight line-clamp-2 transition-colors" title={tender.title}>
                         {tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - ')}
                       </Link>
 

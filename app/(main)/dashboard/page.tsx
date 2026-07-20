@@ -42,6 +42,11 @@ export default function DashboardPage() {
   const router = useRouter();
   
   useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/login");
+      return;
+    }
+
     if (status === "authenticated") {
       // @ts-ignore
       if (session?.user?.globalRole !== 'SUPER_ADMIN') {
@@ -71,7 +76,6 @@ export default function DashboardPage() {
   }
 
   if (status === "unauthenticated") {
-    window.location.href = "/auth/login";
     return null;
   }
 

@@ -7,8 +7,10 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3, Bookmark, Bell, PhoneCall, Copy, Link as LinkIcon, Check, AlertTriangle, ArrowDown } from "lucide-react";
+import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3, Bookmark, Bell, PhoneCall, Copy, Link as LinkIcon, Check, AlertTriangle, ArrowDown, CheckCircle, Facebook, Linkedin, Twitter, MessageCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useTenderDownload } from "@/hooks/use-tender-download";
+import toast from "react-hot-toast";
 
 interface TenderDetail {
   id: string;
@@ -40,6 +42,7 @@ interface TenderDetail {
   invitingAuthorityName?: string;
   invitingAuthorityAddress?: string;
   paymentMode?: string;
+  isBookmarked?: boolean;
 }
 
 export default function TenderDetailsPage() {
@@ -58,6 +61,7 @@ export default function TenderDetailsPage() {
   const [aiSummaryHtml, setAiSummaryHtml] = useState<string | null>(null);
   const [isLoadingHtml, setIsLoadingHtml] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
+  const [recommendations, setRecommendations] = useState<{relatedTenders: any[], viewAlsoTenders: any[]}>({ relatedTenders: [], viewAlsoTenders: [] });
 
   const handleGenerateAiSummary = async () => {
     try {
@@ -141,20 +145,130 @@ export default function TenderDetailsPage() {
     }
   };
 
+  const copyToClipboard = async (text: string) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        const successful = document.execCommand('copy');
+        if (!successful) throw new Error('execCommand copy failed');
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    }
+  };
+
   const handleCopyId = () => {
     const id = tender?.tenderId || tender?.tenderCode;
     if (id) {
-      navigator.clipboard.writeText(id);
-      setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
+      copyToClipboard(id).then(() => {
+        setCopiedId(true);
+        toast.success("Tender ID copied to clipboard!");
+        setTimeout(() => setCopiedId(false), 2000);
+      }).catch(err => {
+        toast.error("Failed to copy Tender ID.");
+        console.error("Copy failed", err);
+      });
+    }
+  };
+
+  const handleCopyUrl = () => {
+    copyToClipboard(window.location.href).then(() => {
+      toast.success("Link copied to clipboard!");
+    }).catch(err => {
+      toast.error("Failed to copy link.");
+      console.error("Copy failed", err);
+    });
+  };
+
+  const handleSocialShare = (platform: string, href: string) => {
+    window.open(href, '_blank');
+  };
+
+  const shareOptions = () => {
+    const url = typeof window !== 'undefined' ? encodeURIComponent(window.location.href) : '';
+    const title = tender?.title ? encodeURIComponent(tender.title) : '';
+    return [
+      { name: "WhatsApp", icon: MessageCircle, href: `https://wa.me/?text=${title}%20${url}`, color: "bg-green-500 hover:bg-green-600 text-white" },
+      { name: "LinkedIn", icon: Linkedin, href: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`, color: "bg-[#0a66c2] hover:bg-[#004182] text-white" },
+      { name: "Facebook", icon: Facebook, href: `https://www.facebook.com/sharer/sharer.php?u=${url}`, color: "bg-[#1877f2] hover:bg-[#0c59c2] text-white" },
+      { name: "X (Twitter)", icon: Twitter, href: `https://twitter.com/intent/tweet?url=${url}&text=${title}`, color: "bg-black hover:bg-zinc-800 text-white" },
+    ];
+  };
+
+  const renderShareDialogContent = () => (
+    <DialogContent className="sm:max-w-md rounded-xl">
+      <DialogHeader>
+        <DialogTitle className="text-xl font-bold text-slate-800">Share this Tender</DialogTitle>
+      </DialogHeader>
+      <div className="grid grid-cols-2 gap-4 py-4">
+        {shareOptions().map((opt) => (
+          <Button
+            key={opt.name}
+            onClick={() => handleSocialShare(opt.name, opt.href)}
+            className={`w-full h-14 rounded-lg flex flex-col items-center justify-center gap-1 shadow-sm transition-transform hover:scale-[1.02] ${opt.color}`}
+          >
+            <opt.icon className="w-5 h-5" />
+            <span className="text-xs font-semibold">{opt.name}</span>
+          </Button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 mt-2 w-full overflow-hidden">
+        <div className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-md p-2.5 text-xs text-slate-500 truncate select-all">
+          {typeof window !== 'undefined' ? window.location.href : ''}
+        </div>
+        <Button variant="outline" className="shrink-0 text-slate-600 hover:text-blue-600 bg-white shadow-sm border-slate-200" onClick={handleCopyUrl}>
+          <Copy className="w-4 h-4 mr-2" /> Copy
+        </Button>
+      </div>
+    </DialogContent>
+  );
+
+  const handleToggleBookmark = async () => {
+    if (!tender) return;
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const isBookmarked = !tender.isBookmarked;
+      
+      const res = await fetch(`${apiUrl}/api/tenders/${tender.id}/bookmark`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${(session as any)?.accessToken}`,
+        },
+        body: JSON.stringify({ isBookmarked }),
+      });
+      
+      if (res.ok) {
+        setTender(prev => prev ? { ...prev, isBookmarked } : prev);
+        toast.success(isBookmarked ? "Tender saved to bookmarks!" : "Tender removed from bookmarks.");
+      } else {
+        toast.error("Failed to update bookmark.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An error occurred.");
     }
   };
 
   useEffect(() => {
     if (status === "authenticated" && params.id) {
       const fullId = params.id as string;
-      const actualId = fullId.length > 36 ? fullId.slice(-36) : fullId;
-      fetchTender(actualId);
+      let actualId;
+      if (fullId.includes('--')) {
+        actualId = fullId.split('--').pop();
+      } else {
+        actualId = fullId.length > 36 ? fullId.slice(-36) : fullId;
+      }
+      fetchTender(actualId as string);
     }
   }, [status, params.id]);
 
@@ -186,11 +300,15 @@ export default function TenderDetailsPage() {
   const fetchTender = async (id: string) => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/tenders/${id}`, {
-        headers: {
-          Authorization: `Bearer ${(session as any)?.accessToken}`,
-        },
-      });
+      const [response, recResponse] = await Promise.all([
+        fetch(`${apiUrl}/api/tenders/${id}`, {
+          headers: { Authorization: `Bearer ${(session as any)?.accessToken}` },
+        }),
+        fetch(`${apiUrl}/api/tenders/${id}/recommendations`, {
+          headers: { Authorization: `Bearer ${(session as any)?.accessToken}` },
+        }).catch(() => null)
+      ]);
+      
       if (response.status === 403) {
         setLimitReached(true);
         return;
@@ -200,6 +318,13 @@ export default function TenderDetailsPage() {
         setTender(data.data);
         if (data.data.documentsDownloaded) {
            fetchDocs(id);
+        }
+      }
+
+      if (recResponse?.ok) {
+        const recData = await recResponse.json();
+        if (recData.success) {
+           setRecommendations(recData.data);
         }
       }
     } catch (error) {
@@ -311,6 +436,54 @@ export default function TenderDetailsPage() {
     docList.push({ title: 'No documents available offline', type: 'System', size: '-' });
   }
 
+  let parsedAiSummary: any = null;
+  if (tender?.aiSummary) {
+    try {
+      parsedAiSummary = JSON.parse(tender.aiSummary);
+    } catch(e) {}
+  }
+
+  const renderTable = (items: any[]) => (
+    <div className="border border-t-0 border-slate-200 rounded-b-md overflow-hidden bg-white text-[13px]">
+      <table className="w-full text-left border-collapse">
+        <tbody>
+          {items.map((item, i) => (
+            <tr key={i} className={`border-b border-slate-100 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+              <td className="w-1/3 py-3 px-5 font-semibold text-slate-700 border-r border-slate-200 align-top">{item.label}</td>
+              <td className="py-3 px-5 text-slate-900 align-top leading-relaxed">{item.value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const renderBulletList = (items: string[], bulletColorClass: string) => (
+    <div className="border border-t-0 border-slate-200 rounded-b-md overflow-hidden bg-white text-[13px]">
+      <ul className="list-none m-0 p-0">
+        {items.map((item, i) => (
+          <li key={i} className={`relative py-3.5 px-5 pl-12 border-b border-slate-100 last:border-0 leading-relaxed ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+            <div className={`absolute left-5 top-5 w-2.5 h-2.5 rounded-full ${bulletColorClass}`}></div>
+            <span className="text-slate-800">{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  const renderNumberedList = (items: string[]) => (
+    <div className="border border-t-0 border-slate-200 rounded-b-md overflow-hidden bg-white text-[13px]">
+      <ul className="list-none m-0 p-0">
+        {items.map((item, i) => (
+          <li key={i} className={`flex gap-3.5 py-3.5 px-5 border-b border-slate-100 last:border-0 items-start ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+            <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-[11px] mt-0.5">{i + 1}</div>
+            <span className="text-slate-800 leading-relaxed">{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
   return (
     <div className="flex flex-col w-full bg-[#f3f4f6] min-h-screen pb-12 mt-0 px-4 md:px-8 lg:px-12 pt-2">
       
@@ -347,18 +520,28 @@ export default function TenderDetailsPage() {
 
           {/* Action Buttons Row */}
           <div className="flex flex-wrap gap-3">
-            <Button className="bg-[#f97316] hover:bg-[#ea580c] text-white shadow-sm font-semibold rounded-md h-9">
+            <Button 
+              onClick={() => setActiveTab('AI Tender Summary')}
+              className="bg-[#0284c7] hover:bg-[#0369a1] text-white shadow-sm font-semibold rounded-md h-9"
+            >
               <Sparkles className="w-4 h-4 mr-2" /> AI Tender Summary
             </Button>
-            <Button variant="outline" className="h-9 font-medium text-slate-600 bg-white shadow-sm border-slate-200">
-              <Bookmark className="w-4 h-4 mr-2" /> Save Tender
+            <Button 
+              variant="outline" 
+              className={`h-9 font-medium shadow-sm border-slate-200 transition-colors ${tender.isBookmarked ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-600'}`}
+              onClick={handleToggleBookmark}
+            >
+              <Bookmark className={`w-4 h-4 mr-2 ${tender.isBookmarked ? 'fill-current' : ''}`} /> 
+              {tender.isBookmarked ? 'Saved' : 'Save Tender'}
             </Button>
-            <Button variant="outline" className="h-9 font-medium text-slate-600 bg-white shadow-sm border-slate-200">
-              <Share2 className="w-4 h-4 mr-2" /> Share
-            </Button>
-            <Button variant="outline" className="h-9 font-medium text-slate-600 bg-white shadow-sm border-slate-200">
-              <Bell className="w-4 h-4 mr-2" /> Set Alert
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="h-9 font-medium text-slate-600 bg-white shadow-sm border-slate-200">
+                  <Share2 className="w-4 h-4 mr-2" /> Share
+                </Button>
+              </DialogTrigger>
+              {renderShareDialogContent()}
+            </Dialog>
           </div>
         </div>
 
@@ -366,12 +549,12 @@ export default function TenderDetailsPage() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
           <div className="p-4 md:p-5 border-r border-b md:border-b-0 border-slate-100 flex flex-col justify-center">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Tender Value</p>
-            <p className="font-bold text-blue-600 text-base">{tender.tenderValue || "Ref. Documents"}</p>
+            <p className="font-bold text-blue-600 text-base">{tender.tenderValue || parsedAiSummary?.tenderValue || "Ref. Documents"}</p>
             <p className="text-xs text-slate-400 mt-1">Estimated cost</p>
           </div>
           <div className="p-4 md:p-5 border-r border-b md:border-b-0 border-slate-100 flex flex-col justify-center">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Bid Submission</p>
-            <p className="font-bold text-[#c2410c] text-base">{tender.endDate ? new Date(tender.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A"}</p>
+            <p className="font-bold text-[#c2410c] text-base">{tender.endDate ? new Date(tender.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : (parsedAiSummary?.submissionDate || "N/A")}</p>
             <p className="text-xs text-slate-400 mt-1">
               {tender.endDate ? (() => {
                 const diffTime = new Date(tender.endDate).getTime() - new Date().getTime();
@@ -382,18 +565,18 @@ export default function TenderDetailsPage() {
           </div>
           <div className="p-4 md:p-5 border-r border-b md:border-b-0 border-slate-100 flex flex-col justify-center">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">EMD</p>
-            <p className="font-bold text-slate-800 text-base">{tender.emd || "Ref. Documents"}</p>
+            <p className="font-bold text-slate-800 text-base">{tender.emd || parsedAiSummary?.emd || "Ref. Documents"}</p>
             <p className="text-xs text-slate-400 mt-1">Bank guarantee accepted</p>
           </div>
           <div className="p-4 md:p-5 border-r border-slate-100 flex flex-col justify-center">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Document Fee</p>
-            <p className="font-bold text-slate-800 text-base">{tender.applicationCost || "Ref. Documents"}</p>
+            <p className="font-bold text-slate-800 text-base">{tender.applicationCost || parsedAiSummary?.tenderFee || "Ref. Documents"}</p>
             <p className="text-xs text-slate-400 mt-1">Non-refundable</p>
           </div>
           <div className="p-4 md:p-5 flex flex-col justify-center">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Tender Type</p>
-            <p className={`font-bold text-base ${tender.paymentMode?.toLowerCase().includes('online') ? 'text-emerald-600' : 'text-slate-800'}`}>
-              {tender.paymentMode || "Offline"}
+            <p className="font-bold text-base text-slate-800">
+              {tender.tenderType || "N/A"}
             </p>
           </div>
         </div>
@@ -457,8 +640,8 @@ export default function TenderDetailsPage() {
                       
                       {/* Row 2 */}
                       <div className="p-4 border-b border-r border-slate-100">
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><Sparkles className="w-3 h-3 mr-1"/> Competition Type</p>
-                        <p className="text-sm font-semibold text-slate-800">{tender.tenderType || "N/A"}</p>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><Sparkles className="w-3 h-3 mr-1"/> Payment Mode</p>
+                        <p className="text-sm font-semibold text-slate-800">{tender.paymentMode || "N/A"}</p>
                       </div>
                       <div className="p-4 border-b border-slate-100">
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><Sparkles className="w-3 h-3 mr-1"/> Bidding Type</p>
@@ -555,18 +738,148 @@ export default function TenderDetailsPage() {
                               <Download className="w-4 h-4 mr-2 group-hover:text-white" /> Download PDF
                             </Button>
                           </div>
-                          <div className="bg-white p-5 pt-16 rounded-xl border border-blue-100 shadow-[inset_0_1px_1px_rgba(255,255,255,1)] min-h-[600px]">
-                            {isLoadingHtml || !aiSummaryHtml ? (
-                              <div className="flex flex-col items-center justify-center py-20">
-                                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-                                <p className="text-sm text-slate-500 font-medium">Loading designed summary...</p>
+                          <div className="bg-white rounded-md shadow-sm border border-slate-200 min-h-[600px] mb-8 font-sans font-['Inter']">
+                            {parsedAiSummary ? (
+                              <div className="animate-in fade-in duration-500">
+                                {/* Hero Banner */}
+                                <div className="bg-gradient-to-br from-blue-700 to-blue-600 text-white p-6 border-b-4 border-blue-400 rounded-t-md">
+                                  <div className="text-[22px] font-bold mb-2">{parsedAiSummary.authorityName || tender.invitingAuthorityName || 'Tender Authority'}</div>
+                                  <div className="flex flex-wrap gap-6 text-[12px] opacity-90">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-1.5 h-1.5 bg-blue-300 rounded-full"></div> 
+                                      Tender No: {parsedAiSummary.tdrNumber || tender.tenderCode || 'N/A'}
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-1.5 h-1.5 bg-blue-300 rounded-full"></div> 
+                                      Location: {parsedAiSummary.location || tender.location || tender.city || 'N/A'}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* KPI Strip */}
+                                <div className="grid grid-cols-2 md:grid-cols-5 border-b border-slate-200">
+                                  <div className="p-4 text-center border-r border-slate-200 flex flex-col justify-center">
+                                    <div className="text-[9px] text-slate-500 uppercase tracking-[1px] mb-2 font-medium">Tender Value</div>
+                                    <div className="text-[14px] font-bold text-slate-900 leading-tight">{parsedAiSummary.tenderValue || '-'}</div>
+                                  </div>
+                                  <div className="p-4 text-center border-r border-slate-200 flex flex-col justify-center">
+                                    <div className="text-[9px] text-slate-500 uppercase tracking-[1px] mb-2 font-medium">EMD Amount</div>
+                                    <div className="text-[14px] font-bold text-slate-900 leading-tight">{parsedAiSummary.emd || '-'}</div>
+                                  </div>
+                                  <div className="p-4 text-center border-r border-slate-200 flex flex-col justify-center">
+                                    <div className="text-[9px] text-slate-500 uppercase tracking-[1px] mb-2 font-medium">Tender Fee</div>
+                                    <div className="text-[14px] font-bold text-slate-900 leading-tight">{parsedAiSummary.tenderFee || '-'}</div>
+                                  </div>
+                                  <div className="p-4 text-center border-r border-slate-200 flex flex-col justify-center">
+                                    <div className="text-[9px] text-slate-500 uppercase tracking-[1px] mb-2 font-medium">Submission Deadline</div>
+                                    <div className="text-[14px] font-bold text-amber-600 leading-tight">{parsedAiSummary.submissionDate || '-'}</div>
+                                  </div>
+                                  <div className="p-4 text-center flex flex-col justify-center">
+                                    <div className="text-[9px] text-slate-500 uppercase tracking-[1px] mb-2 font-medium">Contract Period</div>
+                                    <div className="text-[14px] font-bold text-slate-900 leading-tight">{parsedAiSummary.contractPeriod || '-'}</div>
+                                  </div>
+                                </div>
+
+                                {/* Content Sections */}
+                                <div className="p-8 pb-16 space-y-6">
+                                  
+                                  {/* Work Description */}
+                                  <div className="break-inside-avoid">
+                                    <div className="bg-white text-slate-800 border border-slate-200 border-b-0 border-l-4 border-l-blue-500 text-[12px] font-bold uppercase tracking-[1px] px-4 py-3 rounded-t-sm flex items-center gap-2.5">
+                                      <FileText className="w-4 h-4 text-blue-500" /> Work Description
+                                    </div>
+                                    <div className="bg-white border border-t-0 border-slate-200 rounded-b-sm p-5 text-[13.5px] leading-[1.9] text-slate-800">
+                                      {parsedAiSummary.workDescription || 'No description provided.'}
+                                    </div>
+                                  </div>
+
+                                  {/* Scope of Work */}
+                                  {parsedAiSummary.scopeOfWork?.length > 0 && (
+                                    <div className="break-inside-avoid">
+                                      <div className="bg-white text-slate-800 border border-slate-200 border-b-0 border-l-4 border-l-emerald-500 text-[12px] font-bold uppercase tracking-[1px] px-4 py-3 rounded-t-sm flex items-center gap-2.5">
+                                        <CheckCircle className="w-4 h-4 text-emerald-500" /> Scope Of Work
+                                      </div>
+                                      {renderNumberedList(parsedAiSummary.scopeOfWork)}
+                                    </div>
+                                  )}
+
+                                  {/* Basic Details */}
+                                  {parsedAiSummary.basicDetail?.length > 0 && (
+                                    <div className="break-inside-avoid">
+                                      <div className="bg-white text-slate-800 border border-slate-200 border-b-0 border-l-4 border-l-blue-500 text-[12px] font-bold uppercase tracking-[1px] px-4 py-3 rounded-t-sm flex items-center gap-2.5">
+                                        <FileText className="w-4 h-4 text-blue-500" /> Basic Details
+                                      </div>
+                                      {renderTable(parsedAiSummary.basicDetail)}
+                                    </div>
+                                  )}
+
+                                  {/* Key Dates & Timeline */}
+                                  {parsedAiSummary.keyDates?.length > 0 && (
+                                    <div className="break-inside-avoid">
+                                      <div className="bg-white text-slate-800 border border-slate-200 border-b-0 border-l-4 border-l-amber-500 text-[12px] font-bold uppercase tracking-[1px] px-4 py-3 rounded-t-sm flex items-center gap-2.5">
+                                        <Calendar className="w-4 h-4 text-amber-500" /> Key Dates & Timeline
+                                      </div>
+                                      {renderTable(parsedAiSummary.keyDates)}
+                                    </div>
+                                  )}
+
+                                  {/* Location & Contact */}
+                                  {parsedAiSummary.locationAndContact?.length > 0 && (
+                                    <div className="break-inside-avoid">
+                                      <div className="bg-white text-slate-800 border border-slate-200 border-b-0 border-l-4 border-l-teal-500 text-[12px] font-bold uppercase tracking-[1px] px-4 py-3 rounded-t-sm flex items-center gap-2.5">
+                                        <MapPin className="w-4 h-4 text-teal-500" /> Location & Contact
+                                      </div>
+                                      {renderTable(parsedAiSummary.locationAndContact)}
+                                    </div>
+                                  )}
+
+                                  {/* Finance & Payment Terms */}
+                                  {parsedAiSummary.finance?.length > 0 && (
+                                    <div className="break-inside-avoid">
+                                      <div className="bg-white text-slate-800 border border-slate-200 border-b-0 border-l-4 border-l-rose-500 text-[12px] font-bold uppercase tracking-[1px] px-4 py-3 rounded-t-sm flex items-center gap-2.5">
+                                        <Building2 className="w-4 h-4 text-rose-500" /> Finance & Payment Terms
+                                      </div>
+                                      {renderTable(parsedAiSummary.finance)}
+                                    </div>
+                                  )}
+
+                                  {/* Technical Eligibility */}
+                                  {parsedAiSummary.technicalQualification?.length > 0 && (
+                                    <div className="break-inside-avoid">
+                                      <div className="bg-white text-slate-800 border border-slate-200 border-b-0 border-l-4 border-l-indigo-500 text-[12px] font-bold uppercase tracking-[1px] px-4 py-3 rounded-t-sm flex items-center gap-2.5">
+                                        <AlertTriangle className="w-4 h-4 text-indigo-500" /> Technical Eligibility & Qualification
+                                      </div>
+                                      {renderBulletList(parsedAiSummary.technicalQualification, 'bg-indigo-500')}
+                                    </div>
+                                  )}
+
+                                  {/* Exemptions */}
+                                  {parsedAiSummary.exemptions?.length > 0 && (
+                                    <div className="break-inside-avoid">
+                                      <div className="bg-white text-slate-800 border border-slate-200 border-b-0 border-l-4 border-l-orange-500 text-[12px] font-bold uppercase tracking-[1px] px-4 py-3 rounded-t-sm flex items-center gap-2.5">
+                                        <AlertTriangle className="w-4 h-4 text-orange-500" /> Exemptions & Special Clauses
+                                      </div>
+                                      {renderBulletList(parsedAiSummary.exemptions, 'bg-orange-500')}
+                                    </div>
+                                  )}
+
+                                  {/* Required Documents */}
+                                  {parsedAiSummary.documentList?.length > 0 && (
+                                    <div className="break-inside-avoid">
+                                      <div className="bg-white text-slate-800 border border-slate-200 border-b-0 border-l-4 border-l-purple-500 text-[12px] font-bold uppercase tracking-[1px] px-4 py-3 rounded-t-sm flex items-center gap-2.5">
+                                        <FileText className="w-4 h-4 text-purple-500" /> Required Documents
+                                      </div>
+                                      {renderBulletList(parsedAiSummary.documentList, 'bg-purple-500')}
+                                    </div>
+                                  )}
+
+                                </div>
                               </div>
                             ) : (
-                              <iframe 
-                                srcDoc={aiSummaryHtml}
-                                className="w-full h-[800px] border-0 rounded-lg shadow-sm"
-                                title="AI Summary"
-                              />
+                               <div className="flex flex-col items-center justify-center py-32">
+                                 <div className="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                                 <p className="text-slate-500 font-semibold mt-4">Parsing Executive Summary...</p>
+                               </div>
                             )}
                           </div>
                         </div>
@@ -574,22 +887,22 @@ export default function TenderDetailsPage() {
                         <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border border-slate-100 rounded-xl">
                           {isGeneratingAi ? (
                             <div className="flex flex-col items-center">
-                              <Sparkles className="w-8 h-8 text-purple-400 mb-4 animate-pulse" />
+                              <Sparkles className="w-8 h-8 text-blue-400 mb-4 animate-pulse" />
                               <div className="flex items-center gap-2 mb-2">
-                                <div className="w-4 h-4 rounded-full border-2 border-purple-500 border-t-transparent animate-spin"></div>
-                                <span className="text-sm font-bold text-purple-700 animate-pulse">{aiGenerationStep || 'Initializing...'}</span>
+                                <div className="w-4 h-4 rounded-full border-2 border-[#0284c7] border-t-transparent animate-spin"></div>
+                                <span className="text-sm font-bold text-[#0369a1] animate-pulse">{aiGenerationStep || 'Initializing...'}</span>
                               </div>
-                              <div className="w-48 h-1.5 bg-purple-100 rounded-full overflow-hidden mt-3">
-                                <div className="h-full bg-purple-500 rounded-full w-full origin-left animate-[shimmer_2s_infinite]"></div>
+                              <div className="w-48 h-1.5 bg-blue-100 rounded-full overflow-hidden mt-3">
+                                <div className="h-full bg-[#0284c7] rounded-full w-full origin-left animate-[shimmer_2s_infinite]"></div>
                               </div>
                             </div>
                           ) : (
                             <>
-                              <Sparkles className="w-8 h-8 text-purple-400 mb-3" />
+                              <Sparkles className="w-8 h-8 text-blue-400 mb-3" />
                               <p className="text-sm font-semibold text-slate-700 mb-2">AI Summary Not Available</p>
                               <p className="text-xs text-slate-500 text-center max-w-md mb-6">Generate a comprehensive AI summary for this tender to quickly understand key requirements and scope.</p>
                               <Button 
-                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                                className="bg-[#0284c7] hover:bg-[#0369a1] text-white"
                                 onClick={handleGenerateAiSummary}
                               >
                                 <Sparkles className="w-4 h-4 mr-2" /> Generate AI Summary
@@ -609,44 +922,78 @@ export default function TenderDetailsPage() {
                         <h3 className="text-lg font-bold text-slate-800">Tender Timeline</h3>
                      </div>
                      
-                     <div className="relative pl-[9.5rem] max-w-2xl">
-                       {/* Vertical Line */}
-                       <div className="absolute left-[7.5rem] top-2 bottom-8 w-[2px] bg-slate-200"></div>
+                       <div className="relative pl-[9.5rem] max-w-2xl">
+                         {/* Vertical Line */}
+                         <div className="absolute left-[7.5rem] top-2 bottom-8 w-[2px] bg-slate-200"></div>
 
-                       {/* Published Item */}
-                       <div className="relative mb-10">
-                         <div className="absolute -left-[9.5rem] top-0 w-[6.5rem] text-right">
-                            <p className="font-bold text-sm text-slate-800">{tender.startDate ? new Date(tender.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A"}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{tender.startDate ? new Date(tender.startDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' IST' : ""}</p>
-                         </div>
-                         <div className="absolute -left-[2rem] -ml-[5px] w-3 h-3 rounded-full bg-green-500 ring-[3px] ring-white top-1"></div>
-                         <div>
-                           <h4 className="font-bold text-slate-800 text-sm">Tender Published</h4>
-                           <p className="text-sm text-slate-500 mb-3 mt-1">Tender notice published.</p>
-                           <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-0 shadow-none font-semibold text-[10px] px-2 py-0.5 rounded">Completed</Badge>
-                         </div>
-                       </div>
+                         {(() => {
+                           const events = [];
+                           if (tender.publishedDate || tender.startDate) {
+                               events.push({ key: 'publishedDate', title: 'Tender Published', desc: 'Tender notice published.', color: 'bg-green-500', date: tender.publishedDate || tender.startDate });
+                           }
+                           if (tender.docDownloadStartDate) {
+                               events.push({ key: 'docDownloadStartDate', title: 'Document Download Starts', desc: 'Documents available for download.', color: 'bg-blue-500', date: tender.docDownloadStartDate });
+                           }
+                           if (tender.clarificationStartDate) {
+                               events.push({ key: 'clarificationStartDate', title: 'Clarification Starts', desc: 'Query period begins.', color: 'bg-orange-500', date: tender.clarificationStartDate });
+                           }
+                           if (tender.preBidMeetingDate) {
+                               events.push({ key: 'preBidMeetingDate', title: 'Pre-Bid Meeting', desc: tender.preBidMeetingPlace ? `Meeting at ${tender.preBidMeetingPlace}` : 'Meeting for clarification and queries.', color: 'bg-purple-500', date: tender.preBidMeetingDate });
+                           }
+                           if (tender.clarificationEndDate) {
+                               events.push({ key: 'clarificationEndDate', title: 'Clarification Ends', desc: 'Query period ends.', color: 'bg-orange-500', date: tender.clarificationEndDate });
+                           }
+                           if (tender.startDate && tender.startDate !== tender.publishedDate) {
+                               events.push({ key: 'startDate', title: 'Bid Submission Starts', desc: 'Bid submission opens.', color: 'bg-indigo-500', date: tender.startDate });
+                           }
+                           if (tender.docDownloadEndDate) {
+                               events.push({ key: 'docDownloadEndDate', title: 'Document Download Ends', desc: 'Last day to download documents.', color: 'bg-slate-500', date: tender.docDownloadEndDate });
+                           }
+                           if (tender.endDate) {
+                               events.push({ key: 'endDate', title: 'Bid Submission Deadline', desc: 'Final date for bid submission.', color: 'bg-white border-[2.5px] border-slate-300 ring-[0px]', isDeadline: true, date: tender.endDate });
+                           }
+                           if (tender.bidOpeningDate) {
+                               events.push({ key: 'bidOpeningDate', title: 'Bid Opening', desc: 'Bids will be opened and evaluated.', color: 'bg-teal-500', date: tender.bidOpeningDate });
+                           }
 
-                       {/* Deadline Item */}
-                       <div className="relative">
-                         <div className="absolute -left-[9.5rem] top-0 w-[6.5rem] text-right">
-                            <p className="font-bold text-sm text-slate-800">{tender.endDate ? new Date(tender.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A"}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{tender.endDate ? new Date(tender.endDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' IST' : ""}</p>
-                         </div>
-                         <div className="absolute -left-[2rem] -ml-[6px] w-[14px] h-[14px] rounded-full bg-white border-[2.5px] border-slate-300 top-1"></div>
-                         <div>
-                           <h4 className="font-bold text-slate-800 text-sm">Bid Submission Deadline</h4>
-                           <p className="text-sm text-slate-500 mb-3 mt-1">Offline submission at the designated office.</p>
-                           <Badge variant="secondary" className="bg-slate-100 text-slate-500 hover:bg-slate-200 border-0 shadow-none font-semibold text-[10px] px-2 py-0.5 rounded">
-                              {tender.endDate ? (() => {
-                                const diffTime = new Date(tender.endDate).getTime() - new Date().getTime();
-                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                return diffDays > 0 ? `Upcoming · ${diffDays} days` : 'Expired';
-                              })() : "Upcoming"}
-                           </Badge>
-                         </div>
+                           events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                           if (events.length === 0) {
+                             return <div className="text-slate-500 italic py-4">No timeline dates available.</div>;
+                           }
+
+                           return events.map((event, index) => {
+                             const isLast = index === events.length - 1;
+                             const isPast = new Date(event.date).getTime() < new Date().getTime();
+                             
+                             let statusBadge = null;
+                             if (isPast) {
+                               statusBadge = <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-0 shadow-none font-semibold text-[10px] px-2 py-0.5 rounded">Completed</Badge>;
+                             } else if (event.isDeadline) {
+                               const diffTime = new Date(event.date).getTime() - new Date().getTime();
+                               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                               statusBadge = <Badge variant="secondary" className="bg-slate-100 text-slate-500 hover:bg-slate-200 border-0 shadow-none font-semibold text-[10px] px-2 py-0.5 rounded">{diffDays > 0 ? `Upcoming · ${diffDays} days` : 'Expired'}</Badge>;
+                             } else {
+                               statusBadge = <Badge variant="secondary" className="bg-slate-100 text-slate-500 hover:bg-slate-200 border-0 shadow-none font-semibold text-[10px] px-2 py-0.5 rounded">Upcoming</Badge>;
+                             }
+
+                             return (
+                               <div key={event.key} className={`relative ${isLast ? '' : 'mb-10'}`}>
+                                 <div className="absolute -left-[9.5rem] top-0 w-[6.5rem] text-right">
+                                    <p className="font-bold text-sm text-slate-800">{new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                                    <p className="text-xs text-slate-400 mt-0.5">{new Date(event.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} IST</p>
+                                 </div>
+                                 <div className={`absolute -left-[2rem] ${event.isDeadline ? '-ml-[6px] w-[14px] h-[14px]' : '-ml-[5px] w-3 h-3 ring-[3px] ring-white'} rounded-full ${event.color} top-1`}></div>
+                                 <div>
+                                   <h4 className="font-bold text-slate-800 text-sm">{event.title}</h4>
+                                   <p className="text-sm text-slate-500 mb-3 mt-1">{event.desc}</p>
+                                   {statusBadge}
+                                 </div>
+                               </div>
+                             );
+                           });
+                         })()}
                        </div>
-                     </div>
                   </div>
                 )}
 
@@ -763,8 +1110,13 @@ export default function TenderDetailsPage() {
              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Share this tender</p>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" className="h-10 w-10 text-slate-600"><Copy className="w-4 h-4"/></Button>
-                  <Button variant="outline" size="icon" className="h-10 w-10 text-blue-600"><Share2 className="w-4 h-4"/></Button>
+                  <Button variant="outline" size="icon" className="h-10 w-10 text-slate-600" onClick={handleCopyUrl} title="Copy Link"><Copy className="w-4 h-4"/></Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="icon" className="h-10 w-10 text-blue-600"><Share2 className="w-4 h-4"/></Button>
+                    </DialogTrigger>
+                    {renderShareDialogContent()}
+                  </Dialog>
                   <Button variant="outline" size="icon" className="h-10 w-10 text-sky-500"><Mail className="w-4 h-4"/></Button>
                 </div>
              </div>
@@ -773,21 +1125,49 @@ export default function TenderDetailsPage() {
              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center gap-2">
                    <Sparkles className="w-4 h-4 text-blue-600" />
-                   <h4 className="font-bold text-slate-800 text-sm">Related Tender Results</h4>
+                   <h4 className="font-bold text-slate-800 text-sm">Related Tenders</h4>
                 </div>
-                <div className="p-4 text-sm text-slate-500 text-center">
-                   No related tenders found.
+                <div className="flex flex-col">
+                   {recommendations?.relatedTenders?.length > 0 ? (
+                      recommendations.relatedTenders.map(rt => (
+                         <Link href={`/tenders/${rt.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${rt.tenderId || rt.tenderCode || rt.id}`} key={rt.id} className="block p-4 border-b border-slate-100 hover:bg-blue-50/30 transition-colors last:border-0 group">
+                            <h5 className="text-sm font-semibold text-slate-800 mb-2 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">{rt.title}</h5>
+                            <div className="flex items-center justify-between text-xs text-slate-500">
+                               <span className="font-bold text-slate-700">{rt.tenderValue && rt.tenderValue !== "0" && rt.tenderValue !== "0.00" && rt.tenderValue !== "0.0" ? `Rs. ${rt.tenderValue}` : "Ref. Doc"}</span>
+                               <span className="flex items-center"><MapPin className="w-3 h-3 mr-1" /> {rt.state || rt.city || 'India'}</span>
+                            </div>
+                         </Link>
+                      ))
+                   ) : (
+                      <div className="p-4 text-sm text-slate-500 text-center">
+                         No related tenders found.
+                      </div>
+                   )}
                 </div>
              </div>
 
              {/* View Also */}
              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center gap-2">
-                   <Sparkles className="w-4 h-4 text-blue-600" />
+                   <Building2 className="w-4 h-4 text-emerald-600" />
                    <h4 className="font-bold text-slate-800 text-sm">View Also</h4>
                 </div>
-                <div className="p-4 text-sm text-slate-500 text-center">
-                   No suggestions at this time.
+                <div className="flex flex-col">
+                   {recommendations?.viewAlsoTenders?.length > 0 ? (
+                      recommendations.viewAlsoTenders.map(vt => (
+                         <Link href={`/tenders/${vt.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${vt.tenderId || vt.tenderCode || vt.id}`} key={vt.id} className="block p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0 relative overflow-hidden group">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <h5 className="text-[13px] font-medium text-slate-700 mb-1.5 line-clamp-2 leading-relaxed group-hover:text-emerald-700 transition-colors">{vt.title}</h5>
+                            <div className="flex items-center text-[11px] text-slate-400 gap-3">
+                               <span>ID: <span className="font-medium text-slate-500">{vt.tenderId || vt.tenderCode}</span></span>
+                            </div>
+                         </Link>
+                      ))
+                   ) : (
+                      <div className="p-4 text-sm text-slate-500 text-center">
+                         No suggestions at this time.
+                      </div>
+                   )}
                 </div>
              </div>
 

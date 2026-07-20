@@ -45,7 +45,14 @@ export function ClientRoot({
           </main>
         </SidebarProvider>
         <ThemeCustomizer />
-        <Toaster position="bottom-right" reverseOrder={false} />
+        <Toaster 
+          position="top-center" 
+          reverseOrder={false} 
+          containerStyle={{
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}
+        />
       </ThemeProvider>
     </SessionProvider>
   );
