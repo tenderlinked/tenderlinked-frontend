@@ -7,6 +7,12 @@ export default function Home() {
     const [searchValue, setSearchValue] = useState("");
     const [suggestions, setSuggestions] = useState<{ text: string, type: string, category: string }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [stats, setStats] = useState({
+        totalSources: 0,
+        totalTenders: 0,
+        statesCovered: 0,
+        annualValue: 0
+    });
     const searchRef = useRef<HTMLDivElement>(null);
 
     // Click outside listener
@@ -18,6 +24,21 @@ export default function Home() {
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders/stats/home`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setStats(data);
+                }
+            } catch (err) {
+                console.error("Stats fetch error", err);
+            }
+        };
+        fetchStats();
     }, []);
 
     useEffect(() => {
@@ -96,6 +117,22 @@ export default function Home() {
         
     }, []);
 
+    const formatNumber = (num: number) => {
+        if (!num) return "0";
+        if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M+';
+        if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K+';
+        return num.toString();
+    };
+
+    const formatCurrency = (num: number) => {
+        if (!num) return "₹0";
+        if (num >= 1000000000) return '₹' + (num / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B+';
+        if (num >= 10000000) return '₹' + (num / 10000000).toFixed(1).replace(/\.0$/, '') + 'Cr+';
+        if (num >= 100000) return '₹' + (num / 100000).toFixed(1).replace(/\.0$/, '') + 'L+';
+        if (num >= 1000) return '₹' + (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K+';
+        return '₹' + num.toString();
+    };
+
     return (
         <div className="bg-white text-gray-900 font-body-md selection:bg-[#2563EB]-fixed selection:text-white-fixed">
 <main>
@@ -155,20 +192,20 @@ export default function Home() {
 
 <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter">
 <div className="text-white">
-<div className="font-bold text-3xl text-3xl">200K+</div>
+<div className="font-bold text-3xl text-3xl">{stats.totalSources > 0 ? formatNumber(stats.totalSources) : '200K+'}</div>
 <div className="font-body-sm text-sm opacity-80">Tender Sources</div>
 </div>
 <div className="text-white">
-<div className="font-bold text-3xl text-3xl">25K+</div>
-<div className="font-body-sm text-sm opacity-80">Daily Tenders</div>
+<div className="font-bold text-3xl text-3xl">{stats.totalTenders > 0 ? formatNumber(stats.totalTenders) : '25K+'}</div>
+<div className="font-body-sm text-sm opacity-80">Total Tenders</div>
 </div>
 <div className="text-white">
-<div className="font-bold text-3xl text-3xl">190+</div>
-<div className="font-body-sm text-sm opacity-80">States &amp; UTs Covered</div>
+<div className="font-bold text-3xl text-3xl">{stats.statesCovered > 0 ? formatNumber(stats.statesCovered) : '190+'}</div>
+<div className="font-body-sm text-sm opacity-80">States Covered</div>
 </div>
 <div className="text-white">
-<div className="font-bold text-3xl text-3xl">$2T+</div>
-<div className="font-body-sm text-sm opacity-80">Annual Value</div>
+<div className="font-bold text-3xl text-3xl">{stats.annualValue > 0 ? formatCurrency(stats.annualValue) : '$2T+'}</div>
+<div className="font-body-sm text-sm opacity-80">Tender Value</div>
 </div>
 </div>
 </div>

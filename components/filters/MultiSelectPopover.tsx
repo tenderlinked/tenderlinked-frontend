@@ -17,6 +17,7 @@ interface MultiSelectPopoverProps {
   allowCustom?: boolean;
   lockedOptions?: string[];
   onLockedClick?: (opt: string) => void;
+  optionCounts?: Record<string, number>;
 }
 
 export function MultiSelectPopover({
@@ -29,6 +30,7 @@ export function MultiSelectPopover({
   allowCustom = false,
   lockedOptions = [],
   onLockedClick,
+  optionCounts,
 }: MultiSelectPopoverProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -151,8 +153,13 @@ export function MultiSelectPopover({
                   className="mt-0.5"
                 />
                 <span className="leading-tight text-slate-700 flex flex-1 items-center gap-1.5 w-full">
-                  {opt}
-                  {isLocked && <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 ml-auto"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+                  <span className="flex-1">{opt}</span>
+                  {optionCounts && optionCounts[opt] !== undefined && (
+                    <span className="ml-auto text-[10px] font-semibold text-slate-400 bg-slate-100 rounded px-1.5 py-0.5 tabular-nums shrink-0">
+                      {optionCounts[opt].toLocaleString()}
+                    </span>
+                  )}
+                  {isLocked && <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 shrink-0"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
                 </span>
               </label>
               );

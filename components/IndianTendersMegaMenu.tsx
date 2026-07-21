@@ -1,89 +1,35 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
 const tabs = [
-  "By Preferences",
   "By States",
   "By Cities",
   "By Authorities",
   "By Categories",
-  "By Authority Groups",
-  "By Procurement",
   "By Keywords",
-  "All",
 ];
-
-const mockData: Record<string, string[]> = {
-  "By States": [
-    "Karnataka Tenders",
-    "Andhra Pradesh Tenders",
-    "Andaman And Nicobar Islands Tenders",
-    "Punjab Tenders",
-    "Haryana Tenders",
-    "Maharashtra Tenders",
-    "Arunachal Pradesh Tenders",
-    "Manipur Tenders",
-    "West Bengal Tenders",
-    "Tripura Tenders",
-    "Odisha Tenders",
-    "Madhya Pradesh Tenders",
-    "Daman And Diu Tenders",
-    "Assam Tenders",
-    "Delhi Tenders",
-    "Ladakh Tenders",
-    "Jharkhand Tenders",
-    "Mizoram Tenders",
-    "Telangana Tenders",
-    "Chandigarh Tenders",
-    "Goa Tenders",
-    "Gujarat Tenders",
-  ],
-  "By Cities": [
-    "Mumbai Tenders",
-    "Delhi Tenders",
-    "Bangalore Tenders",
-    "Hyderabad Tenders",
-    "Ahmedabad Tenders",
-    "Chennai Tenders",
-    "Kolkata Tenders",
-    "Surat Tenders",
-    "Pune Tenders",
-    "Jaipur Tenders",
-  ],
-  "By Authorities": [
-    "NHAI Tenders",
-    "Railways Tenders",
-    "Defence Tenders",
-    "CPWD Tenders",
-    "Smart City Tenders",
-    "ONGC Tenders",
-    "NTPC Tenders",
-    "BHEL Tenders",
-  ],
-  "By Categories": [
-    "Construction Tenders",
-    "IT & Software Tenders",
-    "Medical Equipment Tenders",
-    "Electrical Tenders",
-    "Manpower Tenders",
-    "Housekeeping Tenders",
-    "Catering Tenders",
-  ],
-  "By Keywords": [
-    "Solar Tenders",
-    "CCTV Tenders",
-    "Laptop Tenders",
-    "Drone Tenders",
-    "Ambulance Tenders",
-    "Security Services Tenders",
-  ],
-};
 
 const IndianTendersMegaMenu = () => {
   const [activeTab, setActiveTab] = useState("By States");
+  const [menuData, setMenuData] = useState<Record<string, string[]>>({});
 
-  const currentData = mockData[activeTab] || ["Coming Soon..."];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders/metadata/mega-menu`);
+        if (res.ok) {
+          const data = await res.json();
+          setMenuData(data);
+        }
+      } catch (err) {
+        console.error("Mega menu fetch error", err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const currentData = menuData[activeTab] || ["Loading..."];
 
   return (
     <motion.div
@@ -114,15 +60,23 @@ const IndianTendersMegaMenu = () => {
       {/* Right Content Area */}
       <div className="flex-1 p-6 bg-white dark:bg-gray-900 max-h-[400px] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h4 className="text-sm font-bold text-[#2563EB]">View all {activeTab.replace("By ", "")}</h4>
+          <Link href="/tenders">
+            <h4 className="text-sm font-bold text-[#2563EB] hover:underline cursor-pointer transition-all">
+              View all {activeTab.replace("By ", "")}
+            </h4>
+          </Link>
         </div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
           {currentData.map((item) => {
             const stateName = item.replace(" Tenders", "");
-            const href = activeTab === "By States" 
-              ? `/tenders?state=${encodeURIComponent(stateName)}`
-              : `/tenders?q=${encodeURIComponent(stateName)}`;
-              
+            let href = `/tenders?q=${encodeURIComponent(stateName)}`;
+            
+            if (activeTab === "By States") href = `/tenders?states=${encodeURIComponent(stateName)}`;
+            if (activeTab === "By Cities") href = `/tenders?districts=${encodeURIComponent(stateName)}`;
+            if (activeTab === "By Authorities") href = `/tenders?authorities=${encodeURIComponent(stateName)}`;
+            if (activeTab === "By Categories") href = `/tenders?categories=${encodeURIComponent(stateName)}`;
+            if (activeTab === "By Keywords") href = `/tenders?keywords=${encodeURIComponent(stateName)}`;
+
             return (
               <Link
                 key={item}

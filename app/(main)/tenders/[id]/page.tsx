@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3, Bookmark, Bell, PhoneCall, Copy, Link as LinkIcon, Check, AlertTriangle, ArrowDown, CheckCircle, Facebook, Linkedin, Twitter, MessageCircle, Zap, ShieldCheck, Tag, Loader2, Clock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useTenderDownload } from "@/hooks/use-tender-download";
+import { EditTenderModal } from "@/components/tenders/edit-tender-modal";
 import toast from "react-hot-toast";
 
 interface TenderDetail {
@@ -57,6 +58,7 @@ export default function TenderDetailsPage() {
   const [activeSection, setActiveSection] = useState('overview');
   const [copiedId, setCopiedId] = useState(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [aiGenerationStep, setAiGenerationStep] = useState('');
   const [aiSummaryHtml, setAiSummaryHtml] = useState<string | null>(null);
   const [isLoadingHtml, setIsLoadingHtml] = useState(false);
@@ -640,6 +642,15 @@ export default function TenderDetailsPage() {
               </DialogTrigger>
               {renderShareDialogContent()}
             </Dialog>
+            {session?.user?.globalRole === 'SUPER_ADMIN' && (
+              <Button 
+                variant="outline" 
+                className="h-9 font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 shadow-sm border-amber-200"
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                <Edit3 className="w-4 h-4 mr-2" /> Edit Tender
+              </Button>
+            )}
           </div>
         </div>
 
@@ -803,7 +814,7 @@ export default function TenderDetailsPage() {
                              <Button onClick={handleDownloadAiPdf} variant="outline" size="sm" className="bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors group">
                                <Download className="w-4 h-4 mr-2 group-hover:text-white" /> Download PDF
                              </Button>
-                          </div>
+                           </div>
                         )}
                      </div>
                      {isAiSummaryLocked ? (
@@ -1309,6 +1320,11 @@ export default function TenderDetailsPage() {
         </div>
       </div>
       <DownloadModal />
+      <EditTenderModal 
+        tender={tender} 
+        isOpen={isEditModalOpen} 
+        onClose={() => setIsEditModalOpen(false)} 
+      />
     </div>
   );
 }

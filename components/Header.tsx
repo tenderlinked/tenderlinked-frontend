@@ -58,12 +58,26 @@ const Header = () => {
           whileHover={{ scale: 1.02 }}
           className="flex items-center gap-2 cursor-pointer text-[#2563EB]"
         >
-          <div className={isBlueHeader ? "bg-white text-[#244376] p-1.5 rounded-lg shadow-sm" : "bg-[#2563EB] text-white p-1.5 rounded-lg shadow-sm"}>
-            <Network size={22} strokeWidth={2.5} />
-          </div>
-          <span className={`font-[800] text-[24px] tracking-tight ${isBlueHeader ? "text-white" : "text-[#111827] dark:text-white"}`}>
-            TenderLinked
-          </span>
+          {/* Pixel-perfect inline SVG matching "Tender Management" layout */}
+          <svg viewBox="0 0 170 55" className="h-[38px] md:h-[42px] w-auto hidden sm:block" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Left T shape (7) */}
+              <polygon points="15,5 50,5 45,20 10,20" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"} />
+              <polygon points="30,20 45,20 35,50 20,50" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"} />
+              
+              {/* Right Top Bar (Accent) */}
+              <polygon points="54,5 170,5 165,20 49,20" className={isBlueHeader ? "fill-blue-200" : "fill-[#2563EB]"} />
+              
+              {/* Typography */}
+              <text x="51" y="40" fontFamily="Inter, system-ui, sans-serif" fontSize="23" fontWeight="900" letterSpacing="1.5" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"}>TENDER</text>
+              <text x="52" y="51" fontFamily="Inter, system-ui, sans-serif" fontSize="10" fontWeight="700" letterSpacing="6" className={isBlueHeader ? "fill-blue-200" : "fill-[#2563EB]"}>LINKED</text>
+          </svg>
+
+          {/* Mobile view (Icon only) */}
+          <svg viewBox="0 0 55 55" className="h-[32px] md:h-[36px] w-auto sm:hidden" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="15,5 50,5 45,20 10,20" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"} />
+              <polygon points="30,20 45,20 35,50 20,50" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"} />
+              <polygon points="54,5 65,5 60,20 49,20" className={isBlueHeader ? "fill-blue-200" : "fill-[#2563EB]"} />
+          </svg>
         </motion.div>
 
         {/* Desktop Navigation */}

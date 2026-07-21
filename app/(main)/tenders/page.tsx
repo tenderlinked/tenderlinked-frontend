@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,8 @@ import {
   Copy,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Edit3
 } from "lucide-react";
 import { format, differenceInCalendarDays, isToday } from "date-fns";
 import { MultiSelectPopover } from "@/components/filters/MultiSelectPopover";
@@ -47,6 +48,7 @@ import { SavedFiltersDropdown } from "@/components/filters/SavedFiltersDropdown"
 import { ConfirmUnlockModal } from "@/components/filters/ConfirmUnlockModal";
 import { PreferencesSetupModal } from "@/components/filters/PreferencesSetupModal";
 import { PlanChangeModal } from "@/components/filters/PlanChangeModal";
+import { EditTenderModal } from "@/components/tenders/edit-tender-modal";
 
 interface Tender {
   id: string;
@@ -84,6 +86,7 @@ const getPlatformName = (tender: Partial<Tender>) => {
 export default function UnifiedTendersPage() {
   const { data: session, status } = useSession();
   const { initiateDownload, DownloadModal } = useTenderDownload();
+  const router = useRouter();
   
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +122,7 @@ export default function UnifiedTendersPage() {
   const [sortOption, setSortOption] = useState("newest");
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [tableFontSize, setTableFontSize] = useState(13);
 
   useEffect(() => {
     if (searchParams.get('bookmarked') === 'true') {
@@ -133,6 +137,8 @@ export default function UnifiedTendersPage() {
     if (savedViewMode) setViewMode(savedViewMode);
     const savedSidebar = localStorage.getItem('tender_isSidebarVisible');
     if (savedSidebar !== null) setIsSidebarVisible(savedSidebar === 'true');
+    const savedFontSize = localStorage.getItem('tender_tableFontSize');
+    if (savedFontSize) setTableFontSize(parseInt(savedFontSize, 10));
   }, []);
 
   const handleSetViewMode = (mode: 'card' | 'table') => {
@@ -144,6 +150,15 @@ export default function UnifiedTendersPage() {
     setIsSidebarVisible(visible);
     localStorage.setItem('tender_isSidebarVisible', visible.toString());
   };
+
+  const handleFontSizeChange = (delta: number) => {
+    setTableFontSize(prev => {
+      const next = Math.min(20, Math.max(10, prev + delta));
+      localStorage.setItem('tender_tableFontSize', String(next));
+      return next;
+    });
+  };
+
   const [sidebarStats, setSidebarStats] = useState<{ states: {name:string,count:number}[], cities: {name:string,count:number}[], keywords: {keyword:string,count:number}[] }>({ states: [], cities: [], keywords: [] });
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -154,6 +169,9 @@ export default function UnifiedTendersPage() {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isPlanChangeOpen, setIsPlanChangeOpen] = useState(false);
   const [refreshFiltersTrigger, setRefreshFiltersTrigger] = useState(0);
+
+  const [editingTender, setEditingTender] = useState<Tender | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const hasActiveFilters = selectedStates.length > 0 || selectedCities.length > 0 || selectedCategories.length > 0 || selectedAuthorities.length > 0 || selectedKeywords.length > 0 || minAmount || maxAmount || searchQuery;
   const isLocked = false;
@@ -284,6 +302,34 @@ export default function UnifiedTendersPage() {
     ? statesList.map(s => s.name).filter(s => !limits.unlockedStates.includes(s)) 
     : [];
 
+  // Highlight matching keywords/search terms in text
+  const highlightText = (text: string): React.ReactNode => {
+    const terms = [
+      ...selectedKeywords,
+      ...(searchQuery ? [searchQuery] : []),
+    ].filter(Boolean);
+    if (terms.length === 0) return text;
+    const pattern = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const regex = new RegExp(`(${pattern})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      regex.test(part)
+        ? <mark key={i} className="bg-yellow-200 text-yellow-900 rounded px-0.5">{part}</mark>
+        : part
+    );
+  };
+
+  // Detect if a tender is a semantic-only match (search term not literally in title/description)
+  const isSemanticMatch = (tender: any): boolean => {
+    const terms = [
+      ...selectedKeywords,
+      ...(searchQuery ? [searchQuery] : []),
+    ].filter(Boolean);
+    if (terms.length === 0) return false;
+    const haystack = `${tender.title || ''} ${tender.description || ''}`.toLowerCase();
+    return !terms.some(t => haystack.includes(t.toLowerCase()));
+  };
+
   const buildBaseUrl = () => {
     let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders?`;
     
@@ -372,6 +418,21 @@ export default function UnifiedTendersPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Sidebar keyword quick-select: clear all filters and show only results for this keyword
+  const handleSidebarKeywordClick = (keyword: string) => {
+    setSearchQuery('');
+    setSelectedKeywords([keyword]);
+    setSelectedStates([]);
+    setSelectedCities([]);
+    setSelectedCategories([]);
+    setSelectedAuthorities([]);
+    setMinAmount('');
+    setMaxAmount('');
+    setPage(1);
+    // Clear URL params so the address bar shows /tenders cleanly
+    router.replace('/tenders');
   };
 
   const currentCities = selectedStates.length > 0 
@@ -492,6 +553,7 @@ export default function UnifiedTendersPage() {
             <MultiSelectPopover
               label="Keyword"
               options={sidebarStats.keywords.map(k => k.keyword)}
+              optionCounts={Object.fromEntries(sidebarStats.keywords.map(k => [k.keyword, k.count]))}
               selectedValues={selectedKeywords}
               lockedOptions={lockedKeywords}
               onLockedClick={(kw) => {
@@ -603,16 +665,39 @@ export default function UnifiedTendersPage() {
             />
 
             <div className="ml-auto flex items-center gap-3">
+
+              {/* Font size controls */}
+              <div className="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-md border border-slate-200 gap-0.5">
+                <button
+                  onClick={() => handleFontSizeChange(-1)}
+                  disabled={tableFontSize <= 10}
+                  className="px-2 py-1 rounded text-xs font-bold text-slate-600 hover:bg-white hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  title="Decrease font size"
+                >
+                  A-
+                </button>
+                <span className="px-1.5 text-[11px] font-mono text-slate-500 min-w-[28px] text-center select-none">{tableFontSize}px</span>
+                <button
+                  onClick={() => handleFontSizeChange(1)}
+                  disabled={tableFontSize >= 20}
+                  className="px-2 py-1 rounded text-xs font-bold text-slate-600 hover:bg-white hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  title="Increase font size"
+                >
+                  A+
+                </button>
+              </div>
+
+              {/* View mode + sidebar toggle */}
               <div className="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-md border border-slate-200">
                 <button 
-                  onClick={() => { handleSetViewMode('card'); handleSetSidebarVisible(true); }}
+                  onClick={() => handleSetViewMode('card')}
                   className={`p-1.5 rounded ${viewMode === 'card' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                   title="Card View"
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
                 <button 
-                  onClick={() => { handleSetViewMode('table'); handleSetSidebarVisible(false); }}
+                  onClick={() => handleSetViewMode('table')}
                   className={`p-1.5 rounded ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                   title="Table View"
                 >
@@ -627,7 +712,6 @@ export default function UnifiedTendersPage() {
                   <PanelRight className="w-4 h-4" />
                 </button>
               </div>
-
 
               <Button size="sm" onClick={handleSaveFilter} className="h-9 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm rounded-full px-5">
                 Save Filter
@@ -674,8 +758,20 @@ export default function UnifiedTendersPage() {
                     <p className="text-sm text-slate-500 mt-1">Try adjusting your filters to find more opportunities.</p>
                   </div>
                 ) : viewMode === 'table' ? (
+              <>
+                <style>{`
+                  .tender-data-table,
+                  .tender-data-table td,
+                  .tender-data-table th,
+                  .tender-data-table a,
+                  .tender-data-table span:not(.badge-exempt),
+                  .tender-data-table div,
+                  .tender-data-table p {
+                    font-size: ${tableFontSize}px !important;
+                  }
+                `}</style>
               <div className="border-y border-slate-200 bg-white">
-                <table className="w-full text-sm text-left relative">
+                <table className="tender-data-table w-full text-left relative">
                   <thead className="sticky top-[121px] z-10 text-[11px] text-slate-700 uppercase tracking-wider bg-blue-50 shadow-sm border-b border-slate-300">
                     <tr className="divide-x divide-slate-200">
                       <th className="px-3 py-3 font-bold text-center w-32 cursor-pointer group hover:bg-blue-100/50 transition-colors select-none" onClick={() => handleSort('organisation')}>
@@ -749,8 +845,14 @@ export default function UnifiedTendersPage() {
                         
                         <td className="px-4 py-4 text-left">
                           <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${tender.tenderId || tender.tenderCode || tender.id}`} className="text-xs font-semibold text-slate-900 hover:text-blue-600 line-clamp-3 leading-relaxed transition-colors" title={tender.title}>
-                            {tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - ')}
+                            {highlightText(tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - '))}
                           </Link>
+                          {isSemanticMatch(tender) && (
+                            <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-600 border border-purple-200 text-[9px] font-semibold px-1.5 py-0.5 rounded mt-1" title="Recommended by AI based on semantic relevance to your search">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
+                              AI Match{tender.aiMatchScore != null ? ` ${tender.aiMatchScore}%` : ''}
+                            </span>
+                          )}
                           {(() => {
                             const filteredTags = (tender.tags || []).filter((t: string) => !t.includes('PREMIUM_LOCKED') && t.toLowerCase() !== (tender.tenderCategory || '').toLowerCase());
                             return filteredTags.length > 0 ? (
@@ -778,6 +880,22 @@ export default function UnifiedTendersPage() {
                               </span>
                             </div>
                           )}
+                          {/* Description in table view */}
+                          {(() => {
+                            let textToShow = tender.description;
+                            if (tender.aiSummary && tender.aiSummary !== '__PREMIUM_LOCKED__') {
+                              try {
+                                const parsed = JSON.parse(tender.aiSummary);
+                                if (parsed.workDescription && parsed.workDescription !== 'Not Specified') textToShow = parsed.workDescription;
+                              } catch { textToShow = tender.aiSummary; }
+                            }
+                            if (!textToShow || textToShow.trim() === '') return null;
+                            return (
+                              <div className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed mt-1" title={textToShow}>
+                                {highlightText(textToShow)}
+                              </div>
+                            );
+                          })()}
 
                         </td>
                         
@@ -859,6 +977,16 @@ export default function UnifiedTendersPage() {
                                 <Download className="w-4 h-4" />
                               </button>
                             )}
+                            
+                            {session?.user?.globalRole === 'SUPER_ADMIN' && (
+                              <button
+                                onClick={() => { setEditingTender(tender as any); setIsEditModalOpen(true); }}
+                                className="p-1.5 border border-amber-200 text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
+                                title="Edit Tender"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -866,8 +994,22 @@ export default function UnifiedTendersPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             ) : (
-              tenders.map((tender) => {
+              <>
+                <style>{`
+                  .tender-data-table,
+                  .tender-data-table td,
+                  .tender-data-table th,
+                  .tender-data-table a,
+                  .tender-data-table span,
+                  .tender-data-table div,
+                  .tender-data-table p {
+                    font-size: ${tableFontSize}px !important;
+                  }
+                `}</style>
+              <div className="tender-data-table flex flex-col gap-4">
+              {tenders.map((tender) => {
                 const isClosed = tender.endDate && differenceInCalendarDays(new Date(tender.endDate), new Date()) < 0;
                 return (
                 <Card key={tender.id} className={`group relative shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-500 overflow-hidden rounded-xl ${isClosed ? 'bg-slate-50 border-slate-200 grayscale-[0.2] opacity-80 hover:shadow-slate-900/5 hover:border-slate-300' : 'bg-white border-slate-200/60 hover:shadow-blue-900/5 hover:border-blue-300/60'}`}>
@@ -877,8 +1019,14 @@ export default function UnifiedTendersPage() {
                       
                       {/* Tender Title */}
                       <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${tender.tenderId || tender.tenderCode || tender.id}`} className="text-[16px] font-semibold text-slate-900 hover:text-blue-600 leading-snug tracking-tight line-clamp-2 transition-colors" title={tender.title}>
-                        {tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - ')}
+                        {highlightText(tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - '))}
                       </Link>
+                      {isSemanticMatch(tender) && (
+                        <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-600 border border-purple-200 text-[10px] font-semibold px-2 py-0.5 rounded-md -mt-1 w-fit" title="Recommended by AI based on semantic relevance to your search">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
+                          AI Match{tender.aiMatchScore != null ? ` ${tender.aiMatchScore}%` : ''}
+                        </span>
+                      )}
 
                       {/* Tags & Location */}
                       <div className="flex flex-col gap-2 mt-0.5">
@@ -947,7 +1095,7 @@ export default function UnifiedTendersPage() {
                             </div>
                           )}
                           <div className="text-sm text-slate-600 line-clamp-2 leading-relaxed" title={textToShow}>
-                            {textToShow}
+                             {highlightText(textToShow)}
                           </div>
                         </div>
                       );
@@ -1033,11 +1181,24 @@ export default function UnifiedTendersPage() {
                         ) : (
                           <Button 
                             size="sm" 
-                            className="h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm px-4 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 hover:shadow-md"
+                            className="h-8 rounded-full bg-blue-600 text-white shadow-sm px-4 hover:bg-blue-700 transition-all duration-200 hover:-translate-y-0.5 active:scale-95"
                             onClick={(e) => initiateDownload(tender, e)}
+                            title="Download Documents"
                           >
                             <Download className="w-3.5 h-3.5 mr-1.5" />
                             Download
+                          </Button>
+                        )}
+                        {session?.user?.globalRole === 'SUPER_ADMIN' && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="h-8 rounded-full border-amber-200 text-amber-600 bg-amber-50 shadow-sm px-4 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 hover:bg-amber-100 hover:border-amber-300"
+                            title="Edit Tender"
+                            onClick={() => { setEditingTender(tender as any); setIsEditModalOpen(true); }}
+                          >
+                            <Edit3 className="w-3.5 h-3.5 mr-1.5" />
+                            Edit
                           </Button>
                         )}
                       </div>
@@ -1045,7 +1206,9 @@ export default function UnifiedTendersPage() {
                     </div>
                   </CardContent>
                 </Card>
-              );})
+                );})}
+              </div>
+              </>
             )}
           </div>
           
@@ -1176,25 +1339,7 @@ export default function UnifiedTendersPage() {
                                 });
                                 return;
                               }
-                              if (selectedKeywords.includes(keyword)) {
-                                setSelectedKeywords(prev => prev.filter(k => k !== keyword));
-                              } else {
-                                if (!limits.unlockedKeywords.includes(keyword)) {
-                                  const isFree = limits.unlockedKeywords.length < limits.maxKeywords;
-                                  setUnlockModal({
-                                    isOpen: true,
-                                    type: 'keyword',
-                                    value: keyword,
-                                    title: `Unlock Keyword: ${keyword}`,
-                                    description: isFree 
-                                      ? `You have ${limits.maxKeywords - limits.unlockedKeywords.length} free keyword slots remaining. Do you want to use one to unlock "${keyword}"? Once unlocked, it cannot be changed.`
-                                      : `You have reached your limit of ${limits.maxKeywords} keywords. Upgrade to a premium plan to add more keywords to your feed.`,
-                                    isLimitReached: !isFree
-                                  });
-                                  return;
-                                }
-                                setSelectedKeywords(prev => [...prev, keyword]);
-                              }
+                              handleSidebarKeywordClick(keyword);
                             }} 
                             className={`text-xs w-full text-left transition-colors flex items-center justify-start gap-1.5 ${isLocked ? 'opacity-50 grayscale cursor-pointer' : ''} ${selectedKeywords.includes(keyword) ? 'text-blue-600 font-semibold' : 'text-slate-500 hover:text-blue-600'}`}
                           >
@@ -1484,6 +1629,14 @@ export default function UnifiedTendersPage() {
         }}
       />
       <DownloadModal />
+      <EditTenderModal 
+        tender={editingTender} 
+        isOpen={isEditModalOpen} 
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingTender(null);
+        }} 
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 type ScrapeStatus = 'PENDING' | 'RUNNING' | 'PAUSED' | 'STOPPED' | 'FAILED' | 'SUCCESS';
 type AiMode = 'local-nlp' | 'openai-mini' | 'openai-4o';
@@ -76,6 +77,7 @@ export default function ScraperInstancesPage() {
   const [selectedStateIds, setSelectedStateIds] = useState<string[]>([]);
   const [selectedDistrictIds, setSelectedDistrictIds] = useState<string[]>([]);
   const [selectedDistrictFilterStateId, setSelectedDistrictFilterStateId] = useState<string>("all");
+  const [repairDocuments, setRepairDocuments] = useState<boolean>(false);
 
   const getHeaders = useCallback(() => ({
     "Content-Type": "application/json",
@@ -126,7 +128,7 @@ export default function ScraperInstancesPage() {
 
   const triggerScrape = async (targetIds?: string[]) => {
     try {
-      const body: any = { aiMode: selectedAiMode };
+      const body: any = { aiMode: selectedAiMode, repairDocuments };
       if (targetIds) body.targetIds = targetIds;
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/scrape`, {
         method: "POST", headers: getHeaders(), body: JSON.stringify(body)
@@ -366,6 +368,20 @@ export default function ScraperInstancesPage() {
                     </button>
                   ))}
                 </div>
+             </div>
+
+             {/* Deep Scrape (Repair Documents) */}
+             <div className="space-y-3 pt-4 border-t flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Deep Scrape (Repair missing documents)</Label>
+                  <p className="text-[13px] text-muted-foreground">
+                    Slower. Will attempt to download missing documents for existing tenders in the database instead of instantly skipping them.
+                  </p>
+                </div>
+                <Switch
+                  checked={repairDocuments}
+                  onCheckedChange={setRepairDocuments}
+                />
              </div>
           </div>
           
