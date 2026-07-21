@@ -22,7 +22,7 @@ function LogoSidebar() {
     <Link
       href="/dashboard"
       className={cn(
-        'sidebar-logo h-[72px] py-3.5 flex items-center justify-center border-b border-neutral-100 dark:border-slate-700',
+        'sidebar-logo h-[72px] py-3.5 flex items-center justify-start border-b border-neutral-100 dark:border-slate-700',
         isCollapsed ? 'px-1' : 'px-4'
       )}
     >

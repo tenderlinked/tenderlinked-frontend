@@ -130,39 +130,43 @@ const Header = () => {
     };
 
     return (
-        <header className="dashboard-header flex items-center justify-between sm:h-16 h-16 shrink-0 gap-4 md:px-8 px-4 bg-blue-600 dark:bg-blue-700 text-white shadow-md sticky top-0 z-50">
+        <header className={cn(
+            "dashboard-header flex items-center justify-between sm:h-16 h-16 shrink-0 gap-4 md:px-8 px-4 shadow-md sticky top-0 z-50 transition-colors",
+            "bg-white dark:bg-[#1e2734] border-b border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white"
+        )}>
             
             {/* Left: Logo & Nav Links */}
             <div className="flex items-center gap-4 h-full">
-                {isAdmin && <SidebarTrigger className="text-white hover:bg-white/10 hover:text-white" />}
+                {isAdmin && <SidebarTrigger className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800" />}
                 
                 {/* Logo (Hidden in admin since it's in the sidebar) */}
                 {!isAdmin && (
                     <Link href="/dashboard" className="flex items-center hover:opacity-90 transition-opacity shrink-0 ml-1">
                         {/* Pixel-perfect inline SVG matching "Tender Management" layout */}
                         <svg viewBox="0 0 170 55" className="h-[42px] w-auto hidden sm:block" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            {/* Left T shape (White) */}
-                            <polygon points="15,5 50,5 45,20 10,20" fill="#ffffff" />
-                            <polygon points="30,20 45,20 35,50 20,50" fill="#ffffff" />
+                            {/* Left T shape (Blue) */}
+                            <polygon points="15,5 50,5 45,20 10,20" fill="#2563EB" />
+                            <polygon points="30,20 45,20 35,50 20,50" fill="#2563EB" />
                             
                             {/* Right Top Bar (Purple) */}
-                            <polygon points="54,5 170,5 165,20 49,20" fill="#d4c6f1" />
+                            <polygon points="54,5 170,5 165,20 49,20" fill="#8b5cf6" />
                             
                             {/* Typography */}
-                            <text x="51" y="40" fontFamily="Inter, system-ui, sans-serif" fontSize="23" fontWeight="900" fill="#ffffff" letterSpacing="1.5">TENDER</text>
-                            <text x="52" y="51" fontFamily="Inter, system-ui, sans-serif" fontSize="10" fontWeight="700" fill="#d4c6f1" letterSpacing="6">LINKED</text>
+                            <text x="51" y="40" fontFamily="Inter, system-ui, sans-serif" fontSize="23" fontWeight="900" fill="#2563EB" letterSpacing="1.5">TENDER</text>
+                            <text x="52" y="51" fontFamily="Inter, system-ui, sans-serif" fontSize="10" fontWeight="700" fill="#8b5cf6" letterSpacing="6">LINKED</text>
                         </svg>
 
                         {/* Mobile view (Icon only) */}
                         <svg viewBox="0 0 55 55" className="h-[36px] w-auto sm:hidden" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <polygon points="15,5 50,5 45,20 10,20" fill="#ffffff" />
-                            <polygon points="30,20 45,20 35,50 20,50" fill="#ffffff" />
-                            <polygon points="54,5 65,5 60,20 49,20" fill="#d4c6f1" />
+                            <polygon points="15,5 50,5 45,20 10,20" fill="#2563EB" />
+                            <polygon points="30,20 45,20 35,50 20,50" fill="#2563EB" />
+                            <polygon points="54,5 65,5 60,20 49,20" fill="#8b5cf6" />
                         </svg>
                     </Link>
                 )}
 
                 {/* Primary Nav Links */}
+                {!isAdmin && (
                 <nav className="hidden md:flex items-center gap-2 h-full">
                     {navLinks.map((link) => (
                         <Link 
@@ -171,20 +175,22 @@ const Header = () => {
                             className={cn(
                                 "flex items-center gap-2 px-3 h-full border-b-[3px] font-medium text-sm transition-colors",
                                 isActive(link.url)
-                                    ? "border-white text-white bg-white/10" 
-                                    : "border-transparent text-blue-100 hover:text-white hover:bg-white/5"
+                                    ? "border-primary text-primary bg-primary/5" 
+                                    : "border-transparent text-slate-600 dark:text-slate-300 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800"
                             )}
                         >
                             {link.title}
                         </Link>
                     ))}
                 </nav>
+                )}
             </div>
 
             {/* Middle: Global Search Bar */}
+            {!isAdmin && (
             <div className="flex-1 max-w-xl mx-4 hidden lg:flex items-center" ref={searchRef}>
                 <div className="relative w-full flex items-center">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                         <SearchIcon className="h-4 w-4 text-slate-400" />
                     </div>
                     <input 
@@ -194,10 +200,10 @@ const Header = () => {
                         onKeyDown={handleKeyDown}
                         onFocus={() => setShowSuggestions(true)}
                         placeholder="Search by Keyword, Tender ID, Title, District, City, State... (Press Enter)" 
-                        className="block w-full pl-9 pr-[120px] py-2 border-0 rounded-md leading-5 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/20 sm:text-sm"
+                        className="block w-full pl-10 pr-[120px] py-2.5 border border-transparent rounded-full leading-5 bg-slate-100 hover:bg-slate-200/60 dark:bg-slate-800 dark:hover:bg-slate-700 shadow-sm text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 sm:text-sm transition-all duration-300"
                     />
                     
-                    <div className="absolute inset-y-1 right-1 flex items-center">
+                    <div className="absolute inset-y-1.5 right-1.5 flex items-center">
                         <button
                             onClick={() => {
                                 if (searchValue.trim()) {
@@ -205,9 +211,9 @@ const Header = () => {
                                     setShowSuggestions(false);
                                 }
                             }}
-                            className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 transition-all cursor-pointer"
+                            className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-full shadow-sm hover:bg-blue-700 hover:shadow transition-all cursor-pointer"
                         >
-                            <Sparkles className="w-4 h-4" />
+                            <Sparkles className="w-3.5 h-3.5" />
                             AI Search
                         </button>
                     </div>
@@ -239,12 +245,13 @@ const Header = () => {
                     )}
                 </div>
             </div>
+            )}
 
             {/* Right: Actions & Profile */}
             <div className="flex items-center gap-3 h-full">
-                {usage && (
-                    <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white font-medium text-sm">
-                        <Coins className="w-4 h-4" />
+                {usage && !isAdmin && (
+                    <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-sm border border-slate-200 dark:border-slate-700">
+                        <Coins className="w-4 h-4 text-amber-500" />
                         <span>{usage.availableCredits} Credits</span>
                     </div>
                 )}

@@ -25,7 +25,6 @@ const Header = () => {
   const router = useRouter();
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
-  const isBlueHeader = pathname === "/auth/register";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -45,11 +44,9 @@ const Header = () => {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 h-[72px] transition-all duration-300 ${
-        isBlueHeader
-          ? "bg-[#244376] text-white border-b border-blue-800"
-          : isScrolled
-            ? "bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl shadow-sm border-b border-[#E5E7EB] dark:border-gray-800"
-            : "bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl border-b border-[#E5E7EB] dark:border-gray-800"
+        isScrolled
+          ? "bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl shadow-sm border-b border-[#E5E7EB] dark:border-gray-800"
+          : "bg-white/90 dark:bg-[#111827]/90 backdrop-blur-xl border-b border-[#E5E7EB] dark:border-gray-800"
       }`}
     >
       <div className="max-w-[1536px] mx-auto px-4 md:px-8 h-full flex items-center justify-between">
@@ -61,22 +58,22 @@ const Header = () => {
           {/* Pixel-perfect inline SVG matching "Tender Management" layout */}
           <svg viewBox="0 0 170 55" className="h-[38px] md:h-[42px] w-auto hidden sm:block" fill="none" xmlns="http://www.w3.org/2000/svg">
               {/* Left T shape (7) */}
-              <polygon points="15,5 50,5 45,20 10,20" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"} />
-              <polygon points="30,20 45,20 35,50 20,50" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"} />
+              <polygon points="15,5 50,5 45,20 10,20" className="fill-[#111827] dark:fill-white" />
+              <polygon points="30,20 45,20 35,50 20,50" className="fill-[#111827] dark:fill-white" />
               
               {/* Right Top Bar (Accent) */}
-              <polygon points="54,5 170,5 165,20 49,20" className={isBlueHeader ? "fill-blue-200" : "fill-[#2563EB]"} />
+              <polygon points="54,5 170,5 165,20 49,20" className="fill-[#2563EB]" />
               
               {/* Typography */}
-              <text x="51" y="40" fontFamily="Inter, system-ui, sans-serif" fontSize="23" fontWeight="900" letterSpacing="1.5" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"}>TENDER</text>
-              <text x="52" y="51" fontFamily="Inter, system-ui, sans-serif" fontSize="10" fontWeight="700" letterSpacing="6" className={isBlueHeader ? "fill-blue-200" : "fill-[#2563EB]"}>LINKED</text>
+              <text x="51" y="40" fontFamily="Inter, system-ui, sans-serif" fontSize="23" fontWeight="900" letterSpacing="1.5" className="fill-[#111827] dark:fill-white">TENDER</text>
+              <text x="52" y="51" fontFamily="Inter, system-ui, sans-serif" fontSize="10" fontWeight="700" letterSpacing="6" className="fill-[#2563EB]">LINKED</text>
           </svg>
 
           {/* Mobile view (Icon only) */}
           <svg viewBox="0 0 55 55" className="h-[32px] md:h-[36px] w-auto sm:hidden" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="15,5 50,5 45,20 10,20" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"} />
-              <polygon points="30,20 45,20 35,50 20,50" className={isBlueHeader ? "fill-white" : "fill-[#111827] dark:fill-white"} />
-              <polygon points="54,5 65,5 60,20 49,20" className={isBlueHeader ? "fill-blue-200" : "fill-[#2563EB]"} />
+              <polygon points="15,5 50,5 45,20 10,20" className="fill-[#111827] dark:fill-white" />
+              <polygon points="30,20 45,20 35,50 20,50" className="fill-[#111827] dark:fill-white" />
+              <polygon points="54,5 65,5 60,20 49,20" className="fill-[#2563EB]" />
           </svg>
         </motion.div>
 
@@ -96,13 +93,9 @@ const Header = () => {
               <a
                 href={item.path}
                 className={`text-[16px] font-medium flex items-center gap-1 transition-colors duration-250 ${
-                  isBlueHeader
-                    ? item.active
-                      ? "text-white"
-                      : "text-blue-100 hover:text-white"
-                    : item.active
-                      ? "text-[#2563EB]"
-                      : "text-[#111827] dark:text-gray-200 group-hover:text-[#2563EB]"
+                  item.active
+                    ? "text-[#2563EB]"
+                    : "text-[#111827] dark:text-gray-200 group-hover:text-[#2563EB]"
                 }`}
               >
                 {item.name}
@@ -120,7 +113,7 @@ const Header = () => {
               {item.active && (
                 <motion.div
                   layoutId="activeTab"
-                  className={`absolute bottom-0 left-0 right-0 h-0.5 ${isBlueHeader ? "bg-white" : "bg-[#2563EB]"}`}
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2563EB]"
                   initial={false}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
@@ -204,7 +197,7 @@ const Header = () => {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-start text-left">
-                    <span className="text-[13px] font-bold leading-tight text-gray-900 dark:text-white max-w-[130px] truncate">
+                    <span className="hidden md:inline-block font-medium text-sm text-gray-700 dark:text-gray-200">
                       {session?.user?.name || "User"}
                     </span>
                   </div>
@@ -236,11 +229,7 @@ const Header = () => {
             <>
               <Link
                 href="/auth/login"
-                className={`text-[15px] font-medium transition-colors ${
-                  isBlueHeader
-                    ? "text-white/90 hover:text-white"
-                    : "text-[#111827] dark:text-gray-200 hover:text-[#2563EB]"
-                }`}
+                className="text-[15px] font-medium transition-colors text-[#111827] dark:text-gray-200 hover:text-[#2563EB]"
               >
                 Login
               </Link>
@@ -249,16 +238,10 @@ const Header = () => {
                 <motion.button
                   whileHover={{
                     y: -1,
-                    boxShadow: isBlueHeader
-                      ? "0 10px 15px -3px rgba(255, 255, 255, 0.1)"
-                      : "0 10px 15px -3px rgba(37, 99, 235, 0.3), 0 4px 6px -2px rgba(37, 99, 235, 0.15)",
+                    boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.3), 0 4px 6px -2px rgba(37, 99, 235, 0.15)",
                   }}
                   whileTap={{ y: 0 }}
-                  className={`text-[15px] font-semibold px-6 py-2.5 rounded-[12px] shadow-sm transition-all ${
-                    isBlueHeader
-                      ? "bg-white text-[#244376] hover:bg-slate-100"
-                      : "text-white bg-gradient-to-r from-[#2563EB] to-[#1D4ED8]"
-                  }`}
+                  className="text-[15px] font-semibold px-6 py-2.5 rounded-[12px] shadow-sm transition-all text-white bg-gradient-to-r from-[#2563EB] to-[#1D4ED8]"
                   onClick={() => router.push('/auth/register')}
                 >
                   Sign Up
@@ -270,7 +253,7 @@ const Header = () => {
 
         {/* Mobile Menu Toggle */}
         <button
-          className={`lg:hidden p-2 ${isBlueHeader ? "text-white" : "text-[#111827] dark:text-gray-200"}`}
+          className="lg:hidden p-2 text-[#111827] dark:text-gray-200"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}

@@ -40,8 +40,8 @@ const Register = () => {
       <main className="flex-grow flex items-start justify-center p-4 md:p-8 pt-24 md:pt-28 pb-12">
         <div className="max-w-[1000px] w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
           
-          {/* Left Panel (Dark Blue) */}
-          <div className="lg:w-[45%] bg-[#244376] text-white p-10 flex flex-col justify-between relative overflow-hidden hidden md:flex">
+          {/* Left Panel (Theme Primary) */}
+          <div className="lg:w-[45%] bg-primary text-primary-foreground p-10 flex flex-col justify-between relative overflow-hidden hidden md:flex">
             {/* Background Pattern overlay (optional) */}
             <div className="absolute inset-0 opacity-10 bg-[url('/assets/images/auth/pattern.png')] bg-cover mix-blend-overlay"></div>
             
@@ -56,7 +56,7 @@ const Register = () => {
               <div className="space-y-4">
                 {features.map((feature, idx) => (
                   <div key={idx} className="flex items-center space-x-4 group cursor-default">
-                    <div className="w-8 h-8 rounded bg-[#325690] flex items-center justify-center group-hover:bg-amber-500 transition-colors shrink-0">
+                    <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center group-hover:bg-amber-500 transition-colors shrink-0">
                       <feature.icon className="w-4 h-4 text-amber-400 group-hover:text-white transition-colors" />
                     </div>
                     <span className="text-sm text-slate-100 group-hover:text-white font-medium">{feature.title}</span>

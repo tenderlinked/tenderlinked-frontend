@@ -66,6 +66,7 @@ export default function TenderDetailsPage() {
   const [recommendations, setRecommendations] = useState<{relatedTenders: any[], viewAlsoTenders: any[]}>({ relatedTenders: [], viewAlsoTenders: [] });
   const [isUnlockingAi, setIsUnlockingAi] = useState(false);
   const [recentlyVisited, setRecentlyVisited] = useState<any[]>([]);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const handleUnlockAiSummary = async () => {
     if (!tender) return;
@@ -153,7 +154,8 @@ export default function TenderDetailsPage() {
   };
 
   const handleDownloadAiPdf = async () => {
-    if (!tender?.id) return;
+    if (!tender?.id || isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       const response = await fetch(`${apiUrl}/api/tenders/${tender.id}/ai-summary-pdf`, {
@@ -176,6 +178,8 @@ export default function TenderDetailsPage() {
     } catch (error) {
       console.error('Download error:', error);
       alert('An error occurred while downloading.');
+    } finally {
+      setIsDownloadingPdf(false);
     }
   };
 
@@ -811,8 +815,12 @@ export default function TenderDetailsPage() {
                         </div>
                         {tender.aiSummary && !isAiSummaryLocked && (
                           <div className="flex gap-2">
-                             <Button onClick={handleDownloadAiPdf} variant="outline" size="sm" className="bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors group">
-                               <Download className="w-4 h-4 mr-2 group-hover:text-white" /> Download PDF
+                             <Button onClick={handleDownloadAiPdf} disabled={isDownloadingPdf} variant="outline" size="sm" className="bg-white hover:bg-slate-800 hover:text-white border-slate-200 text-slate-700 shadow-sm transition-colors group">
+                               {isDownloadingPdf ? (
+                                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating PDF, please wait...</>
+                               ) : (
+                                 <><Download className="w-4 h-4 mr-2 group-hover:text-white" /> Download PDF</>
+                               )}
                              </Button>
                            </div>
                         )}
@@ -854,11 +862,20 @@ export default function TenderDetailsPage() {
                               <div className="animate-in fade-in duration-500">
                                 {/* Hero Banner */}
                                 <div className="bg-gradient-to-br from-blue-700 to-blue-600 text-white p-6 border-b-4 border-blue-400 rounded-t-md">
-                                  <div className="text-[22px] font-bold mb-2">{parsedAiSummary.authorityName || tender.invitingAuthorityName || 'Tender Authority'}</div>
-                                  <div className="flex flex-wrap gap-6 text-[12px] opacity-90">
+                                  <div className="text-[18px] sm:text-[22px] font-bold mb-1 leading-snug">
+                                    {tender.title || 'Tender Details'}
+                                  </div>
+                                  <div className="text-[13px] font-medium text-blue-100 mb-3">
+                                    Issued by: {parsedAiSummary.authorityName || tender.invitingAuthorityName || 'Tender Authority'}
+                                  </div>
+                                  <div className="flex flex-wrap gap-4 sm:gap-6 text-[12px] opacity-90">
                                     <div className="flex items-center gap-1.5">
                                       <div className="w-1.5 h-1.5 bg-blue-300 rounded-full"></div> 
-                                      Tender No: {parsedAiSummary.tdrNumber || tender.tenderCode || 'N/A'}
+                                      Tender ID: {tender.tenderId || 'N/A'}
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-1.5 h-1.5 bg-blue-300 rounded-full"></div> 
+                                      Ref No: {tender.tenderRefNumber || parsedAiSummary.tdrNumber || 'N/A'}
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                       <div className="w-1.5 h-1.5 bg-blue-300 rounded-full"></div> 

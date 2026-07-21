@@ -36,7 +36,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   return (
-    <Sidebar collapsible="icon" {...props} className="hidden xl:block">
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <LogoSidebar />
       </SidebarHeader>

@@ -133,24 +133,22 @@ export function NavMain({ items }: { items: SidebarItem[] }) {
               : pathname === item.url || (pathname.startsWith(item.url + "/") && item.url !== "/");
 
             let activeStyles = "";
-            if (isMenuActive) {
-              activeStyles = "bg-primary hover:bg-primary text-primary-foreground dark:hover:bg-primary hover:text-primary-foreground";
-            }
-
             return (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton
-                  asChild
-                  tooltip={item.title}
-                  className={cn(
-                    "cursor-pointer h-8 px-2.5 text-sm font-medium text-[#4b5563] dark:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700 transition-colors",
-                    activeStyles
-                  )}
-                >
-                  <Link href={item.url} className="flex items-center gap-2">
-                    {item.icon && <item.icon className="!w-3.5 !h-3.5" />}
-                    <span>{item.title}</span>
-                  </Link>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={item.title}
+                      className={cn(
+                        "cursor-pointer h-8 px-2.5 text-sm font-medium text-[#4b5563] dark:text-white hover:bg-primary/10 active:bg-primary/10 dark:hover:bg-slate-700 transition-colors",
+                        isMenuActive
+                          ? "bg-primary text-white hover:bg-primary hover:text-white dark:bg-primary dark:hover:bg-primary"
+                          : ""
+                      )}
+                    >
+                      <Link href={item.url} className="flex items-center gap-2">
+                        {item.icon && <item.icon className="!w-3.5 !h-3.5" />}
+                        <span>{item.title}</span>
+                      </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );

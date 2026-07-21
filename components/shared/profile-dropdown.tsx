@@ -11,11 +11,14 @@ import { Mail, Settings, User, Calendar, CreditCard, Clock, Users, ShieldCheck }
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 
 const ProfileDropdown = () => {
   const { data: session } = useSession();
+  const pathname = usePathname();
+  const isAdmin = pathname?.startsWith("/admin");
   const [subDetails, setSubDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -44,10 +47,10 @@ const ProfileDropdown = () => {
         <Button
           variant="ghost"
           className={cn(
-            "flex items-center gap-2.5 h-auto py-1 px-1.5 pr-3 rounded-full hover:bg-white/10 data-[state=open]:bg-white/20 transition-colors cursor-pointer border-0"
+            "flex items-center gap-2.5 h-auto py-1 px-1.5 pr-3 rounded-full transition-colors cursor-pointer border-0 hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-200 dark:data-[state=open]:bg-slate-800"
           )}
         >
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/20 flex-shrink-0 flex items-center justify-center overflow-hidden border border-white/30">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-200 dark:bg-slate-800 flex-shrink-0 flex items-center justify-center overflow-hidden border border-slate-300 dark:border-slate-700">
             {session?.user?.image ? (
               <Image
                 src={session?.user?.image}
@@ -67,12 +70,12 @@ const ProfileDropdown = () => {
             )}
           </div>
           <div className="flex flex-col items-start hidden sm:flex">
-            <span className="text-[13px] font-bold text-white leading-tight max-w-[120px] truncate">
+            <span className="text-[13px] font-bold text-slate-900 dark:text-white leading-tight max-w-[120px] truncate">
               {session?.user?.name || "User"}
             </span>
             <div className="flex items-center gap-1 mt-0.5">
-              <Settings className="w-2.5 h-2.5 text-white/80" />
-              <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">
+              <Settings className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 {(session?.user as any)?.globalRole === 'SUPER_ADMIN' ? 'Super Admin' : 'Member'}
               </span>
             </div>

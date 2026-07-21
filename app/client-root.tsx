@@ -38,7 +38,7 @@ export function ClientRoot({
           {isAdmin && <AppSidebar />}
           <main className="dashboard-body-wrapper grow-[1] flex flex-col min-h-screen w-full">
             <Header />
-            <div className="dashboard-body bg-neutral-100 dark:bg-[#1e2734] flex-1">
+            <div className="dashboard-body bg-neutral-100 dark:bg-[#1e2734] flex-1 p-4 md:p-6 lg:p-8">
               {children}
             </div>
             <Footer />
