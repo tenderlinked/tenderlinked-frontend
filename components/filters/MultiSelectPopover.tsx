@@ -93,6 +93,16 @@ export function MultiSelectPopover({
             placeholder={placeholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && search.trim() && allowCustom) {
+                e.preventDefault();
+                const term = search.trim();
+                if (!localSelected.includes(term)) {
+                  toggleOption(term);
+                }
+                setSearch("");
+              }
+            }}
           />
         </div>
         
@@ -114,21 +124,7 @@ export function MultiSelectPopover({
         )}
 
         <div className="max-h-[300px] overflow-y-auto p-1 grid grid-cols-2 gap-1">
-          {allowCustom && search.trim() && !options.some(o => o.toLowerCase() === search.trim().toLowerCase()) && !localSelected.includes(search.trim()) && (
-            <label className="flex items-start gap-2 rounded-sm px-2 py-2 text-sm hover:bg-slate-100 cursor-pointer col-span-2 border border-blue-100 bg-blue-50/50">
-              <Checkbox
-                checked={false}
-                onCheckedChange={() => {
-                  toggleOption(search.trim());
-                  setSearch("");
-                }}
-                className="mt-0.5"
-              />
-              <span className="leading-tight text-blue-700 font-medium">Add "{search.trim()}"</span>
-            </label>
-          )}
-
-          {filteredOptions.length === 0 && (!allowCustom || !search.trim()) ? (
+          {/* Custom option auto-added via Enter key */}          {filteredOptions.length === 0 && (!allowCustom || !search.trim()) ? (
             <p className="p-4 text-sm text-muted-foreground col-span-2 text-center">No results found.</p>
           ) : (
             filteredOptions.map((opt) => {

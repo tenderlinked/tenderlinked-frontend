@@ -14,7 +14,7 @@ import SearchBox from '../shared/search-box';
 import { Button } from '../ui/button';
 import { SidebarTrigger } from '../ui/sidebar';
 import NotificationDropdown from './../shared/notification-dropdown';
-import { Coins, LayoutDashboard, Search as SearchIcon, CalendarDays, Bookmark, ShieldCheck, MapPin, Building2, Map } from 'lucide-react';
+import { Coins, LayoutDashboard, Search as SearchIcon, CalendarDays, Bookmark, ShieldCheck, MapPin, Building2, Map, Sparkles } from 'lucide-react';
 import Logo from "@/public/logo/tenderlinked_icon.png";
 import { cn } from "@/lib/utils";
 
@@ -194,8 +194,23 @@ const Header = () => {
                         onKeyDown={handleKeyDown}
                         onFocus={() => setShowSuggestions(true)}
                         placeholder="Search by Keyword, Tender ID, Title, District, City, State... (Press Enter)" 
-                        className="block w-full pl-9 pr-3 py-2 border-0 rounded-md leading-5 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/20 sm:text-sm"
+                        className="block w-full pl-9 pr-[120px] py-2 border-0 rounded-md leading-5 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/20 sm:text-sm"
                     />
+                    
+                    <div className="absolute inset-y-1 right-1 flex items-center">
+                        <button
+                            onClick={() => {
+                                if (searchValue.trim()) {
+                                    router.push(`/tenders?search=${encodeURIComponent(searchValue.trim())}`);
+                                    setShowSuggestions(false);
+                                }
+                            }}
+                            className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 transition-all cursor-pointer"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            AI Search
+                        </button>
+                    </div>
                     
                     {/* Autocomplete Dropdown */}
                     {showSuggestions && suggestions.length > 0 && (
@@ -234,7 +249,6 @@ const Header = () => {
                     </div>
                 )}
 
-                <ModeToggle />
                 <NotificationDropdown />
                 <ProfileDropdown />
             </div>

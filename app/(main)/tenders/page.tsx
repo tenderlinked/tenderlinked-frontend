@@ -261,7 +261,9 @@ export default function UnifiedTendersPage() {
     if (status === "authenticated") {
       fetchTenders();
     }
-  }, [status, selectedStates, selectedCities, selectedCategories, selectedAuthorities, selectedKeywords, minAmount, maxAmount, searchQuery, activeTab, sortOption, page, pageSize]);
+  }, [status, selectedStates, selectedCities, selectedCategories, selectedAuthorities, selectedKeywords, minAmount, maxAmount, searchQuery, activeTab, sortOption, page, pageSize, limits.unlockedStates, limits.unlockedKeywords]);
+
+
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -333,22 +335,8 @@ export default function UnifiedTendersPage() {
   const buildBaseUrl = () => {
     let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders?`;
     
-    // Enforce limits: if specific filters are selected, only allow those that are unlocked. 
-    // Otherwise, default to all unlocked ones.
-    // Only enforce if the user has a restricted plan (maxKeywords < 100).
     let activeStates = selectedStates;
     let activeKeywords = selectedKeywords;
-
-    if (limits.maxKeywords < 100) {
-      activeStates = selectedStates.length > 0 
-        ? selectedStates.filter(s => limits.unlockedStates.includes(s)) 
-        : limits.unlockedStates;
-      
-      activeKeywords = selectedKeywords.length > 0 
-        ? selectedKeywords.filter(k => limits.unlockedKeywords.includes(k)) 
-        : limits.unlockedKeywords;
-    }
-
     if (activeStates.length > 0) url += `&states=${encodeURIComponent(activeStates.join(','))}`;
     if (activeKeywords.length > 0) url += `&keywords=${encodeURIComponent(activeKeywords.join(','))}`;
     
@@ -555,35 +543,7 @@ export default function UnifiedTendersPage() {
               options={sidebarStats.keywords.map(k => k.keyword)}
               optionCounts={Object.fromEntries(sidebarStats.keywords.map(k => [k.keyword, k.count]))}
               selectedValues={selectedKeywords}
-              lockedOptions={lockedKeywords}
-              onLockedClick={(kw) => {
-                setUnlockModal({
-                  isOpen: true,
-                  type: 'keyword',
-                  value: kw,
-                  title: `Keyword Limit Reached`,
-                  description: `You have reached your limit of ${limits.maxKeywords} keywords. Upgrade to a premium plan to add more keywords to your feed.`,
-                  isLimitReached: true
-                });
-              }}
               onChange={(vals) => {
-                const addedKeywords = vals.filter(v => !selectedKeywords.includes(v));
-                const newKeywordsToUnlock = addedKeywords.filter(k => !limits.unlockedKeywords.includes(k));
-                if (newKeywordsToUnlock.length > 0) {
-                  const addedKeyword = newKeywordsToUnlock[0];
-                  const isFree = limits.unlockedKeywords.length < limits.maxKeywords;
-                  setUnlockModal({
-                    isOpen: true,
-                    type: 'keyword',
-                    value: addedKeyword,
-                    title: `Unlock Keyword: ${addedKeyword}`,
-                    description: isFree 
-                      ? `You have ${limits.maxKeywords - limits.unlockedKeywords.length} free keyword slots remaining. Do you want to use one to unlock "${addedKeyword}"? Once unlocked, it cannot be changed.`
-                      : `You have reached your limit of ${limits.maxKeywords} keywords. Upgrade to a premium plan to add more keywords to your feed.`,
-                    isLimitReached: !isFree
-                  });
-                  return;
-                }
                 setSelectedKeywords(vals);
               }}
               placeholder="Search Keywords"
@@ -594,35 +554,7 @@ export default function UnifiedTendersPage() {
               label="State"
               options={statesList.map(s => s.name)}
               selectedValues={selectedStates}
-              lockedOptions={lockedStates}
-              onLockedClick={(st) => {
-                setUnlockModal({
-                  isOpen: true,
-                  type: 'state',
-                  value: st,
-                  title: `State Limit Reached`,
-                  description: `You have reached your limit of ${limits.maxStates} states. Upgrade to a premium plan to add more states to your feed.`,
-                  isLimitReached: true
-                });
-              }}
               onChange={(vals) => {
-                const addedStates = vals.filter(v => !selectedStates.includes(v));
-                const newStatesToUnlock = addedStates.filter(s => !limits.unlockedStates.includes(s));
-                if (newStatesToUnlock.length > 0) {
-                  const addedState = newStatesToUnlock[0];
-                  const isFree = limits.unlockedStates.length < limits.maxStates;
-                  setUnlockModal({
-                    isOpen: true,
-                    type: 'state',
-                    value: addedState,
-                    title: `Unlock State: ${addedState}`,
-                    description: isFree
-                      ? `You have ${limits.maxStates - limits.unlockedStates.length} free state slots remaining. Do you want to use one to unlock "${addedState}"? Once unlocked, it cannot be changed.`
-                      : `You have reached your limit of ${limits.maxStates} states. Upgrade to a premium plan to add more states to your feed.`,
-                    isLimitReached: !isFree
-                  });
-                  return;
-                }
                 setSelectedStates(vals);
                 setSelectedCities([]); // Reset cities when states change
               }}

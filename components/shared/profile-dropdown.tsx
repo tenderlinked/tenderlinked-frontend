@@ -42,29 +42,41 @@ const ProfileDropdown = () => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="outline"
-          size="icon"
+          variant="ghost"
           className={cn(
-            "rounded-full sm:w-10 sm:h-10 w-8 h-8 bg-gray-200/75 hover:bg-slate-200 focus-visible:ring-0 dark:bg-slate-700 dark:hover:bg-slate-600 border-0 cursor-pointer data-[state=open]:bg-gray-300 data-[state=open]:ring-4 data-[state=open]:ring-slate-300 dark:data-[state=open]:ring-slate-500 dark:data-[state=open]:bg-slate-600"
+            "flex items-center gap-2.5 h-auto py-1 px-1.5 pr-3 rounded-full hover:bg-white/10 data-[state=open]:bg-white/20 transition-colors cursor-pointer border-0"
           )}
         >
-          {session?.user?.image ? (
-            <Image
-              src={session?.user?.image}
-              className="rounded-full"
-              width={40}
-              height={40}
-              alt={session?.user?.name ?? "User profile"}
-            />
-          ) : (
-            <Image
-              src={userImg}
-              className="rounded-full"
-              width={40}
-              height={40}
-              alt={"User profile"}
-            />
-          )}
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/20 flex-shrink-0 flex items-center justify-center overflow-hidden border border-white/30">
+            {session?.user?.image ? (
+              <Image
+                src={session?.user?.image}
+                className="w-full h-full object-cover"
+                width={36}
+                height={36}
+                alt={session?.user?.name ?? "User profile"}
+              />
+            ) : (
+              <Image
+                src={userImg}
+                className="w-full h-full object-cover"
+                width={36}
+                height={36}
+                alt={"User profile"}
+              />
+            )}
+          </div>
+          <div className="flex flex-col items-start hidden sm:flex">
+            <span className="text-[13px] font-bold text-white leading-tight max-w-[120px] truncate">
+              {session?.user?.name || "User"}
+            </span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <Settings className="w-2.5 h-2.5 text-white/80" />
+              <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">
+                {(session?.user as any)?.globalRole === 'SUPER_ADMIN' ? 'Super Admin' : 'Member'}
+              </span>
+            </div>
+          </div>
         </Button>
       </DropdownMenuTrigger>
 
