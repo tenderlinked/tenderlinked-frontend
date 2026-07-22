@@ -19,16 +19,7 @@ import Image from "next/image";
 import LogoIcon from "@/public/assets/images/logo-icon.png";
 import Header from "@/components/Header";
 
-const features = [
-  { icon: BellRing, title: "Daily Tender Alert Services" },
-  { icon: LineChart, title: "Tender Analytics & Insights" },
-  { icon: FileSpreadsheet, title: "Data Export in Excel Format" },
-  { icon: Trophy, title: "Contract Awards & Results" },
-  { icon: FolderOpen, title: "Project Information" },
-  { icon: Briefcase, title: "Bid Consultancy Services" },
-  { icon: BookOpen, title: "Knowledge Centre" },
-  { icon: Scale, title: "Dispute & Complaint Redressal" },
-];
+// Features array removed for a cleaner minimal layout
 
 const Register = () => {
   return (
@@ -38,46 +29,46 @@ const Register = () => {
 
       {/* Main Content Area */}
       <main className="flex-grow flex items-start justify-center p-4 md:p-8 pt-24 md:pt-28 pb-12">
-        <div className="max-w-[1000px] w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
+        <div className="max-w-[950px] w-full bg-white dark:bg-slate-800 rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col lg:flex-row min-h-[520px]">
           
-          {/* Left Panel (Theme Primary) */}
-          <div className="lg:w-[45%] bg-primary text-primary-foreground p-10 flex flex-col justify-between relative overflow-hidden hidden md:flex">
-            {/* Background Pattern overlay (optional) */}
+          {/* Left Panel (Premium Minimalist Theme) */}
+          <div className="lg:w-[45%] bg-gradient-to-br from-[#0F172A] via-blue-900 to-primary text-white p-10 flex flex-col justify-between relative overflow-hidden hidden md:flex shadow-[inset_-10px_0_30px_rgba(0,0,0,0.2)]">
+            {/* Background Texture */}
             <div className="absolute inset-0 opacity-10 bg-[url('/assets/images/auth/pattern.png')] bg-cover mix-blend-overlay"></div>
             
-            <div className="relative z-10">
-              <h1 className="text-3xl font-bold leading-tight mb-2 text-white">
-                Your Complete Tender<br/>Intelligence Platform
-              </h1>
-              <p className="text-blue-200 text-sm mb-8 font-medium">
-                Trusted by 10,000+ businesses across India
-              </p>
+            {/* Decorative Ambient Glowing Orbs */}
+            <div className="absolute -top-32 -left-32 w-80 h-80 bg-blue-500 rounded-full mix-blend-screen filter blur-[80px] opacity-40"></div>
+            <div className="absolute top-1/2 -right-32 w-80 h-80 bg-teal-500 rounded-full mix-blend-screen filter blur-[80px] opacity-20"></div>
 
-              <div className="space-y-4">
-                {features.map((feature, idx) => (
-                  <div key={idx} className="flex items-center space-x-4 group cursor-default">
-                    <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center group-hover:bg-amber-500 transition-colors shrink-0">
-                      <feature.icon className="w-4 h-4 text-amber-400 group-hover:text-white transition-colors" />
-                    </div>
-                    <span className="text-sm text-slate-100 group-hover:text-white font-medium">{feature.title}</span>
-                  </div>
-                ))}
+            <div className="relative z-10 flex flex-col flex-grow justify-center -mt-8">
+              <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 mb-8 shadow-xl">
+                 <Trophy className="w-7 h-7 text-amber-400" />
               </div>
+              
+              <h1 className="text-[2.4rem] font-black leading-[1.1] mb-5 text-white tracking-tight">
+                Unlock Tender<br/>Intelligence
+              </h1>
+              
+              <p className="text-blue-100 text-[15px] leading-relaxed font-medium opacity-90 max-w-[90%]">
+                Join 10,000+ businesses across India discovering opportunities, analyzing trends, and winning contracts seamlessly.
+              </p>
             </div>
 
-            {/* Bottom Stats */}
-            <div className="relative z-10 grid grid-cols-3 gap-2 mt-12 pt-6 border-t border-blue-800/50">
+            {/* Bottom Minimal Stats */}
+            <div className="relative z-10 flex items-center gap-8 mt-12 pt-8 border-t border-white/10">
               <div>
-                <p className="text-xl font-bold text-amber-400">10K+</p>
-                <p className="text-[10px] text-blue-200 uppercase tracking-wider mt-1 font-semibold">Active Users</p>
+                <p className="text-2xl font-black text-amber-400 tracking-tight">10K+</p>
+                <p className="text-[10px] text-blue-100 uppercase tracking-widest mt-1 font-bold opacity-80">Users</p>
               </div>
+              <div className="w-px h-8 bg-white/20"></div>
               <div>
-                <p className="text-xl font-bold text-amber-400">50K+</p>
-                <p className="text-[10px] text-blue-200 uppercase tracking-wider mt-1 font-semibold">Daily Tenders</p>
+                <p className="text-2xl font-black text-amber-400 tracking-tight">50K+</p>
+                <p className="text-[10px] text-blue-100 uppercase tracking-widest mt-1 font-bold opacity-80">Tenders</p>
               </div>
+              <div className="w-px h-8 bg-white/20"></div>
               <div>
-                <p className="text-xl font-bold text-amber-400">99%</p>
-                <p className="text-[10px] text-blue-200 uppercase tracking-wider mt-1 font-semibold">Accuracy</p>
+                <p className="text-2xl font-black text-amber-400 tracking-tight">99%</p>
+                <p className="text-[10px] text-blue-100 uppercase tracking-widest mt-1 font-bold opacity-80">Accuracy</p>
               </div>
             </div>
           </div>
