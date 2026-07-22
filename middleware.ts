@@ -55,6 +55,14 @@ export default auth(async (req) => {
     if (!session.user?.phoneNumber) {
       return NextResponse.redirect(new URL('/auth/complete-profile', req.url));
     }
+
+    // Strictly enforce super admin access at the middleware level
+    if (path.startsWith('/admin')) {
+      // @ts-ignore
+      if (session.user?.globalRole !== 'SUPER_ADMIN') {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
+    }
   }
 
   return NextResponse.next();

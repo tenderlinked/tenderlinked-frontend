@@ -19,20 +19,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isAdmin = pathname?.startsWith("/admin");
-  
-  let navItems = isAdmin ? data.adminNavMain : data.navMain;
-
-  // Filter items based on permissions if the user is not a super admin or owner
   // @ts-ignore
   const userPermissions = session?.user?.permissions || [];
   // @ts-ignore
-  const isOwnerOrSuperAdmin = userPermissions.includes('*') || session?.user?.globalRole === 'SUPER_ADMIN';
+  const isSuperAdmin = session?.user?.globalRole === 'SUPER_ADMIN';
+  const isOwnerOrSuperAdmin = userPermissions.includes('*') || isSuperAdmin;
+  
+  let navItems = (isAdmin && isSuperAdmin) ? data.adminNavMain : data.navMain;
 
+  // For normal users, we completely remove the sidebar as requested
   if (!isOwnerOrSuperAdmin) {
-    navItems = navItems.filter((item: any) => {
-      if (!item.requiredPermission) return true;
-      return userPermissions.includes(item.requiredPermission);
-    });
+    return null;
   }
 
   return (

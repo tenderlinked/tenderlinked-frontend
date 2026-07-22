@@ -76,7 +76,7 @@ const ProfileDropdown = () => {
             <div className="flex items-center gap-1 mt-0.5">
               <Settings className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                {(session?.user as any)?.globalRole === 'SUPER_ADMIN' ? 'Super Admin' : 'Member'}
+                {(session?.user as any)?.globalRole === 'SUPER_ADMIN' ? 'Super Admin' : ((session?.user as any)?.tenantRole || 'Member')}
               </span>
             </div>
           </div>

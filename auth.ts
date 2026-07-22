@@ -108,6 +108,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                const profData = await profRes.json();
                tenantId = profData.tenant?.id || null;
                tenantName = profData.tenant?.name || null;
+               (user as any).tenantRole = profData.role || null;
                user.globalRole = profData.globalRole || 'USER';
                user.permissions = profData.permissions || [];
                user.phoneNumber = profData.phoneNumber || null;
@@ -140,6 +141,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             planType: (user as any).planType || null,
             tenantId,
             tenantName,
+            tenantRole: (user as any).tenantRole || null,
             globalRole: user.globalRole || 'USER',
             permissions: user.permissions || [],
             phoneNumber: user.phoneNumber || null,
@@ -177,6 +179,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // @ts-ignore
         if (user.tenantName !== undefined) token.tenantName = user.tenantName;
         // @ts-ignore
+        if (user.tenantRole !== undefined) token.tenantRole = user.tenantRole;
+        // @ts-ignore
         if (user.globalRole !== undefined) token.globalRole = user.globalRole;
         // @ts-ignore
         if (user.permissions !== undefined) token.permissions = user.permissions;
@@ -198,6 +202,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
              const profData = await profRes.json();
              token.tenantId = profData.tenant?.id || null;
              token.tenantName = profData.tenant?.name || null;
+             token.tenantRole = profData.role || null;
              token.globalRole = profData.globalRole || 'USER';
              token.permissions = profData.permissions || [];
              token.phoneNumber = profData.phoneNumber || null;
@@ -241,6 +246,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (session?.tenantName !== undefined) {
           token.tenantName = session.tenantName;
         }
+        if (session?.tenantRole !== undefined) {
+          token.tenantRole = session.tenantRole;
+        }
         if (session?.phoneNumber !== undefined) {
           token.phoneNumber = session.phoneNumber;
         }
@@ -283,6 +291,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.tenantId = token.tenantId as string | null;
         // @ts-ignore
         session.user.tenantName = token.tenantName as string | null;
+        // @ts-ignore
+        session.user.tenantRole = token.tenantRole as string | null;
         // @ts-ignore
         session.user.globalRole = (token.globalRole as string) || 'USER';
         // @ts-ignore
