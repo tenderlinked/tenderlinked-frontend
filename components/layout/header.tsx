@@ -207,7 +207,7 @@ const Header = () => {
                         <button
                             onClick={() => {
                                 if (searchValue.trim()) {
-                                    router.push(`/tenders?search=${encodeURIComponent(searchValue.trim())}`);
+                                    router.push(`/tenders?q=${encodeURIComponent(searchValue.trim())}`);
                                     setShowSuggestions(false);
                                 }
                             }}

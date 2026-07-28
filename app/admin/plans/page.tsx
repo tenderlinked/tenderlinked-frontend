@@ -18,6 +18,14 @@ const GATEABLE_FIELDS = [
   { id: 'tags', label: 'Tags & Keywords' },
   { id: 'noticePdfUrl', label: 'Notice PDF' },
   { id: 'tenderPdfUrl', label: 'Tender PDF Document' },
+  { id: 'title', label: 'Title & Description' },
+  { id: 'organisation', label: 'Organisation / Authority' },
+  { id: 'state', label: 'State & Location' },
+  { id: 'startDate', label: 'Start Date' },
+  { id: 'endDate', label: 'Closing Date' },
+  { id: 'tenderCategory', label: 'Tender Category' },
+  { id: 'tenderType', label: 'Tender Type' },
+  { id: 'tenderId', label: 'Tender Reference (ID)' },
 ];
 
 export default function PricingPlansPage() {

@@ -49,6 +49,7 @@ import { ConfirmUnlockModal } from "@/components/filters/ConfirmUnlockModal";
 import { PreferencesSetupModal } from "@/components/filters/PreferencesSetupModal";
 import { PlanChangeModal } from "@/components/filters/PlanChangeModal";
 import { EditTenderModal } from "@/components/tenders/edit-tender-modal";
+import { InlinePremiumLock } from "@/components/premium-gate";
 
 interface Tender {
   id: string;
@@ -98,7 +99,7 @@ export default function UnifiedTendersPage() {
   const tendersCache = useRef<Record<string, { tenders: any[], total: number }>>({});
 
   const searchParams = useSearchParams();
-  const globalQuery = searchParams.get('q') || "";
+  const globalQuery = searchParams.get('q') || searchParams.get('search') || "";
   
   // Helper to parse comma-separated array strings from URL
   const parseArrayParam = (key: string): string[] => {
@@ -172,6 +173,7 @@ export default function UnifiedTendersPage() {
 
   const [editingTender, setEditingTender] = useState<Tender | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [searchMetadata, setSearchMetadata] = useState<any>(null);
 
   const hasActiveFilters = selectedStates.length > 0 || selectedCities.length > 0 || selectedCategories.length > 0 || selectedAuthorities.length > 0 || selectedKeywords.length > 0 || minAmount || maxAmount || searchQuery;
   const isLocked = false;
@@ -399,6 +401,7 @@ export default function UnifiedTendersPage() {
       if (data.success) {
         setTenders(data.data);
         setTotal(data.meta?.total || 0);
+        setSearchMetadata(data.meta || null);
         tendersCache.current[url] = { tenders: data.data, total: data.meta?.total || 0 };
       }
     } catch (error) {
@@ -679,6 +682,19 @@ export default function UnifiedTendersPage() {
           ) : (
             <>
               <div className="flex flex-col gap-4 mt-2 relative">
+                {searchMetadata?.hasTypo && searchMetadata?.didYouMean && (
+                  <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3.5 px-4 text-xs text-amber-900 flex items-center justify-between shadow-sm animate-in fade-in">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-amber-800">Did you mean?</span>
+                      <span>Showing results for <button onClick={() => { setSearchQuery(searchMetadata.didYouMean); router.push(`/tenders?q=${encodeURIComponent(searchMetadata.didYouMean)}`); }} className="font-bold underline text-blue-700 hover:text-blue-900 cursor-pointer">{searchMetadata.didYouMean}</button>.</span>
+                    </div>
+                    {searchMetadata?.originalQuery && searchMetadata.originalQuery !== searchMetadata.didYouMean && (
+                      <span className="text-[11px] text-amber-700">
+                        Search instead for <button onClick={() => { setSearchQuery(searchMetadata.originalQuery); router.push(`/tenders?q=${encodeURIComponent(searchMetadata.originalQuery)}`); }} className="italic underline text-amber-800 hover:text-amber-950 cursor-pointer">{searchMetadata.originalQuery}</button>?
+                      </span>
+                    )}
+                  </div>
+                )}
                 {loading && (
                   <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-20 flex items-center justify-center rounded-xl min-h-[300px]">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -739,46 +755,58 @@ export default function UnifiedTendersPage() {
                           {tender.authority || tender.organisation || 'N/A'}
                         </td>
                         
-                        <td className="px-3 py-4 text-[11px] font-semibold text-slate-800">
-                          <div 
-                            className="flex items-center justify-center gap-1.5 cursor-pointer group/copy"
-                            onClick={async () => {
-                              const idToCopy = tender.tenderId || tender.tenderCode || '';
-                              if (!idToCopy) return;
-                              try {
-                                if (navigator?.clipboard?.writeText) {
-                                  await navigator.clipboard.writeText(idToCopy);
-                                } else {
-                                  const textArea = document.createElement("textarea");
-                                  textArea.value = idToCopy;
-                                  document.body.appendChild(textArea);
-                                  textArea.select();
-                                  document.execCommand('copy');
-                                  document.body.removeChild(textArea);
+                        <td className="px-3 py-4 text-xs font-medium text-slate-600">
+                          {tender.tenderId === '__PREMIUM_LOCKED__' ? (
+                            <InlinePremiumLock text="Upgrade to Premium Plan to view ID" blurredText="TL-XXXXXX" />
+                          ) : (
+                            <div 
+                              className="flex items-center gap-1.5 cursor-pointer group/copy relative"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const idToCopy = tender.tenderId || tender.tenderCode || tender.id;
+                                try {
+                                  if (navigator?.clipboard?.writeText) {
+                                    await navigator.clipboard.writeText(idToCopy);
+                                  } else {
+                                    const textArea = document.createElement("textarea");
+                                    textArea.value = idToCopy;
+                                    document.body.appendChild(textArea);
+                                    textArea.select();
+                                    document.execCommand('copy');
+                                    document.body.removeChild(textArea);
+                                  }
+                                  toast.success('Tender ID copied to clipboard!');
+                                } catch (err) {
+                                  console.error('Failed to copy', err);
+                                  toast.error('Failed to copy Tender ID');
                                 }
-                                toast.success('Tender ID copied to clipboard!');
-                              } catch (err) {
-                                console.error('Failed to copy', err);
-                                toast.error('Failed to copy Tender ID');
-                              }
-                            }}
-                            title="Click to copy"
-                          >
-                            <span className="group-hover/copy:text-blue-600 transition-colors">
-                              {tender.tenderId || tender.tenderCode || 'N/A'}
-                            </span>
-                            <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover/copy:opacity-100 transition-opacity" />
-                          </div>
+                              }}
+                              title="Click to copy"
+                            >
+                              <span className="group-hover/copy:text-blue-600 transition-colors">
+                                {tender.tenderId || tender.tenderCode || 'N/A'}
+                              </span>
+                              <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover/copy:opacity-100 transition-opacity" />
+                            </div>
+                          )}
                         </td>
                         
                         <td className="px-3 py-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                          {tender.tenderCategory || 'WORKS'}
+                          {tender.tenderCategory === '__PREMIUM_LOCKED__' ? (
+                            <InlinePremiumLock text="Upgrade to Premium Plan to view Category" blurredText="LOCKED CAT" />
+                          ) : (
+                            tender.tenderCategory || 'WORKS'
+                          )}
                         </td>
                         
                         <td className="px-4 py-4 text-left">
-                          <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${tender.tenderId || tender.tenderCode || tender.id}`} className="text-xs font-semibold text-slate-900 hover:text-blue-600 line-clamp-3 leading-relaxed transition-colors" title={tender.title}>
-                            {highlightText(tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - '))}
-                          </Link>
+                          {tender.title === '__PREMIUM_LOCKED__' ? (
+                            <InlinePremiumLock text="Upgrade to Premium Plan to view Title" blurredText="This is a locked tender title description" />
+                          ) : (
+                            <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${tender.tenderId || tender.tenderCode || tender.id}`} className="text-xs font-semibold text-slate-900 hover:text-blue-600 line-clamp-3 leading-relaxed transition-colors" title={tender.title}>
+                              {highlightText(tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - '))}
+                            </Link>
+                          )}
                           {isSemanticMatch(tender) && (
                             <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-600 border border-purple-200 text-[9px] font-semibold px-1.5 py-0.5 rounded mt-1" title="Recommended by AI based on semantic relevance to your search">
                               <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
@@ -800,7 +828,9 @@ export default function UnifiedTendersPage() {
                               </div>
                             ) : null;
                           })()}
-                          {(tender.location || tender.district || tender.city || tender.state) && (
+                          {(tender.location === '__PREMIUM_LOCKED__' || tender.state === '__PREMIUM_LOCKED__') ? (
+                            <div className="mt-1.5"><InlinePremiumLock text="Upgrade to Premium Plan to view Location" blurredText="Locked Location, State" /></div>
+                          ) : (tender.location || tender.district || tender.city || tender.state) && (
                             <div className="flex items-center gap-1 text-slate-500 text-[10px] mt-1.5 font-medium">
                               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                               <span className="truncate" title={[tender.location, tender.district, tender.city, tender.state].filter(Boolean).join(', ')}>
@@ -822,6 +852,11 @@ export default function UnifiedTendersPage() {
                               } catch { textToShow = tender.aiSummary; }
                             }
                             if (!textToShow || textToShow.trim() === '') return null;
+                            if (textToShow === '__PREMIUM_LOCKED__') {
+                              return (
+                                <div className="mt-1.5"><InlinePremiumLock text="Upgrade to view Description" blurredText="Detailed project description locked" /></div>
+                              );
+                            }
                             return (
                               <div className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed mt-1" title={textToShow}>
                                 {highlightText(textToShow)}
@@ -833,10 +868,7 @@ export default function UnifiedTendersPage() {
                         
                         <td className="px-3 py-4">
                           {tender.tenderValue === '__PREMIUM_LOCKED__' ? (
-                            <div className="flex justify-center items-center gap-1 group/premium cursor-pointer" title="Unlock Premium to view amount">
-                              <span className="font-bold text-emerald-600/50 text-xs blur-[4px] select-none">₹ 25,00,000</span>
-                              <Lock className="w-3 h-3 text-blue-500 opacity-80" />
-                            </div>
+                            <InlinePremiumLock text="Upgrade to Premium Plan to view amount" blurredText="₹ 25,00,000" />
                           ) : (
                             <span className="font-semibold text-xs text-slate-800">
                               {tender.tenderValue 
@@ -849,7 +881,9 @@ export default function UnifiedTendersPage() {
                         </td>
                         
                         <td className="px-3 py-4 text-xs font-medium text-slate-600">
-                          {tender.startDate ? (
+                          {tender.startDate === '__PREMIUM_LOCKED__' ? (
+                            <InlinePremiumLock text="Upgrade to Premium Plan to view Date" blurredText="01 Jan 2026" />
+                          ) : tender.startDate ? (
                             <div className="flex flex-col items-center gap-0.5">
                               <span className="font-bold text-slate-800 whitespace-nowrap">{format(new Date(tender.startDate), 'dd MMM yyyy')}</span>
                               <span className="text-[10px] text-slate-500 mb-1">{format(new Date(tender.startDate), 'hh:mm a')}</span>
@@ -865,7 +899,9 @@ export default function UnifiedTendersPage() {
                         </td>
                         
                         <td className="px-3 py-4 text-xs font-medium text-slate-600">
-                          {tender.endDate ? (
+                          {tender.endDate === '__PREMIUM_LOCKED__' ? (
+                            <InlinePremiumLock text="Upgrade to Premium Plan to view Date" blurredText="31 Dec 2026" />
+                          ) : tender.endDate ? (
                             <div className="flex flex-col items-center gap-0.5">
                               <span className="font-bold text-slate-800 whitespace-nowrap">{format(new Date(tender.endDate), 'dd MMM yyyy')}</span>
                               <span className="text-[10px] text-slate-500 mb-1">{format(new Date(tender.endDate), 'hh:mm a')}</span>
@@ -950,9 +986,13 @@ export default function UnifiedTendersPage() {
                     <div className="p-5 flex flex-col gap-3 relative z-10">
                       
                       {/* Tender Title */}
-                      <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${tender.tenderId || tender.tenderCode || tender.id}`} className="text-[16px] font-semibold text-slate-900 hover:text-blue-600 leading-snug tracking-tight line-clamp-2 transition-colors" title={tender.title}>
-                        {highlightText(tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - '))}
-                      </Link>
+                      {tender.title === '__PREMIUM_LOCKED__' ? (
+                        <div className="mb-1"><InlinePremiumLock text="Upgrade to Premium Plan to view Title" blurredText="This is a locked tender title description" /></div>
+                      ) : (
+                        <Link href={`/tenders/${tender.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')}--${tender.tenderId || tender.tenderCode || tender.id}`} className="text-[16px] font-semibold text-slate-900 hover:text-blue-600 leading-snug tracking-tight line-clamp-2 transition-colors" title={tender.title}>
+                          {highlightText(tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - '))}
+                        </Link>
+                      )}
                       {isSemanticMatch(tender) && (
                         <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-600 border border-purple-200 text-[10px] font-semibold px-2 py-0.5 rounded-md -mt-1 w-fit" title="Recommended by AI based on semantic relevance to your search">
                           <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
@@ -965,7 +1005,7 @@ export default function UnifiedTendersPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="secondary" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-sm font-medium px-2.5 py-0.5 text-xs flex items-center gap-1.5 capitalize rounded-md">
                             <Briefcase className="w-3.5 h-3.5 text-white/90" />
-                            {tender.tenderCategory || 'Miscellaneous'}
+                            {tender.tenderCategory === '__PREMIUM_LOCKED__' ? 'LOCKED CATEGORY' : (tender.tenderCategory || 'Miscellaneous')}
                           </Badge>
                           {tender.tags && tender.tags
                             .filter(t => !t.includes('PREMIUM_LOCKED') && t.toLowerCase() !== (tender.tenderCategory || '').toLowerCase())
@@ -978,24 +1018,30 @@ export default function UnifiedTendersPage() {
                         
                         <div className="flex flex-wrap items-center gap-1 text-slate-500 text-xs font-medium ml-2">
                           <MapPin className="w-3.5 h-3.5 mr-0.5" />
-                          {(() => {
-                            const parts = [tender.location, tender.district, tender.state].filter(Boolean) as string[];
-                            if (parts.length === 0) return <span>{tender.organisation}</span>;
-                            return parts.map((part, index) => (
-                              <span key={index}>
-                                <a 
-                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(part)}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="hover:text-blue-600 hover:underline"
-                                >
-                                  {part}
-                                </a>
-                                {index < parts.length - 1 && ', '}
-                              </span>
-                            ));
-                          })()}
-                          <span className="font-semibold text-slate-600 ml-1">({getPlatformName(tender)})</span>
+                          {(tender.location === '__PREMIUM_LOCKED__' || tender.state === '__PREMIUM_LOCKED__') ? (
+                            <InlinePremiumLock text="Upgrade to Premium Plan to view Location" blurredText="Locked Location, State" />
+                          ) : (
+                            <>
+                              {(() => {
+                                const parts = [tender.location, tender.district, tender.state].filter(Boolean) as string[];
+                                if (parts.length === 0) return <span>{tender.organisation}</span>;
+                                return parts.map((part, index) => (
+                                  <span key={index}>
+                                    <a 
+                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(part)}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="hover:text-blue-600 hover:underline"
+                                    >
+                                      {part}
+                                    </a>
+                                    {index < parts.length - 1 && ', '}
+                                  </span>
+                                ));
+                              })()}
+                              <span className="font-semibold text-slate-600 ml-1">({getPlatformName(tender)})</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1026,9 +1072,13 @@ export default function UnifiedTendersPage() {
                               </span>
                             </div>
                           )}
-                          <div className="text-sm text-slate-600 line-clamp-2 leading-relaxed" title={textToShow}>
-                             {highlightText(textToShow)}
-                          </div>
+                          {textToShow === '__PREMIUM_LOCKED__' ? (
+                            <InlinePremiumLock text="Upgrade to view Description" blurredText="Detailed project description locked" />
+                          ) : (
+                            <div className="text-sm text-slate-600 line-clamp-2 leading-relaxed" title={textToShow}>
+                               {highlightText(textToShow)}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -1045,7 +1095,9 @@ export default function UnifiedTendersPage() {
                             <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Start Date</p>
                           </div>
                           <p className="font-semibold text-slate-800 text-[13px] pl-7">
-                            {tender.startDate ? format(new Date(tender.startDate), 'dd MMM yyyy') : 'N/A'}
+                            {tender.startDate === '__PREMIUM_LOCKED__' ? (
+                              <InlinePremiumLock text="Upgrade to Premium Plan to view Date" blurredText="01 Jan 2026" />
+                            ) : tender.startDate ? format(new Date(tender.startDate), 'dd MMM yyyy') : 'N/A'}
                           </p>
                         </div>
                         <div className="flex flex-col gap-1.5">
@@ -1056,16 +1108,15 @@ export default function UnifiedTendersPage() {
                             <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Closing Date</p>
                           </div>
                           <p className="font-semibold text-slate-800 text-[13px] pl-7">
-                            {tender.endDate ? format(new Date(tender.endDate), 'dd MMM yyyy') : 'N/A'}
+                            {tender.endDate === '__PREMIUM_LOCKED__' ? (
+                              <InlinePremiumLock text="Upgrade to Premium Plan to view Date" blurredText="31 Dec 2026" />
+                            ) : tender.endDate ? format(new Date(tender.endDate), 'dd MMM yyyy') : 'N/A'}
                           </p>
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">Tender Amount</p>
                           {tender.tenderValue === '__PREMIUM_LOCKED__' ? (
-                            <div className="flex items-center gap-1.5 group/premium cursor-pointer bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200 w-fit" title="Unlock Premium to view amount">
-                              <span className="font-bold text-emerald-600/50 text-sm blur-[4px] select-none">₹ 25,00,000</span>
-                              <Lock className="w-3.5 h-3.5 text-blue-500 opacity-80 group-hover/premium:opacity-100 transition-opacity" />
-                            </div>
+                            <InlinePremiumLock text="Upgrade to Premium Plan to view amount" blurredText="₹ 25,00,000" />
                           ) : (
                             <div className="inline-flex items-center bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-100/80">
                               <span className="font-bold text-sm">

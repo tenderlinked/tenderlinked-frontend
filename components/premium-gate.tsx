@@ -47,3 +47,18 @@ export function PremiumGate({ hasAccess, featureName, children }: PremiumGatePro
     </div>
   );
 }
+
+export function InlinePremiumLock({ text = "Upgrade to Premium Plan to view", blurredText = "Locked Data", className = "" }) {
+  return (
+    <div className={`flex items-center gap-1.5 group/premium cursor-pointer bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200 w-fit relative ${className}`}>
+      <span className="font-bold text-slate-400/50 text-sm blur-[4px] select-none whitespace-nowrap overflow-hidden">{blurredText}</span>
+      <Lock className="w-3.5 h-3.5 text-blue-500 opacity-80 group-hover/premium:opacity-100 transition-opacity flex-shrink-0" />
+      {/* Custom Tooltip */}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-orange-500 text-white text-xs font-semibold rounded shadow-lg shadow-orange-500/20 opacity-0 invisible group-hover/premium:opacity-100 group-hover/premium:visible transition-all duration-200 whitespace-nowrap z-50 flex items-center gap-1.5 pointer-events-none">
+        <Lock className="w-3.5 h-3.5 text-white" />
+        {text}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-[5px] border-transparent border-t-orange-500"></div>
+      </div>
+    </div>
+  );
+}
