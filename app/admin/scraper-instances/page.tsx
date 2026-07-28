@@ -38,7 +38,6 @@ interface ScrapeInstance {
   progress: { page: number; tendersFound: number; totalTenders: number; newTendersAdded: number };
   startTime: string;
   endTime?: string;
-  error?: string;
 }
 
 const AI_MODES: { value: AiMode; label: string; description: string; cost: string; color: string }[] = [

@@ -43,6 +43,15 @@ interface TenderDetail {
   productCategory?: string;
   invitingAuthorityName?: string;
   invitingAuthorityAddress?: string;
+  tenderRefNumber?: string;
+  publishedDate?: string;
+  docDownloadStartDate?: string;
+  docDownloadEndDate?: string;
+  clarificationStartDate?: string;
+  clarificationEndDate?: string;
+  preBidMeetingDate?: string;
+  preBidMeetingPlace?: string;
+  hasDocuments?: boolean;
   paymentMode?: string;
   isBookmarked?: boolean;
 }
@@ -647,7 +656,7 @@ export default function TenderDetailsPage() {
               </DialogTrigger>
               {renderShareDialogContent()}
             </Dialog>
-            {session?.user?.globalRole === 'SUPER_ADMIN' && (
+            {(session?.user as any)?.globalRole === 'SUPER_ADMIN' && (
               <Button 
                 variant="outline" 
                 className="h-9 font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 shadow-sm border-amber-200"
@@ -1060,9 +1069,9 @@ export default function TenderDetailsPage() {
                          <div className="absolute left-[7.5rem] top-2 bottom-8 w-[2px] bg-slate-200"></div>
 
                          {(() => {
-                           const events = [];
+                           const events: { key: string; title: string; desc: string; color: string; date: string; isDeadline?: boolean }[] = [];
                            if (tender.publishedDate || tender.startDate) {
-                               events.push({ key: 'publishedDate', title: 'Tender Published', desc: 'Tender notice published.', color: 'bg-green-500', date: tender.publishedDate || tender.startDate });
+                               events.push({ key: 'publishedDate', title: 'Tender Published', desc: 'Tender notice published.', color: 'bg-green-500', date: (tender.publishedDate || tender.startDate)! });
                            }
                            if (tender.docDownloadStartDate) {
                                events.push({ key: 'docDownloadStartDate', title: 'Document Download Starts', desc: 'Documents available for download.', color: 'bg-blue-500', date: tender.docDownloadStartDate });

@@ -49,7 +49,7 @@ export default function DashboardPage() {
 
     if (status === "authenticated") {
       // @ts-ignore
-      if (session?.user?.globalRole !== 'SUPER_ADMIN') {
+      if ((session?.user as any)?.globalRole !== 'SUPER_ADMIN') {
         router.push('/tenders');
         return;
       }

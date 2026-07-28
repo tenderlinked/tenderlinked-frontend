@@ -75,6 +75,8 @@ interface Tender {
   hasDocuments?: boolean;
   authority?: string;
   city?: string;
+  aiMatchScore?: number | null;
+  relevanceScore?: number | null;
 }
 
 const getPlatformName = (tender: Partial<Tender>) => {
@@ -946,7 +948,7 @@ export default function UnifiedTendersPage() {
                               </button>
                             )}
                             
-                            {session?.user?.globalRole === 'SUPER_ADMIN' && (
+                            {(session?.user as any)?.globalRole === 'SUPER_ADMIN' && (
                               <button
                                 onClick={() => { setEditingTender(tender as any); setIsEditModalOpen(true); }}
                                 className="p-1.5 border border-amber-200 text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
@@ -1172,7 +1174,7 @@ export default function UnifiedTendersPage() {
                             Download
                           </Button>
                         )}
-                        {session?.user?.globalRole === 'SUPER_ADMIN' && (
+                        {(session?.user as any)?.globalRole === 'SUPER_ADMIN' && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -1318,6 +1320,7 @@ export default function UnifiedTendersPage() {
                                   value: keyword,
                                   title: `Keyword Limit Reached`,
                                   description: `You have reached your limit of ${limits.maxKeywords} keywords. Upgrade to a premium plan to add more keywords to your feed.`,
+                                  loading: false,
                                   isLimitReached: true
                                 });
                                 return;
@@ -1376,6 +1379,7 @@ export default function UnifiedTendersPage() {
                                   value: name,
                                   title: `State Limit Reached`,
                                   description: `You have reached your limit of ${limits.maxStates} states. Upgrade to a premium plan to add more states to your feed.`,
+                                  loading: false,
                                   isLimitReached: true
                                 });
                                 return;
@@ -1393,6 +1397,7 @@ export default function UnifiedTendersPage() {
                                     description: isFree 
                                       ? `You have ${limits.maxStates - limits.unlockedStates.length} free state slots remaining. Do you want to use one to unlock "${name}"? Once unlocked, it cannot be changed.`
                                       : `You have reached your limit of ${limits.maxStates} states. Upgrade to a premium plan to add more states to your feed.`,
+                                    loading: false,
                                     isLimitReached: !isFree
                                   });
                                   return;
@@ -1563,7 +1568,8 @@ export default function UnifiedTendersPage() {
               maxKeywords: data.maxKeywords || 3, 
               maxStates: data.maxStates || 1,
               unlockedStates: data.unlockedStates || [],
-              unlockedKeywords: data.unlockedKeywords || []
+              unlockedKeywords: data.unlockedKeywords || [],
+              planType: data.planType || ''
             };
             setLimits(fetchedLimits);
           

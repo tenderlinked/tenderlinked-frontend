@@ -22,7 +22,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // @ts-ignore
   const userPermissions = session?.user?.permissions || [];
   // @ts-ignore
-  const isSuperAdmin = session?.user?.globalRole === 'SUPER_ADMIN';
+  const isSuperAdmin = (session?.user as any)?.globalRole === 'SUPER_ADMIN';
   const isOwnerOrSuperAdmin = userPermissions.includes('*') || isSuperAdmin;
   
   let navItems = (isAdmin && isSuperAdmin) ? data.adminNavMain : data.navMain;

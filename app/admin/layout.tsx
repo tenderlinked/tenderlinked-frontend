@@ -11,7 +11,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   // @ts-ignore
-  if (session.user?.globalRole !== 'SUPER_ADMIN') {
+  if ((session.user as any)?.globalRole !== 'SUPER_ADMIN') {
     redirect('/dashboard');
   }
 

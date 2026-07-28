@@ -83,7 +83,7 @@ export default function TeamSettingsPage() {
         // @ts-ignore
         const userPermissions = session?.user?.permissions || [];
         // @ts-ignore
-        const isSuperAdmin = session?.user?.globalRole === 'SUPER_ADMIN';
+        const isSuperAdmin = (session?.user as any)?.globalRole === 'SUPER_ADMIN';
         const hasFullAccess = userPermissions.includes('*') || isSuperAdmin;
 
         const filteredRoles = data.filter((role: any) => {
