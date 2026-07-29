@@ -33,9 +33,6 @@ export default function SettingsPage() {
   const [actualTenantId, setActualTenantId] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log("Settings Session Status:", status);
-    console.log("Settings Session Data:", session);
-    
     if (status === "loading") return; // Wait for session to load before redirecting
     
     if (status === "unauthenticated") {

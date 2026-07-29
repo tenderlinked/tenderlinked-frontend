@@ -79,8 +79,6 @@ export default function DashboardPage() {
     return null;
   }
 
-  console.log("Dashboard Session:", session);
-
   const fetchTenders = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
