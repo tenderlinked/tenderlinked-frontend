@@ -147,8 +147,30 @@ export default function SubscriptionPage() {
     setIsCheckoutModalOpen(true);
   };
 
+  const isOwnerOrAdmin = (session?.user as any)?.tenantRole === 'OWNER' || (session?.user as any)?.tenantRole === 'ADMIN' || (session?.user as any)?.isOwner || (session?.user as any)?.globalRole === 'SUPER_ADMIN';
+
   if (loading) {
     return <div className="p-8 flex justify-center">Loading subscription details...</div>;
+  }
+
+  if (session && !isOwnerOrAdmin) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
+          <ShieldCheck className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Access Restricted</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mb-6">
+          Billing and subscription management is reserved for Workspace Owners and Admins. Please contact your workspace owner for subscription changes.
+        </p>
+        <Button
+          onClick={() => window.location.href = "/tenders"}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl px-5 py-2.5"
+        >
+          Return to Tenders
+        </Button>
+      </div>
+    );
   }
 
   const getPlanTotalCredits = (planType: string) => {

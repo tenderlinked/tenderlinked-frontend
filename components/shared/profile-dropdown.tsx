@@ -1,3 +1,5 @@
+"use client";
+
 import Logout from "@/components/auth/logout";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,18 +9,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import userImg from "@/public/assets/images/user.png";
-import { Mail, Settings, User, Calendar, CreditCard, Clock, Users, ShieldCheck } from "lucide-react";
+import { 
+  Settings, 
+  CreditCard, 
+  Users, 
+  ShieldCheck, 
+  UserCheck, 
+  Shield, 
+  ChevronDown,
+  Sparkles,
+  Building
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
 
 const ProfileDropdown = () => {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const isAdmin = pathname?.startsWith("/admin");
   const [subDetails, setSubDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -41,123 +51,155 @@ const ProfileDropdown = () => {
     }
   }, [session?.user?.id]);
 
+  const globalRole = (session?.user as any)?.globalRole;
+  const tenantRole = (session?.user as any)?.tenantRole;
+  const isOwner = (session?.user as any)?.isOwner || tenantRole === 'OWNER';
+  const isOwnerOrAdmin = isOwner || tenantRole === 'ADMIN' || globalRole === 'SUPER_ADMIN';
+  
+  const displayRoleLabel = globalRole === 'SUPER_ADMIN' 
+    ? 'Super Admin' 
+    : (isOwner ? 'Workspace Owner' : (tenantRole === 'ADMIN' ? 'Admin' : 'Tenant Member'));
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           className={cn(
-            "flex items-center gap-2.5 h-auto py-1 px-1.5 pr-3 rounded-full transition-colors cursor-pointer border-0 hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-200 dark:data-[state=open]:bg-slate-800"
+            "flex items-center gap-3 py-1 px-1.5 pr-2.5 rounded-full transition-all cursor-pointer border-0 hover:bg-slate-100 dark:hover:bg-slate-800/80 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-800"
           )}
         >
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-200 dark:bg-slate-800 flex-shrink-0 flex items-center justify-center overflow-hidden border border-slate-300 dark:border-slate-700">
-            {session?.user?.image ? (
-              <Image
-                src={session?.user?.image}
-                className="w-full h-full object-cover"
-                width={36}
-                height={36}
-                alt={session?.user?.name ?? "User profile"}
-              />
-            ) : (
-              <Image
-                src={userImg}
-                className="w-full h-full object-cover"
-                width={36}
-                height={36}
-                alt={"User profile"}
-              />
-            )}
-          </div>
-          <div className="flex flex-col items-start hidden sm:flex">
-            <span className="text-[13px] font-bold text-slate-900 dark:text-white leading-tight max-w-[120px] truncate">
-              {session?.user?.name || "User"}
-            </span>
-            <div className="flex items-center gap-1 mt-0.5">
-              <Settings className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                {(session?.user as any)?.globalRole === 'SUPER_ADMIN' ? 'Super Admin' : ((session?.user as any)?.tenantRole || 'Member')}
-              </span>
+          <div className="p-[1.5px] bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-500 rounded-full shadow-sm">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white dark:bg-slate-900 flex-shrink-0 flex items-center justify-center overflow-hidden">
+              {session?.user?.image ? (
+                <Image
+                  src={session?.user?.image}
+                  className="w-full h-full object-cover"
+                  width={36}
+                  height={36}
+                  alt={session?.user?.name ?? "User profile"}
+                />
+              ) : (
+                <Image
+                  src={userImg}
+                  className="w-full h-full object-cover"
+                  width={36}
+                  height={36}
+                  alt={"User profile"}
+                />
+              )}
             </div>
           </div>
+
+          <div className="flex flex-col items-start hidden sm:flex text-left">
+            <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100 leading-tight max-w-[130px] truncate">
+              {session?.user?.name || session?.user?.email?.split('@')[0] || "User"}
+            </span>
+            
+            <div className="flex items-center gap-1 mt-0.5">
+              {globalRole === 'SUPER_ADMIN' ? (
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                  <ShieldCheck className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400" />
+                  SUPER ADMIN
+                </span>
+              ) : isOwner ? (
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                  <Shield className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
+                  OWNER
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  <UserCheck className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
+                  TENANT MEMBER
+                </span>
+              )}
+            </div>
+          </div>
+
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 ml-0.5 hidden sm:block transition-transform duration-200 group-data-[state=open]:rotate-180" />
         </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="sm:w-[320px] min-w-[280px] right-[40px] absolute p-4 rounded-2xl overflow-hidden shadow-xl border-slate-200 dark:border-slate-800"
+        className="sm:w-[310px] min-w-[280px] p-2 rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800"
         side="bottom"
         align="end"
       >
-        <div className="py-3 px-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex flex-col gap-3 mb-3 border border-slate-100 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <h6 className="text-lg text-slate-900 dark:text-white font-bold mb-0 truncate max-w-[180px]">
-              {session?.user?.name || session?.user?.email || "User"}
-            </h6>
+        {/* User Card Header */}
+        <div className="p-3.5 rounded-xl bg-gradient-to-b from-slate-50 to-slate-100/60 dark:from-slate-800/80 dark:to-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 flex flex-col gap-2.5 mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base border border-primary/20 shrink-0">
+              {session?.user?.name?.charAt(0).toUpperCase() || session?.user?.email?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                {session?.user?.name || "User"}
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                {session?.user?.email}
+              </span>
+            </div>
           </div>
-          <div>
+
+          <div className="pt-1 flex items-center justify-between border-t border-slate-200/60 dark:border-slate-700/50">
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Subscription</span>
             {(session?.user as any)?.hasActivePlan ? (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800">
-                Active Plan: {(subDetails?.planType || (session?.user as any)?.planType || 'Active').charAt(0).toUpperCase() + (subDetails?.planType || (session?.user as any)?.planType || 'Active').slice(1).toLowerCase()}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                {(subDetails?.planType || (session?.user as any)?.planType || 'Active').toUpperCase()}
               </span>
             ) : (
-              <Link href="/checkout" className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 hover:opacity-80 transition-opacity ring-1 ring-rose-200 dark:ring-rose-800">
-                No Active Plan - Upgrade
+              <Link href="/checkout" className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 hover:bg-rose-200 transition-colors">
+                No Active Plan
               </Link>
             )}
           </div>
         </div>
 
-        <div className="max-h-[400px] overflow-y-auto scroll-sm pt-4">
-          <ul className="flex flex-col gap-3">
-            <li>
-              <Link
-                href="/view-profile"
-                className="text-black dark:text-white hover:text-primary dark:hover:text-primary flex items-center gap-3"
-              >
-                <User className="w-5 h-5" /> My Profile
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/dashboard/subscription"
-                className="text-black dark:text-white hover:text-primary dark:hover:text-primary flex items-center gap-3"
-              >
-                <CreditCard className="w-5 h-5" /> My Subscription
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/email"
-                className="text-black dark:text-white hover:text-primary dark:hover:text-primary flex items-center gap-3"
-              >
-                <Mail className="w-5 h-5" /> Inbox
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/settings"
-                className="text-black dark:text-white hover:text-primary dark:hover:text-primary flex items-center gap-3"
-              >
-                <Settings className="w-5 h-5" /> Settings
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/settings/team"
-                className="text-black dark:text-white hover:text-primary dark:hover:text-primary flex items-center gap-3"
-              >
-                <Users className="w-5 h-5" /> Team Settings
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/settings/roles"
-                className="text-black dark:text-white hover:text-primary dark:hover:text-primary flex items-center gap-3"
-              >
-                <ShieldCheck className="w-5 h-5" /> Role Management
-              </Link>
-            </li>
-            <li>
+        {/* Menu Actions */}
+        <div className="py-1">
+          <ul className="flex flex-col gap-0.5">
+            {isOwnerOrAdmin && (
+              <>
+                <li>
+                  <Link
+                    href="/settings/bidder-profile"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+                  >
+                    <UserCheck className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                    <span>Bidder Profile</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/dashboard/subscription"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+                  >
+                    <CreditCard className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                    <span>My Subscription</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/settings/team"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+                  >
+                    <Users className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                    <span>Team Settings</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/settings/roles"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                    <span>Role Management</span>
+                  </Link>
+                </li>
+              </>
+            )}
+            <li className="pt-1.5 mt-1 border-t border-slate-100 dark:border-slate-800">
               <Logout />
             </li>
           </ul>

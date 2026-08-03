@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
 import { getLogoutUrl } from "@/components/auth/actions/logout";
 import IndianTendersMegaMenu from "./IndianTendersMegaMenu";
-import { Network, Search, Menu, X, ChevronDown, CheckCircle2, LogOut, LayoutDashboard } from "lucide-react";
+import { Network, Search, Menu, X, ChevronDown, CheckCircle2, LogOut, LayoutDashboard, Sparkles, UserCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,12 +34,18 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const navItems = [
+  const navItems = (isAuthenticated ? [
     { name: "Indian Tenders", path: "/", hasDropdown: true },
-    { name: "Sectors", path: "/sectors" },
-    { name: "Analysis", path: "/analysis" },
+    { name: "All Tenders", path: "/tenders" },
+    { name: "Recommended", path: "/tenders/recommended", isSparkles: true },
+    { name: "About Us", path: "/about" },
     { name: "Pricing", path: "/pricing" },
-  ].map(item => ({ ...item, active: pathname === item.path }));
+  ] : [
+    { name: "Indian Tenders", path: "/", hasDropdown: true },
+    { name: "Browse Tenders", path: "/tenders" },
+    { name: "About Us", path: "/about" },
+    { name: "Pricing", path: "/pricing" },
+  ]).map(item => ({ ...item, active: pathname === item.path }));
 
   return (
     <header
@@ -210,16 +216,20 @@ const Header = () => {
                   <p className="text-xs text-gray-500 truncate mt-0.5">{session?.user?.email}</p>
                 </div>
                 <div className="p-1">
-                  <DropdownMenuItem onClick={() => router.push('/dashboard')} className="cursor-pointer py-2.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <LayoutDashboard className="w-4 h-4 mr-2 text-gray-500" />
+                  <DropdownMenuItem onClick={() => router.push('/settings/bidder-profile')} className="cursor-pointer py-2 px-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium">
+                    <UserCheck className="w-4 h-4 mr-2 text-slate-500 dark:text-slate-400" />
+                    <span className="text-sm font-medium">Bidder Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push('/dashboard')} className="cursor-pointer py-2 px-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium">
+                    <LayoutDashboard className="w-4 h-4 mr-2 text-slate-500 dark:text-slate-400" />
                     <span className="text-sm font-medium">Dashboard</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={async () => {
                     const url = await getLogoutUrl();
                     await signOut({ callbackUrl: url });
-                  }} className="cursor-pointer py-2.5 rounded-md text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 dark:hover:bg-red-900/20">
-                    <LogOut className="w-4 h-4 mr-2" />
+                  }} className="cursor-pointer py-2 px-3 rounded-lg text-slate-700 dark:text-slate-200 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 font-medium">
+                    <LogOut className="w-4 h-4 mr-2 text-slate-500 dark:text-slate-400" />
                     <span className="text-sm font-medium">Sign Out</span>
                   </DropdownMenuItem>
                 </div>

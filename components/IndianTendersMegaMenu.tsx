@@ -72,7 +72,7 @@ const IndianTendersMegaMenu = () => {
             let href = `/tenders?q=${encodeURIComponent(stateName)}`;
             
             if (activeTab === "By States") href = `/tenders?states=${encodeURIComponent(stateName)}`;
-            if (activeTab === "By Cities") href = `/tenders?districts=${encodeURIComponent(stateName)}`;
+            if (activeTab === "By Cities") href = `/tenders?cities=${encodeURIComponent(stateName)}`;
             if (activeTab === "By Authorities") href = `/tenders?authorities=${encodeURIComponent(stateName)}`;
             if (activeTab === "By Categories") href = `/tenders?categories=${encodeURIComponent(stateName)}`;
             if (activeTab === "By Keywords") href = `/tenders?keywords=${encodeURIComponent(stateName)}`;

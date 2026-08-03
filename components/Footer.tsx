@@ -22,9 +22,17 @@ const Footer = () => {
             <li>
               <a
                 className="text-gray-500 dark:text-gray-400 hover:text-[#2563EB] transition-colors duration-200"
-                href="#"
+                href="/about"
               >
-                Federal Government
+                About Us
+              </a>
+            </li>
+            <li>
+              <a
+                className="text-gray-500 dark:text-gray-400 hover:text-[#2563EB] transition-colors duration-200"
+                href="/tenders"
+              >
+                Browse Tenders
               </a>
             </li>
             <li>

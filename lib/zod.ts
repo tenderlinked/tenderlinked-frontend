@@ -19,7 +19,7 @@ const emailField = z
 // Login Schema
 export const loginSchema = z.object({
   email: z.string().min(1, "Email or Mobile is required"),
-  password: passwordField,
+  password: z.string().min(1, "Password is required"),
 });
 
 // Register Schema

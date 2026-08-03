@@ -33,12 +33,12 @@ export default auth(async (req) => {
     return NextResponse.redirect(new URL(url.pathname + url.search, `${protocol}://${rootDomain}`));
   }
 
-  // Redirect to dashboard if trying to access complete-profile but already has phone number
+  // Redirect to dashboard if trying to access complete-profile but already has phone number or tenant workspace
   if (path.startsWith('/auth/complete-profile')) {
     const session = req.auth;
     // @ts-ignore
-    if (session?.user?.phoneNumber) {
-      return NextResponse.redirect(new URL('/dashboard', req.url));
+    if (session?.user?.phoneNumber || session?.user?.tenantId) {
+      return NextResponse.redirect(new URL('/tenders', req.url));
     }
   }
 
@@ -50,9 +50,9 @@ export default auth(async (req) => {
       return NextResponse.redirect(new URL('/auth/login', req.url));
     }
 
-    // Enforce mobile number collection for social logins
+    // Enforce mobile number collection only for individual users without phone AND without tenant workspace
     // @ts-ignore
-    if (!session.user?.phoneNumber) {
+    if (!session.user?.phoneNumber && !session.user?.tenantId) {
       return NextResponse.redirect(new URL('/auth/complete-profile', req.url));
     }
 

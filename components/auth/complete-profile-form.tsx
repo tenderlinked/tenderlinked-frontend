@@ -18,13 +18,13 @@ const CompleteProfileForm = () => {
   const [otp, setOtp] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // If user already has a phone number in session, redirect to dashboard
-  useEffect(() => {
-    // @ts-ignore
-    if (session?.user?.phoneNumber) {
-      router.push("/dashboard");
-    }
-  }, [session, router]);
+      // If user already has a phone number or tenant workspace in session, redirect to tenders
+      useEffect(() => {
+        // @ts-ignore
+        if (session?.user?.phoneNumber || session?.user?.tenantId) {
+          router.push("/tenders");
+        }
+      }, [session, router]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +99,7 @@ const CompleteProfileForm = () => {
       await update({ phoneNumber: formattedPhone });
       
       // 4. Redirect
-      router.push("/dashboard");
+      router.push("/tenders");
 
     } catch (error: any) {
       toast.error(error.message || "Failed to verify OTP.");

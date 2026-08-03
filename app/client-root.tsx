@@ -3,7 +3,6 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import Footer from "@/components/layout/footer";
 import Header from "@/components/layout/header";
-import ThemeCustomizer from "@/components/theme-customizer/theme-customizer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ReactNode } from "react";
 import { Toaster } from "react-hot-toast";
@@ -25,8 +24,6 @@ export function ClientRoot({
   const isAdmin = pathname?.startsWith('/admin');
 
   return (
-    // Pass the server-fetched session so SessionProvider starts as "authenticated"
-    // immediately — no cold fetch, no race condition with the unauthenticated redirect
     <SessionProvider session={session}>
       <ThemeProvider
         attribute="class"
@@ -44,7 +41,6 @@ export function ClientRoot({
             <Footer />
           </main>
         </SidebarProvider>
-        <ThemeCustomizer />
         <Toaster 
           position="top-center" 
           reverseOrder={false} 

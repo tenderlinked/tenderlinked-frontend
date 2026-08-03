@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3, Bookmark, Bell, PhoneCall, Copy, Link as LinkIcon, Check, AlertTriangle, ArrowDown, CheckCircle, Facebook, Linkedin, Twitter, MessageCircle, Zap, ShieldCheck, Tag, Loader2, Clock } from "lucide-react";
+import { Sparkles, Lock, ArrowLeft, MapPin, Building2, Calendar, FileText, Download, Share2, Mail, Heart, Edit3, Bookmark, Bell, PhoneCall, Copy, Link as LinkIcon, Check, X, AlertTriangle, ArrowDown, CheckCircle, Facebook, Linkedin, Twitter, MessageCircle, Zap, ShieldCheck, Tag, Loader2, Clock, UserCheck, Briefcase, IndianRupee } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useTenderDownload } from "@/hooks/use-tender-download";
 import { EditTenderModal } from "@/components/tenders/edit-tender-modal";
@@ -77,6 +77,7 @@ export default function TenderDetailsPage() {
   const [isUnlockingAi, setIsUnlockingAi] = useState(false);
   const [recentlyVisited, setRecentlyVisited] = useState<any[]>([]);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [showEligibilityResults, setShowEligibilityResults] = useState(false);
 
   const handleUnlockAiSummary = async () => {
     if (!tender) return;
@@ -334,6 +335,7 @@ export default function TenderDetailsPage() {
             const tabName = id === 'overview' ? 'Overview' 
               : id === 'project-description' ? 'Project Description'
               : id === 'ai-tender-summary' ? 'AI Tender Summary'
+              : id === 'eligibility-criteria' ? 'Eligibility Criteria'
               : id === 'timeline' ? 'Timeline'
               : id === 'documents' ? 'Documents'
               : null;
@@ -364,6 +366,7 @@ export default function TenderDetailsPage() {
     const id = tabName === 'Overview' ? 'overview' 
       : tabName === 'Project Description' ? 'project-description'
       : tabName === 'AI Tender Summary' ? 'ai-tender-summary'
+      : tabName === 'Eligibility Criteria' ? 'eligibility-criteria'
       : tabName === 'Timeline' ? 'timeline'
       : tabName === 'Documents' ? 'documents'
       : '';
@@ -612,7 +615,16 @@ export default function TenderDetailsPage() {
            <span className="mx-2">/</span>
            <span className="cursor-pointer hover:text-blue-600">Indian Tenders</span>
            <span className="mx-2">/</span>
-           <span className="cursor-pointer hover:text-blue-600 truncate">{tender.organisation || 'State Tenders'}</span>
+           <span 
+             className="cursor-pointer hover:text-blue-600 truncate"
+             onClick={() => {
+               if (tender.organisation && tender.organisation !== '__PREMIUM_LOCKED__') {
+                 router.push(`/tenders?authorities=${encodeURIComponent(tender.organisation)}`);
+               }
+             }}
+           >
+             {tender.organisation || 'State Tenders'}
+           </span>
            <span className="mx-2">/</span>
            <span className="font-semibold text-slate-700">Overview</span>
         </div>
@@ -628,7 +640,16 @@ export default function TenderDetailsPage() {
               {tender.title === '__PREMIUM_LOCKED__' ? <InlinePremiumLock text="Upgrade to Premium Plan to view Title" blurredText="This is a locked tender title description" /> : tender.title}
             </h1>
             <p className="text-slate-500 text-sm">
-              Issued by <span className="font-semibold text-slate-700">{tender.organisation === '__PREMIUM_LOCKED__' ? <InlinePremiumLock text="Upgrade to view Organisation" blurredText="Locked Org" className="inline-flex" /> : (tender.organisation || "Government Departments")}</span>, {tender.state === '__PREMIUM_LOCKED__' ? <InlinePremiumLock text="Upgrade to view State" blurredText="Locked State" className="inline-flex" /> : (tender.state || "India")}
+              Issued by <span 
+                className="font-semibold text-blue-600 hover:underline cursor-pointer"
+                onClick={() => {
+                  if (tender.organisation && tender.organisation !== '__PREMIUM_LOCKED__') {
+                    router.push(`/tenders?authorities=${encodeURIComponent(tender.organisation)}`);
+                  }
+                }}
+              >
+                {tender.organisation === '__PREMIUM_LOCKED__' ? <InlinePremiumLock text="Upgrade to view Organisation" blurredText="Locked Org" className="inline-flex" /> : (tender.organisation || "Government Departments")}
+              </span>, {tender.state === '__PREMIUM_LOCKED__' ? <InlinePremiumLock text="Upgrade to view State" blurredText="Locked State" className="inline-flex" /> : (tender.state || "India")}
             </p>
           </div>
 
@@ -713,7 +734,7 @@ export default function TenderDetailsPage() {
             {/* Sticky Tabs Navigation */}
             <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-sm border border-slate-200 overflow-hidden sticky top-[72px] z-40 mb-6">
               <div className="flex flex-nowrap overflow-x-auto hide-scrollbar">
-                {['Overview', 'Project Description', 'AI Tender Summary', 'Timeline', 'Documents'].map((tab) => (
+                {['Overview', 'Project Description', 'AI Tender Summary', 'Eligibility Criteria', 'Timeline', 'Documents'].map((tab) => (
                   <button 
                     key={tab}
                     onClick={() => scrollToSection(tab)}
@@ -745,7 +766,16 @@ export default function TenderDetailsPage() {
                       {/* Row 1 */}
                       <div className="p-4 border-b border-r border-slate-100 bg-slate-50/50">
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><Building2 className="w-3 h-3 mr-1"/> Organization</p>
-                        <p className="text-sm font-semibold text-blue-600 hover:underline cursor-pointer">{tender.organisation === '__PREMIUM_LOCKED__' ? <InlinePremiumLock text="Upgrade to view Organisation" blurredText="Locked Org" className="inline-flex" /> : (tender.organisation || "N/A")}</p>
+                        <p 
+                          className="text-sm font-semibold text-blue-600 hover:underline cursor-pointer"
+                          onClick={() => {
+                            if (tender.organisation && tender.organisation !== '__PREMIUM_LOCKED__') {
+                              router.push(`/tenders?authorities=${encodeURIComponent(tender.organisation)}`);
+                            }
+                          }}
+                        >
+                          {tender.organisation === '__PREMIUM_LOCKED__' ? <InlinePremiumLock text="Upgrade to view Organisation" blurredText="Locked Org" className="inline-flex" /> : (tender.organisation || "N/A")}
+                        </p>
                       </div>
                       <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center"><LinkIcon className="w-3 h-3 mr-1"/> Tender ID</p>
@@ -812,6 +842,348 @@ export default function TenderDetailsPage() {
                         <p className="text-sm font-semibold text-slate-800">{tender.invitingAuthorityAddress || "Not Available"}</p>
                       </div>
                     </div>
+                  </section>
+
+                  {/* REQUIRED TENDER ELIGIBILITY CRITERIA TAB SECTION */}
+                  <section id="eligibility-criteria" ref={el => { sectionRefs.current[3] = el; }} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 scroll-mt-[150px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
+                          <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900">Required Tender Eligibility Criteria</h3>
+                          <p className="text-xs text-slate-500">Mandatory statutory, financial, and technical eligibility requirements extracted for this tender</p>
+                        </div>
+                      </div>
+                      
+                      {(tender as any)?.matchResult?.matchScore != null && showEligibilityResults ? (
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                          <span className="text-xs font-extrabold text-emerald-800 bg-emerald-100/90 dark:bg-emerald-950 px-3 py-1.5 rounded-xl border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
+                            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>{(tender as any).matchResult.matchScore}% Profile Match</span>
+                          </span>
+                        </div>
+                      ) : (tender as any)?.matchResult?.matchScore != null ? (
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                           <Button onClick={() => setShowEligibilityResults(true)} className="bg-blue-600 text-white hover:bg-blue-700 h-8 text-xs px-3 shadow-sm rounded-lg flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              Check Match
+                           </Button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Helper to extract evaluated items */}
+                    {(() => {
+                      const checklist: any[] = (tender as any)?.matchResult?.checklist || [];
+                      const chkState = checklist.find((c: any) => c.item.toLowerCase().includes('state') || c.item.toLowerCase().includes('operating'));
+                      const chkCat = checklist.find((c: any) => c.item.toLowerCase().includes('category') || c.item.toLowerCase().includes('fit'));
+                      const chkCap = checklist.find((c: any) => c.item.toLowerCase().includes('capacity') || c.item.toLowerCase().includes('single') || c.item.toLowerCase().includes('value') || c.item.toLowerCase().includes('limit'));
+                      const chkClass = checklist.find((c: any) => c.item.toLowerCase().includes('class') || c.item.toLowerCase().includes('registration') || c.item.toLowerCase().includes('enlistment'));
+                      const chkLic = checklist.find((c: any) => c.item.toLowerCase().includes('license') || c.item.toLowerCase().includes('licenses'));
+
+                      return (
+                        <div className="space-y-4">
+                          
+                          {/* Top 4 Criteria Cards Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            
+                            {/* 1. Operating Location & Region Requirement Card */}
+                            <div className={`p-4.5 rounded-xl border flex flex-col justify-between transition-all ${
+                              !showEligibilityResults
+                                ? 'bg-slate-50/60 border-slate-200/80'
+                                : chkState?.passed 
+                                ? 'bg-emerald-50/30 border-emerald-200/80 dark:bg-emerald-950/20' 
+                                : chkState?.status === 'PARTIAL' 
+                                ? 'bg-amber-50/40 border-amber-200/80 dark:bg-amber-950/20' 
+                                : chkState 
+                                ? 'bg-rose-50/40 border-rose-200/80 dark:bg-rose-950/20'
+                                : 'bg-slate-50/60 border-slate-200/80'
+                            }`}>
+                              <div>
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-lg bg-blue-50 text-blue-600 shrink-0">
+                                      <MapPin className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div>
+                                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Operating Region</div>
+                                      <div className="text-sm font-bold text-slate-800 mt-0.5">
+                                        {tender.state || 'State Unspecified'} {tender.district ? `(${tender.district})` : ''} {tender.city ? `- ${tender.city}` : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {showEligibilityResults && chkState && (
+                                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border flex items-center gap-1 shrink-0 ${
+                                      chkState.passed 
+                                        ? 'bg-emerald-100/90 text-emerald-800 border-emerald-300' 
+                                        : chkState.status === 'PARTIAL'
+                                        ? 'bg-amber-100/90 text-amber-800 border-amber-300'
+                                        : 'bg-rose-100/90 text-rose-800 border-rose-300'
+                                    }`}>
+                                      {chkState.passed ? <Check className="w-3 h-3 stroke-[3]" /> : chkState.status === 'PARTIAL' ? <AlertTriangle className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                      <span>{chkState.passed ? 'MATCHED ✓' : chkState.status === 'PARTIAL' ? 'PARTIAL ⚠️' : 'NOT MATCHED ❌'}</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-600 dark:text-gray-300 leading-relaxed mt-1.5">
+                                  {chkState?.detail || `Bidder must be registered or eligible to execute government contracts in ${tender.state || 'operating region'}.`}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* 2. Tender Work Sector & Category Card */}
+                            <div className={`p-4.5 rounded-xl border flex flex-col justify-between transition-all ${
+                              !showEligibilityResults
+                                ? 'bg-slate-50/60 border-slate-200/80'
+                                : chkCat?.passed 
+                                ? 'bg-emerald-50/30 border-emerald-200/80 dark:bg-emerald-950/20' 
+                                : chkCat?.status === 'PARTIAL' 
+                                ? 'bg-amber-50/40 border-amber-200/80 dark:bg-amber-950/20' 
+                                : chkCat 
+                                ? 'bg-rose-50/40 border-rose-200/80 dark:bg-rose-950/20'
+                                : 'bg-slate-50/60 border-slate-200/80'
+                            }`}>
+                              <div>
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-lg bg-blue-50 text-blue-600 shrink-0">
+                                      <Briefcase className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div>
+                                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tender Category</div>
+                                      <div className="text-sm font-bold text-slate-800 mt-0.5">{tender.tenderCategory || tender.productCategory || 'Civil Works & Construction'}</div>
+                                    </div>
+                                  </div>
+
+                                  {showEligibilityResults && chkCat && (
+                                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border flex items-center gap-1 shrink-0 ${
+                                      chkCat.passed 
+                                        ? 'bg-emerald-100/90 text-emerald-800 border-emerald-300' 
+                                        : chkCat.status === 'PARTIAL'
+                                        ? 'bg-amber-100/90 text-amber-800 border-amber-300'
+                                        : 'bg-rose-100/90 text-rose-800 border-rose-300'
+                                    }`}>
+                                      {chkCat.passed ? <Check className="w-3 h-3 stroke-[3]" /> : chkCat.status === 'PARTIAL' ? <AlertTriangle className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                      <span>{chkCat.passed ? 'MATCHED ✓' : chkCat.status === 'PARTIAL' ? 'PARTIAL ⚠️' : 'NOT MATCHED ❌'}</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-600 dark:text-gray-300 leading-relaxed mt-1.5">
+                                  {chkCat?.detail || 'Relevant technical expertise and completion credentials required in similar sector scope.'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* 3. Estimated Contract Value & Financial Capacity Card */}
+                            <div className={`p-4.5 rounded-xl border flex flex-col justify-between transition-all ${
+                              !showEligibilityResults
+                                ? 'bg-slate-50/60 border-slate-200/80'
+                                : chkCap?.passed 
+                                ? 'bg-emerald-50/30 border-emerald-200/80 dark:bg-emerald-950/20' 
+                                : chkCap?.status === 'PARTIAL' 
+                                ? 'bg-amber-50/40 border-amber-200/80 dark:bg-amber-950/20' 
+                                : chkCap 
+                                ? 'bg-rose-50/40 border-rose-200/80 dark:bg-rose-950/20'
+                                : 'bg-slate-50/60 border-slate-200/80'
+                            }`}>
+                              <div>
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-lg bg-blue-50 text-blue-600 shrink-0">
+                                      <IndianRupee className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div>
+                                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Estimated Contract Value</div>
+                                      <div className="text-sm font-bold text-slate-800 mt-0.5">
+                                        {tender.tenderAmount != null ? `₹ ${Number(tender.tenderAmount).toLocaleString('en-IN')}` : tender.tenderValue || 'Refer Official Notice'}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {showEligibilityResults && chkCap && (
+                                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border flex items-center gap-1 shrink-0 ${
+                                      chkCap.passed 
+                                        ? 'bg-emerald-100/90 text-emerald-800 border-emerald-300' 
+                                        : chkCap.status === 'PARTIAL'
+                                        ? 'bg-amber-100/90 text-amber-800 border-amber-300'
+                                        : 'bg-rose-100/90 text-rose-800 border-rose-300'
+                                    }`}>
+                                      {chkCap.passed ? <Check className="w-3 h-3 stroke-[3]" /> : chkCap.status === 'PARTIAL' ? <AlertTriangle className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                      <span>{chkCap.passed ? 'MATCHED ✓' : chkCap.status === 'PARTIAL' ? 'PARTIAL ⚠️' : 'NOT MATCHED ❌'}</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-600 dark:text-gray-300 leading-relaxed mt-1.5">
+                                  {chkCap?.detail || 'Bidder must possess single work financial capacity exceeding contract estimate.'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* 4. Contractor Registration Class Card */}
+                            <div className={`p-4.5 rounded-xl border flex flex-col justify-between transition-all ${
+                              !showEligibilityResults
+                                ? 'bg-slate-50/60 border-slate-200/80'
+                                : chkClass?.passed 
+                                ? 'bg-emerald-50/30 border-emerald-200/80 dark:bg-emerald-950/20' 
+                                : chkClass?.status === 'PARTIAL' 
+                                ? 'bg-amber-50/40 border-amber-200/80 dark:bg-amber-950/20' 
+                                : chkClass 
+                                ? 'bg-rose-50/40 border-rose-200/80 dark:bg-rose-950/20'
+                                : 'bg-slate-50/60 border-slate-200/80'
+                            }`}>
+                              <div>
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-lg bg-blue-50 text-blue-600 shrink-0">
+                                      <ShieldCheck className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div>
+                                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Required Enlistment Class</div>
+                                      <div className="text-sm font-bold text-slate-800 mt-0.5">Valid PWD / CPWD Contractor Enlistment (Class D & Above)</div>
+                                    </div>
+                                  </div>
+
+                                  {showEligibilityResults && chkClass && (
+                                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border flex items-center gap-1 shrink-0 ${
+                                      chkClass.passed 
+                                        ? 'bg-emerald-100/90 text-emerald-800 border-emerald-300' 
+                                        : chkClass.status === 'PARTIAL'
+                                        ? 'bg-amber-100/90 text-amber-800 border-amber-300'
+                                        : 'bg-rose-100/90 text-rose-800 border-rose-300'
+                                    }`}>
+                                      {chkClass.passed ? <Check className="w-3 h-3 stroke-[3]" /> : chkClass.status === 'PARTIAL' ? <AlertTriangle className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                      <span>{chkClass.passed ? 'MATCHED ✓' : chkClass.status === 'PARTIAL' ? 'PARTIAL ⚠️' : 'NOT MATCHED ❌'}</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-600 dark:text-gray-300 leading-relaxed mt-1.5">
+                                  {chkClass?.detail || 'Active contractor registration card issued by competent authority required for bid submission.'}
+                                </p>
+                              </div>
+                            </div>
+
+                          </div>
+
+                          {/* 5. Mandatory Statutory Licenses & Certificates Card */}
+                          <div className={`p-4.5 rounded-xl border transition-all ${
+                            !showEligibilityResults
+                              ? 'bg-slate-50/60 border-slate-200/80'
+                              : chkLic?.passed 
+                              ? 'bg-emerald-50/30 border-emerald-200/80 dark:bg-emerald-950/20' 
+                              : chkLic?.status === 'PARTIAL' 
+                              ? 'bg-amber-50/40 border-amber-200/80 dark:bg-amber-950/20' 
+                              : chkLic 
+                              ? 'bg-rose-50/40 border-rose-200/80 dark:bg-rose-950/20'
+                              : 'bg-slate-50/60 border-slate-200/80'
+                          }`}>
+                            <div className="flex items-center justify-between gap-2 mb-2.5">
+                              <div className="flex items-center gap-2">
+                                <ShieldCheck className="w-4.5 h-4.5 text-blue-600 shrink-0" />
+                                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700">Mandatory Statutory Licenses & Certificates Required</h4>
+                              </div>
+
+                              {showEligibilityResults && chkLic && (
+                                <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border flex items-center gap-1 shrink-0 ${
+                                  chkLic.passed 
+                                    ? 'bg-emerald-100/90 text-emerald-800 border-emerald-300' 
+                                    : chkLic.status === 'PARTIAL'
+                                    ? 'bg-amber-100/90 text-amber-800 border-amber-300'
+                                    : 'bg-rose-100/90 text-rose-800 border-rose-300'
+                                }`}>
+                                  {chkLic.passed ? <Check className="w-3 h-3 stroke-[3]" /> : chkLic.status === 'PARTIAL' ? <AlertTriangle className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                  <span>{chkLic.passed ? 'MATCHED ✓' : chkLic.status === 'PARTIAL' ? `PARTIAL (${chkLic.score}%) ⚠️` : 'NOT MATCHED ❌'}</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-xs text-slate-600 dark:text-gray-300 leading-relaxed mb-3">
+                              {chkLic?.detail || 'Verified statutory licenses extracted for this tender evaluation.'}
+                            </p>
+
+                            {/* Dynamic Licenses Grid derived from tender evaluation */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                              {(() => {
+                                const list: { title: string; isMatched: boolean }[] = [];
+                                const detailText = chkLic?.detail || '';
+                                
+                                if (detailText) {
+                                  if (detailText.includes('Verified:')) {
+                                    const verifiedText = detailText.split('Verified:')[1]?.split(';')[0]?.split(')')[0] || '';
+                                    verifiedText.split(',').map(s => s.trim()).filter(Boolean).forEach(item => {
+                                      if (!list.some(l => l.title.toLowerCase() === item.toLowerCase())) {
+                                        list.push({ title: item, isMatched: true });
+                                      }
+                                    });
+                                  }
+
+                                  if (detailText.includes('Missing:')) {
+                                    const missingText = detailText.split('Missing:')[1]?.split(')')[0] || '';
+                                    missingText.split(',').map(s => s.trim()).filter(Boolean).forEach(item => {
+                                      if (!list.some(l => l.title.toLowerCase() === item.toLowerCase())) {
+                                        list.push({ title: item, isMatched: false });
+                                      }
+                                    });
+                                  }
+                                }
+
+                                // Fallback if no specific requirements extracted
+                                const finalLicenses = list.length > 0 ? list : [
+                                  { title: "GST Registration Certificate", isMatched: true },
+                                  { title: "PAN Card Registration", isMatched: true },
+                                  { title: "PWD / CPWD Enlistment Card", isMatched: true },
+                                  { title: "Digital Signature Certificate (DSC)", isMatched: true }
+                                ];
+
+                                return finalLicenses.map((req, i) => (
+                                  <div 
+                                    key={i} 
+                                    className={`p-3 rounded-lg border text-xs flex items-start justify-between gap-2.5 transition-all shadow-2xs ${
+                                      !showEligibilityResults
+                                        ? "bg-slate-50/60 border-slate-200"
+                                        : req.isMatched
+                                        ? "bg-emerald-50/50 border-emerald-200/90 dark:bg-emerald-950/20"
+                                        : "bg-rose-50/40 border-rose-200/80 dark:bg-rose-950/20"
+                                    }`}
+                                  >
+                                    <div className="flex items-start gap-2.5 min-w-0">
+                                      <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${
+                                        !showEligibilityResults
+                                          ? "bg-slate-200 text-slate-500"
+                                          : req.isMatched 
+                                          ? "bg-emerald-100 dark:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300"
+                                          : "bg-rose-100 dark:bg-rose-900/80 text-rose-700 dark:text-rose-300"
+                                      }`}>
+                                        {!showEligibilityResults ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : req.isMatched ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <X className="w-3.5 h-3.5 stroke-[3]" />}
+                                      </div>
+                                      <div>
+                                        <div className="font-bold text-slate-800 dark:text-slate-200">{req.title}</div>
+                                        <div className="text-[10px] text-slate-400 mt-0.5">Statutory tender document requirement</div>
+                                      </div>
+                                    </div>
+
+                                    {showEligibilityResults && (
+                                      <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded shrink-0 border ${
+                                        req.isMatched 
+                                          ? "bg-emerald-100 text-emerald-800 border-emerald-300" 
+                                          : "bg-rose-100 text-rose-800 border-rose-300"
+                                      }`}>
+                                        {req.isMatched ? "MATCHED ✓" : "NOT MATCHED ❌"}
+                                      </span>
+                                    )}
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          </div>
+
+                        </div>
+                      );
+                    })()}
                   </section>
 
                  {/* PROJECT DESCRIPTION SECTION */}

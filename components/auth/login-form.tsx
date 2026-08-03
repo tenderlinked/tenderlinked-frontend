@@ -69,7 +69,7 @@ const LoginForm = () => {
             if ((session?.user as any)?.globalRole === 'SUPER_ADMIN') {
               window.location.href = '/admin/tenants';
             } else {
-              window.location.href = '/dashboard';
+              window.location.href = '/tenders';
             }
           }
         }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import AIMatchBadge from "@/components/shared/ai-match-badge";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import toast from "react-hot-toast";
@@ -86,7 +87,11 @@ const getPlatformName = (tender: Partial<Tender>) => {
 
 // States and cities will be loaded dynamically from the API
 
-export default function UnifiedTendersPage() {
+interface UnifiedTendersPageProps {
+  isRecommended?: boolean;
+}
+
+export default function UnifiedTendersPage({ isRecommended = false }: UnifiedTendersPageProps) {
   const { data: session, status } = useSession();
   const { initiateDownload, DownloadModal } = useTenderDownload();
   const router = useRouter();
@@ -104,14 +109,18 @@ export default function UnifiedTendersPage() {
   const globalQuery = searchParams.get('q') || searchParams.get('search') || "";
   
   // Helper to parse comma-separated array strings from URL
-  const parseArrayParam = (key: string): string[] => {
-    const val = searchParams.get(key);
-    return val ? val.split(',').filter(Boolean) : [];
+  const parseArrayParam = (...keys: string[]): string[] => {
+    const result: string[] = [];
+    for (const key of keys) {
+      const val = searchParams.get(key);
+      if (val) result.push(...val.split(',').filter(Boolean));
+    }
+    return [...new Set(result)];
   };
 
   // Filters (now arrays)
   const [selectedStates, setSelectedStates] = useState<string[]>(parseArrayParam('states'));
-  const [selectedCities, setSelectedCities] = useState<string[]>(parseArrayParam('districts'));
+  const [selectedCities, setSelectedCities] = useState<string[]>(parseArrayParam('cities', 'districts'));
   const [selectedCategories, setSelectedCategories] = useState<string[]>(parseArrayParam('categories'));
   const [selectedAuthorities, setSelectedAuthorities] = useState<string[]>(parseArrayParam('authorities'));
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>(parseArrayParam('keywords'));
@@ -121,7 +130,7 @@ export default function UnifiedTendersPage() {
   const [statesList, setStatesList] = useState<any[]>([]);
   const [authoritiesList, setAuthoritiesList] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState(globalQuery);
-  const [activeTab, setActiveTab] = useState(searchParams.get('bookmarked') === 'true' ? "followed" : "active");
+  const [activeTab, setActiveTab] = useState(searchParams.get('bookmarked') === 'true' ? "followed" : "all");
   const [sortOption, setSortOption] = useState("newest");
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
@@ -170,6 +179,30 @@ export default function UnifiedTendersPage() {
   const [unlockModal, setUnlockModal] = useState<{isOpen: boolean, type: 'state'|'keyword', value: string, title: string, description: string, loading: boolean, isLimitReached?: boolean}>({ isOpen: false, type: 'state', value: '', title: '', description: '', loading: false });
   const [isSaveFilterOpen, setIsSaveFilterOpen] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+
+  const isOwnerOrAdmin = (session?.user as any)?.tenantRole === 'OWNER' || (session?.user as any)?.tenantRole === 'ADMIN' || (session?.user as any)?.isOwner || (session?.user as any)?.globalRole === 'SUPER_ADMIN';
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [selectedBookmarkMemberId, setSelectedBookmarkMemberId] = useState<string>('all');
+
+  useEffect(() => {
+    if (isOwnerOrAdmin && (session?.user as any)?.id) {
+      let tid = (session?.user as any)?.tenantId;
+      if (tid) {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenants/${tid}/members`, {
+          headers: {
+            "Authorization": `Bearer ${(session as any)?.accessToken || ''}`,
+            "x-user-id": (session?.user as any)?.id || '',
+            "x-tenant-id": tid
+          }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) setTeamMembers(data);
+          })
+          .catch(console.error);
+      }
+    }
+  }, [isOwnerOrAdmin, (session?.user as any)?.tenantId, (session?.user as any)?.id]);
   const [isPlanChangeOpen, setIsPlanChangeOpen] = useState(false);
   const [refreshFiltersTrigger, setRefreshFiltersTrigger] = useState(0);
 
@@ -193,7 +226,7 @@ export default function UnifiedTendersPage() {
   // Sync URL params to state when they change (e.g. from Autocomplete routing)
   useEffect(() => {
     setSelectedStates(parseArrayParam('states'));
-    setSelectedCities(parseArrayParam('districts'));
+    setSelectedCities(parseArrayParam('cities', 'districts'));
     setSelectedCategories(parseArrayParam('categories'));
     setSelectedAuthorities(parseArrayParam('authorities'));
     setSelectedKeywords(parseArrayParam('keywords'));
@@ -265,7 +298,7 @@ export default function UnifiedTendersPage() {
     if (status === "authenticated") {
       fetchTenders();
     }
-  }, [status, selectedStates, selectedCities, selectedCategories, selectedAuthorities, selectedKeywords, minAmount, maxAmount, searchQuery, activeTab, sortOption, page, pageSize, limits.unlockedStates, limits.unlockedKeywords]);
+  }, [status, selectedStates, selectedCities, selectedCategories, selectedAuthorities, selectedKeywords, minAmount, maxAmount, searchQuery, activeTab, sortOption, page, pageSize, limits.unlockedStates, limits.unlockedKeywords, selectedBookmarkMemberId]);
 
 
 
@@ -344,7 +377,7 @@ export default function UnifiedTendersPage() {
     if (activeStates.length > 0) url += `&states=${encodeURIComponent(activeStates.join(','))}`;
     if (activeKeywords.length > 0) url += `&keywords=${encodeURIComponent(activeKeywords.join(','))}`;
     
-    if (selectedCities.length > 0) url += `&districts=${encodeURIComponent(selectedCities.join(','))}`;
+    if (selectedCities.length > 0) url += `&cities=${encodeURIComponent(selectedCities.join(','))}`;
     if (selectedCategories.length > 0) url += `&categories=${encodeURIComponent(selectedCategories.join(','))}`;
     if (selectedAuthorities.length > 0) url += `&authorities=${encodeURIComponent(selectedAuthorities.join(','))}`;
     if (minAmount) url += `&minAmount=${encodeURIComponent(minAmount)}`;
@@ -374,37 +407,61 @@ export default function UnifiedTendersPage() {
 
   const fetchTenders = async () => {
     let url = `${buildBaseUrl()}&page=${page}&pageSize=${pageSize}`;
-    if (activeTab === "active") {
-      url += `&active=true`;
-    } else if (activeTab === "archived") {
-      url += `&active=false`;
-    } else if (activeTab === "followed") {
-      url += `&bookmarked=true`;
-    }
-    if (sortOption) {
-      url += `&sort=${sortOption}`;
+    if (isRecommended) {
+      url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tenders/recommended?page=${page}&pageSize=${pageSize}&hideDisqualified=true`;
+      if (selectedStates.length > 0) url += `&states=${encodeURIComponent(selectedStates.join(','))}`;
+      if (selectedCategories.length > 0) url += `&categories=${encodeURIComponent(selectedCategories.join(','))}`;
+    } else {
+      if (activeTab === "active") {
+        url += `&active=true`;
+      } else if (activeTab === "archived") {
+        url += `&active=false`;
+      } else if (activeTab === "followed") {
+        // "all" and "followed" — no active filter for "all"
+        url += `&bookmarked=true`;
+        if (selectedBookmarkMemberId && selectedBookmarkMemberId !== 'all') {
+          url += `&memberUserId=${selectedBookmarkMemberId}`;
+        }
+      }
+      if (sortOption) {
+        url += `&sort=${sortOption}`;
+      }
     }
 
-    if (tendersCache.current[url]) {
-      setTenders(tendersCache.current[url].tenders);
-      setTotal(tendersCache.current[url].total);
-      setLoading(false);
-      return;
-    }
+    // NOTE: Cache disabled to ensure match scores are always fresh from backend
+    // if (!isRecommended && tendersCache.current[url]) {
+    //   setTenders(tendersCache.current[url].tenders);
+    //   setTotal(tendersCache.current[url].total);
+    //   setLoading(false);
+    //   return;
+    // }
 
     setLoading(true);
     try {
       const response = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${(session as any)?.accessToken}`,
+          "Authorization": `Bearer ${(session as any)?.accessToken || ''}`,
+          "x-user-id": (session?.user as any)?.id || session?.user?.email || ''
         },
       });
       const data = await response.json();
-      if (data.success) {
-        setTenders(data.data);
+      if (isRecommended) {
+        const mapped = (data.data || []).map((t: any) => ({
+          ...t,
+          aiMatchScore: t.matchResult?.matchScore,
+          matchResult: t.matchResult
+        }));
+        setTenders(mapped);
+        setTotal(data.meta?.total || mapped.length || 0);
+      } else if (data.success) {
+        const mapped = (data.data || []).map((t: any) => ({
+          ...t,
+          aiMatchScore: t.matchResult?.matchScore ?? t.aiMatchScore,
+        }));
+        setTenders(mapped);
         setTotal(data.meta?.total || 0);
         setSearchMetadata(data.meta || null);
-        tendersCache.current[url] = { tenders: data.data, total: data.meta?.total || 0 };
+        tendersCache.current[url] = { tenders: mapped, total: data.meta?.total || 0 };
       }
     } catch (error) {
       console.error("Failed to fetch tenders:", error);
@@ -533,15 +590,32 @@ export default function UnifiedTendersPage() {
             />
 
             <Select value={activeTab} onValueChange={setActiveTab}>
-              <SelectTrigger className="w-[150px] h-9 text-xs font-semibold bg-white border-slate-200">
+              <SelectTrigger className="w-[165px] h-9 text-xs font-semibold bg-white border-slate-200">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all" className="text-xs font-medium">All Tenders</SelectItem>
                 <SelectItem value="active" className="text-xs font-medium">Active <span className="text-slate-400 ml-1">({tabCounts.active})</span></SelectItem>
                 <SelectItem value="archived" className="text-xs font-medium">Archived <span className="text-slate-400 ml-1">({tabCounts.archived})</span></SelectItem>
                 <SelectItem value="followed" className="text-xs font-medium">Followed <span className="text-slate-400 ml-1">({tabCounts.followed})</span></SelectItem>
               </SelectContent>
             </Select>
+
+            {activeTab === "followed" && isOwnerOrAdmin && (
+              <Select value={selectedBookmarkMemberId} onValueChange={(val: string) => { setSelectedBookmarkMemberId(val); setPage(1); }}>
+                <SelectTrigger className="w-[195px] h-9 text-xs font-semibold bg-blue-50/70 text-blue-900 border-blue-200 shadow-2xs">
+                  <SelectValue placeholder="All Team Bookmarks" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs font-medium">📁 All Team Bookmarks</SelectItem>
+                  {teamMembers.map((m: any) => (
+                    <SelectItem key={m.userId} value={m.userId} className="text-xs font-medium">
+                      👤 {m.userProfile?.email || m.userId} {m.role === 'OWNER' ? '(Owner)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             <MultiSelectPopover
               label="Keyword"
@@ -809,11 +883,13 @@ export default function UnifiedTendersPage() {
                               {highlightText(tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - '))}
                             </Link>
                           )}
-                          {isSemanticMatch(tender) && (
-                            <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-600 border border-purple-200 text-[9px] font-semibold px-1.5 py-0.5 rounded mt-1" title="Recommended by AI based on semantic relevance to your search">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
-                              AI Match{tender.aiMatchScore != null ? ` ${tender.aiMatchScore}%` : ''}
-                            </span>
+                          {(tender.aiMatchScore != null || isRecommended || isSemanticMatch(tender)) && (
+                            <AIMatchBadge 
+                              score={tender.aiMatchScore} 
+                              matchResult={tender.matchResult} 
+                              tender={tender} 
+                              className="mt-1"
+                            />
                           )}
                           {(() => {
                             const filteredTags = (tender.tags || []).filter((t: string) => !t.includes('PREMIUM_LOCKED') && t.toLowerCase() !== (tender.tenderCategory || '').toLowerCase());
@@ -995,11 +1071,14 @@ export default function UnifiedTendersPage() {
                           {highlightText(tender.title.replace(/^\[|\]$/g, '').replace(/\]\s*\[/g, ' - '))}
                         </Link>
                       )}
-                      {isSemanticMatch(tender) && (
-                        <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-600 border border-purple-200 text-[10px] font-semibold px-2 py-0.5 rounded-md -mt-1 w-fit" title="Recommended by AI based on semantic relevance to your search">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
-                          AI Match{tender.aiMatchScore != null ? ` ${tender.aiMatchScore}%` : ''}
-                        </span>
+                      {(tender.aiMatchScore != null || isRecommended || isSemanticMatch(tender)) && (
+                        <div className="-mt-1">
+                          <AIMatchBadge 
+                            score={tender.aiMatchScore} 
+                            matchResult={tender.matchResult} 
+                            tender={tender} 
+                          />
+                        </div>
                       )}
 
                       {/* Tags & Location */}

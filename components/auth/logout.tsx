@@ -17,24 +17,23 @@ const Logout = () => {
   };
 
   return (
-    <Button
+    <button
       onClick={handleLogout}
       type="button"
-      className={`hover:text-red-600 flex items-center gap-3 py-0.5 text-neutral-900 dark:text-white text-base !px-0.5 cursor-pointer leading-[0] w-full justify-start hover:no-underline h-[25px] ${loading ? "text-red-600" : ""}`}
-      variant="link"
+      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors group cursor-pointer"
     >
       {loading ? (
         <>
-          <Loader2 className="animate-spin !w-4.5 !h-4.5" />
-          Logging out...
+          <Loader2 className="w-4.5 h-4.5 animate-spin text-red-600" />
+          <span>Logging out...</span>
         </>
       ) : (
         <>
-          <LogOutIcon width={24} height={24} className="!w-4.5 !h-4.5" />
-          Logout
+          <LogOutIcon className="w-4.5 h-4.5 text-slate-500 dark:text-slate-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" />
+          <span>Logout</span>
         </>
       )}
-    </Button>
+    </button>
   );
 };
 

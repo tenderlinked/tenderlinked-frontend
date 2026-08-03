@@ -67,7 +67,7 @@ export default function DashboardPage() {
 
   // IMPORTANT: Do NOT redirect while status is still "loading".
   // The session is fetched asynchronously — redirecting during loading causes a race condition.
-  if (status === "loading") {
+  if (status === "loading" || (status === "authenticated" && (session?.user as any)?.globalRole !== 'SUPER_ADMIN')) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
